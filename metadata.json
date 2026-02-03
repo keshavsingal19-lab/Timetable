@@ -1,0 +1,5 @@
+{
+  "name": "SRCC Empty Room Finder",
+  "description": "A utility to find empty classrooms at Shri Ram College of Commerce based on the 2025-26 timetable.",
+  "requestFramePermissions": []
+}

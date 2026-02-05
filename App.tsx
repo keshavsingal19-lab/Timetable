@@ -185,10 +185,43 @@ function App() {
       </main>
 
        {/* Footer */}
-       <footer className="bg-white border-t border-gray-200 mt-12 py-8">
-        <div className="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm">
-          <p>Data derived from SRCC Time Table 2025-26.</p>
-          <p className="mt-2">Note: Break time is usually 01:30 PM - 02:00 PM.</p>
+      <footer className="bg-white border-t border-gray-200 mt-12 py-8">
+        <div className="max-w-4xl mx-auto px-4 text-center text-gray-500 text-sm space-y-8">
+          
+          {/* Disclaimer & Contact Section */}
+          <div className="bg-red-50/50 p-6 rounded-2xl border border-red-100 space-y-3">
+            <h3 className="font-semibold text-gray-900">Disclaimer & Contact</h3>
+            <p className="leading-relaxed">
+              This website is for easing the process of finding empty rooms. It is made out of curiosity 
+              and to help students. All the data used to make this website is freely publicly available 
+              on the SRCC website. Please note that minor errors may be present and shifts in classes 
+              can happen with changes in timetables.
+            </p>
+            <p className="pt-2 font-medium">
+              If you want to reach out or give any suggestion, feedback, complaint, or anything else, kindly fill this{' '}
+              <a 
+                href="https://forms.gle/zeomA3EvBPz2BGmBA" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-red-700 hover:text-red-900 underline decoration-red-300 underline-offset-2"
+              >
+                Feedback Form
+              </a>
+              {' '}or mail us at{' '}
+              <a 
+                href="mailto:abcddcba121202@gmail.com"
+                className="text-red-700 hover:text-red-900 underline decoration-red-300 underline-offset-2"
+              >
+                abcddcba121202@gmail.com
+              </a>.
+            </p>
+          </div>
+
+          {/* Original Footer Info */}
+          <div>
+            <p>Data derived from SRCC Time Table 2025-26.</p>
+            <p className="mt-1">Note: Break time is usually 01:30 PM - 02:00 PM.</p>
+          </div>
         </div>
       </footer>
     </div>

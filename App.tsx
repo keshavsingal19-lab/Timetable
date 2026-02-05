@@ -216,7 +216,7 @@ function App() {
               </a>.
             </p>
           </div>
-
+          
           {/* Original Footer Info */}
           <div>
             <p>Data derived from SRCC Time Table 2025-26.</p>

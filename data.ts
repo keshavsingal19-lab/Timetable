@@ -1,16 +1,8 @@
 import { RoomData, DayOfWeek } from './types';
 
-// Helper to define slots: 
-// 0: 8:30-9:30
-// 1: 9:30-10:30
-// 2: 10:30-11:30
-// 3: 11:30-12:30
-// 4: 12:30-1:30
-// (Break)
-// 5: 2:00-3:00
-// 6: 3:00-4:00
-// 7: 4:00-5:00
-// 8: 5:00-6:00
+// Helper to understand slots:
+// 0: 08:30-09:30, 1: 09:30-10:30, 2: 10:30-11:30, 3: 11:30-12:30, 4: 12:30-01:30
+// 5: 02:00-03:00, 6: 03:00-04:00, 7: 04:00-05:00, 8: 05:00-06:00
 
 const EXISTING_ROOMS: RoomData[] = [
   {
@@ -23,11 +15,11 @@ const EXISTING_ROOMS: RoomData[] = [
       [DayOfWeek.Wednesday]: [7, 8],
       [DayOfWeek.Thursday]: [],
       [DayOfWeek.Friday]: [7, 8],
-      [DayOfWeek.Saturday]: [4, 5, 6, 7, 8]
+      [DayOfWeek.Saturday]: [0, 3, 4, 5, 6, 7, 8]
     }
   },
   {
-    id: "CL2",
+    id: "CL2", // Sourced from "Cl-1" in your file
     name: "CL2",
     type: "Lab",
     emptySlots: {
@@ -36,7 +28,7 @@ const EXISTING_ROOMS: RoomData[] = [
       [DayOfWeek.Wednesday]: [5, 6, 7, 8],
       [DayOfWeek.Thursday]: [],
       [DayOfWeek.Friday]: [7, 8],
-      [DayOfWeek.Saturday]: [4, 5, 6, 7, 8]
+      [DayOfWeek.Saturday]: [0, 3, 4, 5, 6, 7, 8]
     }
   },
   {
@@ -45,9 +37,9 @@ const EXISTING_ROOMS: RoomData[] = [
     type: "Lab",
     emptySlots: {
       [DayOfWeek.Monday]: [],
-      [DayOfWeek.Tuesday]: [],
-      [DayOfWeek.Wednesday]: [],
-      [DayOfWeek.Thursday]: [],
+      [DayOfWeek.Tuesday]: [6, 7],
+      [DayOfWeek.Wednesday]: [5, 6, 7, 8],
+      [DayOfWeek.Thursday]: [4],
       [DayOfWeek.Friday]: [5, 6, 7, 8],
       [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     }
@@ -57,10 +49,10 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "PB2",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [5, 6, 7, 8],
-      [DayOfWeek.Tuesday]: [5, 6, 7, 8],
-      [DayOfWeek.Wednesday]: [5, 6, 7, 8],
-      [DayOfWeek.Thursday]: [5, 6, 7, 8],
+      [DayOfWeek.Monday]: [1, 5, 6, 7, 8],
+      [DayOfWeek.Tuesday]: [0, 1, 3],
+      [DayOfWeek.Wednesday]: [0, 3, 5, 6, 7, 8],
+      [DayOfWeek.Thursday]: [7, 8],
       [DayOfWeek.Friday]: [5, 6, 7, 8],
       [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     }
@@ -70,11 +62,11 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "PB3",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [],
-      [DayOfWeek.Tuesday]: [],
-      [DayOfWeek.Wednesday]: [],
+      [DayOfWeek.Monday]: [8],
+      [DayOfWeek.Tuesday]: [8],
+      [DayOfWeek.Wednesday]: [8],
       [DayOfWeek.Thursday]: [],
-      [DayOfWeek.Friday]: [7, 8],
+      [DayOfWeek.Friday]: [6, 7, 8],
       [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     }
   },
@@ -83,10 +75,10 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "PB4",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [],
-      [DayOfWeek.Tuesday]: [],
-      [DayOfWeek.Wednesday]: [],
-      [DayOfWeek.Thursday]: [],
+      [DayOfWeek.Monday]: [4],
+      [DayOfWeek.Tuesday]: [8],
+      [DayOfWeek.Wednesday]: [8],
+      [DayOfWeek.Thursday]: [8],
       [DayOfWeek.Friday]: [7, 8],
       [DayOfWeek.Saturday]: [4, 5, 6, 7, 8]
     }
@@ -96,12 +88,12 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R1",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [4, 8],
-      [DayOfWeek.Tuesday]: [4, 8],
-      [DayOfWeek.Wednesday]: [4, 8],
-      [DayOfWeek.Thursday]: [4, 8],
-      [DayOfWeek.Friday]: [4, 7, 8],
-      [DayOfWeek.Saturday]: [4, 5, 6, 7, 8]
+      [DayOfWeek.Monday]: [8],
+      [DayOfWeek.Tuesday]: [8],
+      [DayOfWeek.Wednesday]: [5, 6, 7, 8],
+      [DayOfWeek.Thursday]: [5, 6, 7, 8],
+      [DayOfWeek.Friday]: [5, 6, 7, 8],
+      [DayOfWeek.Saturday]: [3, 4, 5, 6, 7, 8]
     }
   },
   {
@@ -109,12 +101,12 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R2",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [4],
-      [DayOfWeek.Tuesday]: [4],
+      [DayOfWeek.Monday]: [3, 4],
+      [DayOfWeek.Tuesday]: [6, 7, 8],
       [DayOfWeek.Wednesday]: [5, 6, 7, 8],
       [DayOfWeek.Thursday]: [5, 6, 7, 8],
       [DayOfWeek.Friday]: [5, 6, 7, 8],
-      [DayOfWeek.Saturday]: [5, 6, 7, 8]
+      [DayOfWeek.Saturday]: [4, 5, 6, 7, 8]
     }
   },
   {
@@ -122,12 +114,12 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R3",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [7, 8],
-      [DayOfWeek.Tuesday]: [],
-      [DayOfWeek.Wednesday]: [],
+      [DayOfWeek.Monday]: [8],
+      [DayOfWeek.Tuesday]: [8],
+      [DayOfWeek.Wednesday]: [8],
       [DayOfWeek.Thursday]: [7, 8],
-      [DayOfWeek.Friday]: [7, 8],
-      [DayOfWeek.Saturday]: [4, 5, 6, 7, 8]
+      [DayOfWeek.Friday]: [8],
+      [DayOfWeek.Saturday]: [3, 4, 5, 6, 7, 8]
     }
   },
   {
@@ -135,11 +127,11 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R4",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [4],
-      [DayOfWeek.Tuesday]: [7, 8],
-      [DayOfWeek.Wednesday]: [7, 8],
+      [DayOfWeek.Monday]: [0, 1, 2, 3, 4],
+      [DayOfWeek.Tuesday]: [],
+      [DayOfWeek.Wednesday]: [8],
       [DayOfWeek.Thursday]: [7, 8],
-      [DayOfWeek.Friday]: [8],
+      [DayOfWeek.Friday]: [],
       [DayOfWeek.Saturday]: [7, 8]
     }
   },
@@ -150,9 +142,9 @@ const EXISTING_ROOMS: RoomData[] = [
     emptySlots: {
       [DayOfWeek.Monday]: [4, 7, 8],
       [DayOfWeek.Tuesday]: [7, 8],
-      [DayOfWeek.Wednesday]: [8],
+      [DayOfWeek.Wednesday]: [],
       [DayOfWeek.Thursday]: [7, 8],
-      [DayOfWeek.Friday]: [4, 5, 7, 8],
+      [DayOfWeek.Friday]: [5, 6, 7, 8],
       [DayOfWeek.Saturday]: [5, 6, 7, 8]
     }
   },
@@ -161,12 +153,12 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R6",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [7],
-      [DayOfWeek.Tuesday]: [8],
-      [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
-      [DayOfWeek.Friday]: [8],
-      [DayOfWeek.Saturday]: [5, 6, 7, 8]
+      [DayOfWeek.Monday]: [0, 8],
+      [DayOfWeek.Tuesday]: [7, 8],
+      [DayOfWeek.Wednesday]: [6, 7, 8],
+      [DayOfWeek.Thursday]: [],
+      [DayOfWeek.Friday]: [6, 7, 8],
+      [DayOfWeek.Saturday]: [0, 1, 5, 6, 7, 8]
     }
   },
   {
@@ -174,12 +166,12 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R7",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [4, 8],
-      [DayOfWeek.Tuesday]: [4],
-      [DayOfWeek.Wednesday]: [4],
-      [DayOfWeek.Thursday]: [4],
-      [DayOfWeek.Friday]: [4],
-      [DayOfWeek.Saturday]: [5, 6, 7, 8]
+      [DayOfWeek.Monday]: [3, 4],
+      [DayOfWeek.Tuesday]: [8],
+      [DayOfWeek.Wednesday]: [8],
+      [DayOfWeek.Thursday]: [8],
+      [DayOfWeek.Friday]: [5, 6, 7, 8],
+      [DayOfWeek.Saturday]: [0, 5, 6, 7, 8]
     }
   },
   {
@@ -187,11 +179,11 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R8",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [4],
-      [DayOfWeek.Tuesday]: [4, 8],
-      [DayOfWeek.Wednesday]: [4, 8],
-      [DayOfWeek.Thursday]: [4, 8],
-      [DayOfWeek.Friday]: [4, 8],
+      [DayOfWeek.Monday]: [3, 4],
+      [DayOfWeek.Tuesday]: [8],
+      [DayOfWeek.Wednesday]: [5, 6, 7, 8],
+      [DayOfWeek.Thursday]: [5, 6, 7, 8],
+      [DayOfWeek.Friday]: [5, 6, 7, 8],
       [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     }
   },
@@ -200,10 +192,10 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R10",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [4],
-      [DayOfWeek.Tuesday]: [4],
-      [DayOfWeek.Wednesday]: [4],
-      [DayOfWeek.Thursday]: [4],
+      [DayOfWeek.Monday]: [3, 4],
+      [DayOfWeek.Tuesday]: [],
+      [DayOfWeek.Wednesday]: [5, 6, 7, 8],
+      [DayOfWeek.Thursday]: [],
       [DayOfWeek.Friday]: [5, 6, 7, 8],
       [DayOfWeek.Saturday]: [5, 6, 7, 8]
     }
@@ -213,11 +205,11 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R13",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [8],
+      [DayOfWeek.Monday]: [],
       [DayOfWeek.Tuesday]: [8],
       [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
-      [DayOfWeek.Friday]: [8],
+      [DayOfWeek.Thursday]: [],
+      [DayOfWeek.Friday]: [],
       [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     }
   },
@@ -226,11 +218,11 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R14",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [4, 5],
+      [DayOfWeek.Monday]: [0, 3, 4, 5, 6, 7, 8],
       [DayOfWeek.Tuesday]: [8],
       [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
-      [DayOfWeek.Friday]: [5, 6, 7, 8],
+      [DayOfWeek.Thursday]: [],
+      [DayOfWeek.Friday]: [7, 8],
       [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     }
   },
@@ -240,9 +232,9 @@ const EXISTING_ROOMS: RoomData[] = [
     type: "Lecture Hall",
     emptySlots: {
       [DayOfWeek.Monday]: [],
-      [DayOfWeek.Tuesday]: [8],
+      [DayOfWeek.Tuesday]: [],
       [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
+      [DayOfWeek.Thursday]: [],
       [DayOfWeek.Friday]: [5, 6, 7, 8],
       [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     }
@@ -252,11 +244,11 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R16",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [0, 1, 2, 3, 4],
-      [DayOfWeek.Tuesday]: [8],
+      [DayOfWeek.Monday]: [0, 1, 2, 3, 4, 8],
+      [DayOfWeek.Tuesday]: [7, 8],
       [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
-      [DayOfWeek.Friday]: [8],
+      [DayOfWeek.Thursday]: [7, 8],
+      [DayOfWeek.Friday]: [5, 6, 7, 8],
       [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     }
   },
@@ -265,10 +257,10 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R17",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [8],
-      [DayOfWeek.Tuesday]: [8],
-      [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
+      [DayOfWeek.Monday]: [],
+      [DayOfWeek.Tuesday]: [7, 8],
+      [DayOfWeek.Wednesday]: [7, 8],
+      [DayOfWeek.Thursday]: [],
       [DayOfWeek.Friday]: [7, 8],
       [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     }
@@ -278,12 +270,12 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R18",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [4],
-      [DayOfWeek.Tuesday]: [8],
+      [DayOfWeek.Monday]: [3, 4],
+      [DayOfWeek.Tuesday]: [7, 8],
       [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
+      [DayOfWeek.Thursday]: [],
       [DayOfWeek.Friday]: [6, 7, 8],
-      [DayOfWeek.Saturday]: [4, 5, 6, 7, 8]
+      [DayOfWeek.Saturday]: [5, 6, 7, 8]
     }
   },
   {
@@ -291,10 +283,10 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R19",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [8],
+      [DayOfWeek.Monday]: [],
       [DayOfWeek.Tuesday]: [8],
-      [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
+      [DayOfWeek.Wednesday]: [7, 8],
+      [DayOfWeek.Thursday]: [],
       [DayOfWeek.Friday]: [5, 6, 7, 8],
       [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     }
@@ -304,9 +296,9 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R20",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [0, 1, 2, 3, 4],
-      [DayOfWeek.Tuesday]: [8],
-      [DayOfWeek.Wednesday]: [8],
+      [DayOfWeek.Monday]: [0, 1, 2, 3, 4, 8],
+      [DayOfWeek.Tuesday]: [],
+      [DayOfWeek.Wednesday]: [5, 6, 7, 8],
       [DayOfWeek.Thursday]: [8],
       [DayOfWeek.Friday]: [6, 7, 8],
       [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
@@ -317,11 +309,11 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R21",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [8],
-      [DayOfWeek.Tuesday]: [8],
+      [DayOfWeek.Monday]: [3, 4, 8],
+      [DayOfWeek.Tuesday]: [],
       [DayOfWeek.Wednesday]: [8],
       [DayOfWeek.Thursday]: [8],
-      [DayOfWeek.Friday]: [8],
+      [DayOfWeek.Friday]: [7, 8],
       [DayOfWeek.Saturday]: [3, 4, 5, 6, 7, 8]
     }
   },
@@ -330,12 +322,12 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R22",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [8],
-      [DayOfWeek.Tuesday]: [8],
-      [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
+      [DayOfWeek.Monday]: [3, 4],
+      [DayOfWeek.Tuesday]: [4],
+      [DayOfWeek.Wednesday]: [7, 8],
+      [DayOfWeek.Thursday]: [6, 7, 8],
       [DayOfWeek.Friday]: [6, 7, 8],
-      [DayOfWeek.Saturday]: [4, 5, 6, 7, 8]
+      [DayOfWeek.Saturday]: [5, 6, 7, 8]
     }
   },
   {
@@ -343,12 +335,12 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R23",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [8],
-      [DayOfWeek.Tuesday]: [8],
-      [DayOfWeek.Wednesday]: [8],
+      [DayOfWeek.Monday]: [4],
+      [DayOfWeek.Tuesday]: [],
+      [DayOfWeek.Wednesday]: [5, 8],
       [DayOfWeek.Thursday]: [8],
       [DayOfWeek.Friday]: [8],
-      [DayOfWeek.Saturday]: [4, 5, 6, 7, 8]
+      [DayOfWeek.Saturday]: [5, 6, 7, 8]
     }
   },
   {
@@ -356,12 +348,12 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R24",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [4, 7, 8],
-      [DayOfWeek.Tuesday]: [7, 8],
-      [DayOfWeek.Wednesday]: [7, 8],
+      [DayOfWeek.Monday]: [7, 8],
+      [DayOfWeek.Tuesday]: [],
+      [DayOfWeek.Wednesday]: [5, 6, 7, 8],
       [DayOfWeek.Thursday]: [7, 8],
       [DayOfWeek.Friday]: [6, 7, 8],
-      [DayOfWeek.Saturday]: [4, 5, 6, 7, 8]
+      [DayOfWeek.Saturday]: [5, 6, 7, 8]
     }
   },
   {
@@ -369,12 +361,12 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R25",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [7, 8],
-      [DayOfWeek.Tuesday]: [8],
+      [DayOfWeek.Monday]: [0, 4, 7, 8],
+      [DayOfWeek.Tuesday]: [],
       [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
-      [DayOfWeek.Friday]: [8],
-      [DayOfWeek.Saturday]: [8]
+      [DayOfWeek.Thursday]: [6, 7, 8],
+      [DayOfWeek.Friday]: [5, 6, 7, 8],
+      [DayOfWeek.Saturday]: [4, 5, 6, 7, 8]
     }
   },
   {
@@ -385,7 +377,7 @@ const EXISTING_ROOMS: RoomData[] = [
       [DayOfWeek.Monday]: [5, 6, 7, 8],
       [DayOfWeek.Tuesday]: [5, 6, 7, 8],
       [DayOfWeek.Wednesday]: [5, 6, 7, 8],
-      [DayOfWeek.Thursday]: [5, 6, 7, 8],
+      [DayOfWeek.Thursday]: [4, 5, 6, 7, 8],
       [DayOfWeek.Friday]: [5, 6, 7, 8],
       [DayOfWeek.Saturday]: [4, 5, 6, 7, 8]
     }
@@ -395,11 +387,11 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R27",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [4],
-      [DayOfWeek.Tuesday]: [8],
-      [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
-      [DayOfWeek.Friday]: [8],
+      [DayOfWeek.Monday]: [5, 6, 7, 8],
+      [DayOfWeek.Tuesday]: [5, 6, 7, 8],
+      [DayOfWeek.Wednesday]: [5, 6, 7, 8],
+      [DayOfWeek.Thursday]: [4, 5, 6, 7, 8],
+      [DayOfWeek.Friday]: [5, 6, 7, 8],
       [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     }
   },
@@ -408,11 +400,11 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R28",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [8],
-      [DayOfWeek.Tuesday]: [8],
-      [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
-      [DayOfWeek.Friday]: [8],
+      [DayOfWeek.Monday]: [5, 6, 7, 8],
+      [DayOfWeek.Tuesday]: [5, 6, 7, 8],
+      [DayOfWeek.Wednesday]: [5, 6, 7, 8],
+      [DayOfWeek.Thursday]: [5, 6, 7, 8],
+      [DayOfWeek.Friday]: [5, 6, 7, 8],
       [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     }
   },
@@ -421,11 +413,11 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R29",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [8],
-      [DayOfWeek.Tuesday]: [8],
-      [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
-      [DayOfWeek.Friday]: [5, 6, 7, 8],
+      [DayOfWeek.Monday]: [0],
+      [DayOfWeek.Tuesday]: [],
+      [DayOfWeek.Wednesday]: [7, 8],
+      [DayOfWeek.Thursday]: [],
+      [DayOfWeek.Friday]: [4, 7, 8],
       [DayOfWeek.Saturday]: [3, 4, 5, 6, 7, 8]
     }
   },
@@ -434,12 +426,12 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R30",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [8],
-      [DayOfWeek.Tuesday]: [8],
-      [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
+      [DayOfWeek.Monday]: [],
+      [DayOfWeek.Tuesday]: [],
+      [DayOfWeek.Wednesday]: [5, 6, 7, 8],
+      [DayOfWeek.Thursday]: [],
       [DayOfWeek.Friday]: [5, 6, 7, 8],
-      [DayOfWeek.Saturday]: [3, 4, 5, 6, 7, 8]
+      [DayOfWeek.Saturday]: [0, 2, 3, 4, 5, 6, 7, 8]
     }
   },
   {
@@ -447,12 +439,12 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R31",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [8],
-      [DayOfWeek.Tuesday]: [8],
-      [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
-      [DayOfWeek.Friday]: [5, 6, 7, 8],
-      [DayOfWeek.Saturday]: [3, 4, 5, 6, 7, 8]
+      [DayOfWeek.Monday]: [2, 3],
+      [DayOfWeek.Tuesday]: [6, 7, 8],
+      [DayOfWeek.Wednesday]: [5, 6, 7, 8],
+      [DayOfWeek.Thursday]: [],
+      [DayOfWeek.Friday]: [0, 4, 5, 6, 7, 8],
+      [DayOfWeek.Saturday]: [0, 3, 4, 5, 6, 7, 8]
     }
   },
   {
@@ -460,12 +452,12 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R32",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [8],
-      [DayOfWeek.Tuesday]: [8],
-      [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
-      [DayOfWeek.Friday]: [8],
-      [DayOfWeek.Saturday]: [4, 5, 6, 7, 8]
+      [DayOfWeek.Monday]: [3, 4, 5, 6, 7, 8],
+      [DayOfWeek.Tuesday]: [4, 6, 7, 8],
+      [DayOfWeek.Wednesday]: [5, 6, 7, 8],
+      [DayOfWeek.Thursday]: [6, 7, 8],
+      [DayOfWeek.Friday]: [5, 6, 7, 8],
+      [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     }
   },
   {
@@ -473,11 +465,11 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R33",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [8],
+      [DayOfWeek.Monday]: [5, 6, 7, 8],
       [DayOfWeek.Tuesday]: [8],
-      [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
-      [DayOfWeek.Friday]: [8],
+      [DayOfWeek.Wednesday]: [5, 6, 7, 8],
+      [DayOfWeek.Thursday]: [4, 6, 7, 8],
+      [DayOfWeek.Friday]: [5, 6, 7, 8],
       [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     }
   },
@@ -486,10 +478,10 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R34",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [4],
+      [DayOfWeek.Monday]: [5, 6, 7, 8],
       [DayOfWeek.Tuesday]: [8],
       [DayOfWeek.Wednesday]: [5, 6, 7, 8],
-      [DayOfWeek.Thursday]: [5, 6, 7, 8],
+      [DayOfWeek.Thursday]: [7, 8],
       [DayOfWeek.Friday]: [5, 6, 7, 8],
       [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     }
@@ -499,12 +491,12 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R35",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [8],
+      [DayOfWeek.Monday]: [0, 5, 6, 7, 8],
       [DayOfWeek.Tuesday]: [8],
       [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
-      [DayOfWeek.Friday]: [7, 8],
-      [DayOfWeek.Saturday]: [3, 4, 5, 6, 7, 8]
+      [DayOfWeek.Thursday]: [7, 8],
+      [DayOfWeek.Friday]: [8],
+      [DayOfWeek.Saturday]: [0, 4, 5, 6, 7, 8]
     }
   },
   {
@@ -512,12 +504,12 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "R37",
     type: "Lecture Hall",
     emptySlots: {
-      [DayOfWeek.Monday]: [8],
+      [DayOfWeek.Monday]: [5, 6, 7, 8],
       [DayOfWeek.Tuesday]: [7, 8],
       [DayOfWeek.Wednesday]: [7, 8],
       [DayOfWeek.Thursday]: [7, 8],
       [DayOfWeek.Friday]: [7, 8],
-      [DayOfWeek.Saturday]: [3, 4, 5, 6, 7, 8]
+      [DayOfWeek.Saturday]: [4, 5, 6, 7, 8]
     }
   },
   {
@@ -525,11 +517,11 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "SCR1",
     type: "Seminar Room",
     emptySlots: {
-      [DayOfWeek.Monday]: [7, 8],
+      [DayOfWeek.Monday]: [3, 7, 8],
       [DayOfWeek.Tuesday]: [8],
-      [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
-      [DayOfWeek.Friday]: [8],
+      [DayOfWeek.Wednesday]: [6, 7, 8],
+      [DayOfWeek.Thursday]: [7, 8],
+      [DayOfWeek.Friday]: [6, 7, 8],
       [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     }
   },
@@ -538,11 +530,11 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "SCR2",
     type: "Seminar Room",
     emptySlots: {
-      [DayOfWeek.Monday]: [6, 7, 8],
+      [DayOfWeek.Monday]: [0, 1, 3, 4, 5, 6, 7, 8],
       [DayOfWeek.Tuesday]: [7, 8],
-      [DayOfWeek.Wednesday]: [7, 8],
-      [DayOfWeek.Thursday]: [7, 8],
-      [DayOfWeek.Friday]: [7, 8],
+      [DayOfWeek.Wednesday]: [6, 7, 8],
+      [DayOfWeek.Thursday]: [0, 1, 7, 8],
+      [DayOfWeek.Friday]: [1, 2, 6, 7, 8],
       [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     }
   },
@@ -551,11 +543,11 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "SCR3",
     type: "Seminar Room",
     emptySlots: {
-      [DayOfWeek.Monday]: [0, 1, 2, 3, 4],
-      [DayOfWeek.Tuesday]: [8],
-      [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
-      [DayOfWeek.Friday]: [5, 6, 7, 8],
+      [DayOfWeek.Monday]: [0, 1, 2, 3, 4, 5, 8],
+      [DayOfWeek.Tuesday]: [7, 8],
+      [DayOfWeek.Wednesday]: [6, 7, 8],
+      [DayOfWeek.Thursday]: [1],
+      [DayOfWeek.Friday]: [1, 2, 5, 6, 7, 8],
       [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     }
   },
@@ -564,11 +556,11 @@ const EXISTING_ROOMS: RoomData[] = [
     name: "SCR4",
     type: "Seminar Room",
     emptySlots: {
-      [DayOfWeek.Monday]: [7, 8],
-      [DayOfWeek.Tuesday]: [8],
-      [DayOfWeek.Wednesday]: [8],
-      [DayOfWeek.Thursday]: [8],
-      [DayOfWeek.Friday]: [8],
+      [DayOfWeek.Monday]: [0, 1, 2, 3, 4, 7, 8],
+      [DayOfWeek.Tuesday]: [],
+      [DayOfWeek.Wednesday]: [7, 8],
+      [DayOfWeek.Thursday]: [1, 3],
+      [DayOfWeek.Friday]: [0, 7, 8],
       [DayOfWeek.Saturday]: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     }
   }
@@ -1162,4 +1154,5 @@ const TUTORIAL_ROOMS: RoomData[] = [
   }
 ];
 
-export const ROOMS: RoomData[] = [...EXISTING_ROOMS, ...TUTORIAL_ROOMS];
+// Combine with your existing TUTORIAL_ROOMS
+export const ROOMS = [...EXISTING_ROOMS, ...TUTORIAL_ROOMS];

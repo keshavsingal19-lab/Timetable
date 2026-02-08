@@ -3,11 +3,45 @@ import {
   Calendar, Clock, MapPin, Search, Filter, Lock, CheckCircle, 
   XCircle, LogOut, AlertTriangle, AlertCircle, UserMinus, 
   CalendarDays, Download, Share, Users, GraduationCap, 
-  ArrowRight, MessageCircle 
+  ArrowRight, MessageCircle, BookOpen, Star, Timer, Megaphone, Mail
 } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
 import { TEACHER_SCHEDULES } from './teacherData';
+
+// --- SOCIETY EVENTS DATA (EDIT THIS TO UPDATE EVENTS) ---
+const SOCIETY_EVENTS = [
+  {
+    id: 1,
+    society: "The Debating Society",
+    event: "Freshers' Auditions",
+    date: "Feb 20, 2026",
+    time: "10:30 AM Onwards",
+    location: "Seminar Room",
+    type: "Recruitment",
+    description: "Join the legacy. Open to all courses. No prior experience required."
+  },
+  {
+    id: 2,
+    society: "Dramatics Society",
+    event: "Street Play Practice",
+    date: "Feb 21, 2026",
+    time: "2:00 PM - 5:00 PM",
+    location: "Sports Complex",
+    type: "Cultural",
+    description: "Open workshop for anyone interested in nukkad natak."
+  },
+  {
+    id: 3,
+    society: "Commerce Society",
+    event: "BizQuiz 2026",
+    date: "Feb 24, 2026",
+    time: "11:30 AM",
+    location: "Room 14",
+    type: "Competition",
+    description: "Test your business acumen. Cash prizes worth ₹5000."
+  }
+];
 
 const getDayName = (day: DayOfWeek): string => day;
 
@@ -15,7 +49,8 @@ function App() {
   // --- STATE VARIABLES ---
   
   // 1. Navigation & Global
-  const [activeTab, setActiveTab] = useState<'rooms' | 'teachers'>('rooms'); 
+  // Added 'societies' to the allowed tabs
+  const [activeTab, setActiveTab] = useState<'rooms' | 'teachers' | 'classes' | 'societies'>('rooms'); 
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(DayOfWeek.Monday);
   const [selectedTimeIndex, setSelectedTimeIndex] = useState<number>(0);
   
@@ -24,8 +59,8 @@ function App() {
   const [filterType, setFilterType] = useState<string>('All');
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
 
-  // 3. Teacher Finder
-  const [teacherSearchQuery, setTeacherSearchQuery] = useState('');
+  // 3. Teacher/Class Finder
+  const [finderSearchQuery, setFinderSearchQuery] = useState('');
 
   // 4. Admin & Security
   const [isAdminOpen, setIsAdminOpen] = useState(false);
@@ -50,11 +85,9 @@ function App() {
 
   // --- 1. INITIAL CHECKS (Run on Load) ---
   useEffect(() => {
-    // Set default day
     if (Object.values(DayOfWeek).includes(currentDayName as DayOfWeek)) {
       setSelectedDay(currentDayName as DayOfWeek);
       
-      // Auto-select current time slot
       const currentHour = todayDateObj.getHours();
       const currentMinutes = todayDateObj.getMinutes();
       let estimatedSlot = currentHour - 8; 
@@ -64,7 +97,6 @@ function App() {
       }
     }
     
-    // Check Block Status
     fetch('/api/check_status')
       .then(res => res.json())
       .then(data => {
@@ -75,7 +107,6 @@ function App() {
       })
       .catch(err => console.error("Block check failed", err));
 
-    // Fetch Attendance
     fetch('/api/attendance')
       .then(res => res.json())
       .then(ids => {
@@ -98,9 +129,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: adminPass })
       });
-
       const data = await response.json();
-
       if (response.ok) {
         setIsLoggedIn(true);
         setLoginError('');
@@ -137,7 +166,20 @@ function App() {
     }
   };
 
-  // --- 3. LOGIC: ROOM FINDER ---
+  // --- 3. LOGIC: ROOM FINDER (SMART SORT & DURATION) ---
+
+  const calculateFreeDuration = (room: any, startSlotIndex: number, daySchedule: any[]) => {
+    let freeSlots = 0;
+    for (let i = startSlotIndex; i < TIME_SLOTS.length; i++) {
+       const isStaticallyFree = room.emptySlots[selectedDay]?.includes(i);
+       if (isStaticallyFree) {
+         freeSlots++;
+       } else {
+         break;
+       }
+    }
+    return freeSlots;
+  };
 
   const freedRooms = useMemo(() => {
     if (selectedDay !== currentDayName) return []; 
@@ -173,18 +215,25 @@ function App() {
       if (!allRooms.find(r => r.id === freed.id)) allRooms.push(freed);
     });
 
-    return allRooms.filter(room => {
+    const filtered = allRooms.filter(room => {
       const matchesSearch = room.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesType = filterType === 'All' || room.type === filterType;
       return matchesSearch && matchesType;
     });
+
+    return filtered.sort((a, b) => {
+       const durA = calculateFreeDuration(a, selectedTimeIndex, []);
+       const durB = calculateFreeDuration(b, selectedTimeIndex, []);
+       return durB - durA;
+    });
+
   }, [selectedDay, selectedTimeIndex, searchQuery, filterType, freedRooms]);
 
   const roomStats = useMemo(() => {
     return { available: availableRooms.length, total: ROOMS.length };
   }, [availableRooms]);
 
-  // --- 4. LOGIC: ROOM TIMELINE ---
+  // --- 4. LOGIC: TIMELINE & FINDER ---
   
   const getRoomTimeline = (roomId: string) => {
     const timeline = new Array(TIME_SLOTS.length).fill(null);
@@ -211,7 +260,6 @@ function App() {
          });
        }
     });
-
     return timeline; 
   };
 
@@ -220,10 +268,9 @@ function App() {
     return getRoomTimeline(selectedRoomId);
   }, [selectedRoomId, selectedDay, absentTeachers]);
 
+  // --- 5. LOGIC: TEACHER & CLASS FINDER (Unified) ---
 
-  // --- 5. LOGIC: TEACHER FINDER ---
-
-  const getTeacherStatus = (teacher: any) => {
+  const getEntityStatus = (teacher: any) => {
     if (absentTeachers.includes(teacher.id) && selectedDay === currentDayName) {
       return { status: 'On Leave', color: 'red', icon: UserMinus, detail: 'Marked Absent' };
     }
@@ -236,18 +283,43 @@ function App() {
         status: `In ${currentClass.room}`, 
         color: 'blue', 
         icon: MapPin, 
-        detail: `${currentClass.startTime} - ${currentClass.endTime}` 
+        detail: currentClass.subject || 'Class' 
       };
     }
     return { status: 'Free', color: 'green', icon: CheckCircle, detail: 'Staff Room / Free' };
   };
 
-  const visibleTeachers = useMemo(() => {
-    return Object.values(TEACHER_SCHEDULES)
+  const visibleEntities = useMemo(() => {
+    const query = finderSearchQuery.toLowerCase();
+    
+    const teachers = Object.values(TEACHER_SCHEDULES)
       .filter(t => t.id !== 'ADMIN')
-      .filter(t => t.name.toLowerCase().includes(teacherSearchQuery.toLowerCase()))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [teacherSearchQuery]);
+      .filter(t => t.name.toLowerCase().includes(query))
+      .map(t => ({ ...t, type: 'teacher' }));
+
+    const classes: any[] = [];
+    if (activeTab === 'classes') {
+       Object.values(TEACHER_SCHEDULES).forEach((t: any) => {
+          if (t.id === 'ADMIN') return;
+          const daySchedule = t.schedule[selectedDay];
+          if (daySchedule) {
+             const currentClass = daySchedule.find((c: any) => c.periods.includes(selectedTimeIndex));
+             if (currentClass && currentClass.subject && currentClass.subject.toLowerCase().includes(query)) {
+                classes.push({
+                   id: t.id + '_class',
+                   name: currentClass.subject,
+                   department: `Taught by ${t.name}`,
+                   schedule: t.schedule,
+                   type: 'class'
+                });
+             }
+          }
+       });
+       return classes.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    return teachers.sort((a, b) => a.name.localeCompare(b.name));
+  }, [finderSearchQuery, activeTab, selectedDay, selectedTimeIndex]);
 
 
   // --- 6. RENDER ---
@@ -296,6 +368,18 @@ function App() {
                  >
                    <Users className="w-4 h-4" /> Teachers
                  </button>
+                 <button 
+                   onClick={() => setActiveTab('classes')}
+                   className={`px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all duration-200 ${activeTab === 'classes' ? 'bg-white text-red-900 shadow-sm transform scale-105' : 'text-red-200 hover:bg-white/10'}`}
+                 >
+                   <BookOpen className="w-4 h-4" /> Class
+                 </button>
+                 <button 
+                   onClick={() => setActiveTab('societies')}
+                   className={`px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all duration-200 ${activeTab === 'societies' ? 'bg-white text-red-900 shadow-sm transform scale-105' : 'text-red-200 hover:bg-white/10'}`}
+                 >
+                   <Megaphone className="w-4 h-4" /> Society
+                 </button>
                </div>
 
                <button onClick={() => setIsInstallModalOpen(true)} className="bg-white/10 text-white p-2.5 rounded-xl hover:bg-white/20 transition-all active:scale-95"><Download className="w-5 h-5" /></button>
@@ -307,44 +391,31 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
-        {/* TIME CONTROLS */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-6">
-           <div className="flex items-center gap-2 mb-4 text-gray-500 text-xs font-bold uppercase tracking-widest">
-              <Clock className="w-4 h-4 text-red-600" /> Global Time Settings
-           </div>
-           <div className="grid grid-cols-2 gap-4">
-              <div>
-                <select value={selectedDay} onChange={(e) => setSelectedDay(e.target.value as DayOfWeek)} className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm font-semibold rounded-xl p-3 focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all">
-                  {Object.values(DayOfWeek).map(day => <option key={day} value={day}>{day}</option>)}
-                </select>
-              </div>
-              <div>
-                <select value={selectedTimeIndex} onChange={(e) => setSelectedTimeIndex(Number(e.target.value))} className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm font-semibold rounded-xl p-3 focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all">
-                  {TIME_SLOTS.map((slot, index) => <option key={index} value={index}>{slot}</option>)}
-                </select>
-              </div>
-           </div>
-        </div>
+        {/* TIME CONTROLS (Only for Rooms/Teachers/Classes) */}
+        {activeTab !== 'societies' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-6">
+             <div className="flex items-center gap-2 mb-4 text-gray-500 text-xs font-bold uppercase tracking-widest">
+                <Clock className="w-4 h-4 text-red-600" /> Global Time Settings
+             </div>
+             <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <select value={selectedDay} onChange={(e) => setSelectedDay(e.target.value as DayOfWeek)} className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm font-semibold rounded-xl p-3 focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all">
+                    {Object.values(DayOfWeek).map(day => <option key={day} value={day}>{day}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <select value={selectedTimeIndex} onChange={(e) => setSelectedTimeIndex(Number(e.target.value))} className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm font-semibold rounded-xl p-3 focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all">
+                    {TIME_SLOTS.map((slot, index) => <option key={index} value={index}>{slot}</option>)}
+                  </select>
+                </div>
+             </div>
+          </div>
+        )}
 
         {/* --- ROOM FINDER TAB --- */}
         {activeTab === 'rooms' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
              
-             {/* Teachers on Leave Alert */}
-             {absentTeachers.length > 0 && selectedDay === currentDayName && (
-                <div className="bg-red-50 rounded-xl border border-red-100 p-4 mb-6 flex items-start gap-3">
-                   <UserMinus className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
-                   <div>
-                      <h3 className="text-sm font-bold text-red-900">
-                        {absentTeachers.length} Teachers on Leave Today
-                      </h3>
-                      <p className="text-xs text-red-700 mt-1 leading-relaxed">
-                        Rooms for these teachers have been marked as <b>Freed Up</b> automatically.
-                      </p>
-                   </div>
-                </div>
-             )}
-
              {/* Stats & Filters */}
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl text-white p-5 shadow-lg flex items-center justify-between relative overflow-hidden group">
@@ -377,70 +448,79 @@ function App() {
              
              {/* Rooms Grid */}
              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {availableRooms.map((room) => (
-                  <button 
-                    key={room.id}
-                    onClick={() => setSelectedRoomId(room.id)}
-                    className={`relative bg-white rounded-xl border p-5 flex flex-col items-center justify-center text-center transition-all hover:shadow-lg hover:-translate-y-1 active:scale-95 group
-                      ${(room as any).tags ? 'border-green-400 ring-2 ring-green-50' : 'border-gray-200 hover:border-red-200'}
-                    `}
-                  >
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 text-xl font-bold shadow-sm transition-colors
-                       ${(room as any).tags ? 'bg-green-100 text-green-700' : 'bg-gray-50 text-gray-600 group-hover:bg-red-50 group-hover:text-red-600'}
-                    `}>
-                      {room.name.replace(/[^0-9]/g, '') || room.name.charAt(0)}
-                    </div>
-                    <h3 className="font-bold text-gray-900 text-lg">{room.name}</h3>
-                    
-                    {(room as any).tags ? (
-                       <span className="text-[10px] uppercase tracking-wider px-2 py-1 rounded-full mt-2 font-bold bg-green-100 text-green-700">
-                         FREED UP
-                       </span>
-                    ) : (
-                      <span className="text-[10px] uppercase tracking-wider px-2 py-1 rounded-full mt-2 font-bold bg-gray-100 text-gray-500">
-                        {room.type}
-                      </span>
-                    )}
+                {availableRooms.map((room) => {
+                  const duration = calculateFreeDuration(room, selectedTimeIndex, []);
+                  const isLongDuration = duration >= 3; 
 
-                    <span className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <ArrowRight className="w-4 h-4 text-gray-300" />
-                    </span>
-                  </button>
-                ))}
+                  return (
+                    <button 
+                      key={room.id}
+                      onClick={() => setSelectedRoomId(room.id)}
+                      className={`relative bg-white rounded-xl border p-5 flex flex-col items-center justify-center text-center transition-all hover:shadow-lg hover:-translate-y-1 active:scale-95 group
+                        ${(room as any).tags ? 'border-green-400 ring-2 ring-green-50' : 'border-gray-200 hover:border-red-200'}
+                      `}
+                    >
+                      {/* BEST PICK BADGE */}
+                      {isLongDuration && !(room as any).tags && (
+                         <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-400 text-yellow-900 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1">
+                            <Star className="w-2.5 h-2.5 fill-current" /> Best Pick
+                         </div>
+                      )}
+
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 text-xl font-bold shadow-sm transition-colors
+                        ${(room as any).tags ? 'bg-green-100 text-green-700' : 'bg-gray-50 text-gray-600 group-hover:bg-red-50 group-hover:text-red-600'}
+                      `}>
+                        {room.name.replace(/[^0-9]/g, '') || room.name.charAt(0)}
+                      </div>
+                      <h3 className="font-bold text-gray-900 text-lg">{room.name}</h3>
+                      
+                      {(room as any).tags ? (
+                        <span className="text-[10px] uppercase tracking-wider px-2 py-1 rounded-full mt-2 font-bold bg-green-100 text-green-700">
+                          FREED UP
+                        </span>
+                      ) : (
+                        <div className="flex items-center gap-1 mt-2 bg-gray-100 px-2 py-1 rounded-full">
+                          <Timer className="w-3 h-3 text-gray-500" />
+                          <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wide">
+                            {duration > 5 ? 'All Day' : `${duration} Hours`}
+                          </span>
+                        </div>
+                      )}
+
+                      <span className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <ArrowRight className="w-4 h-4 text-gray-300" />
+                      </span>
+                    </button>
+                  );
+                })}
              </div>
-             {availableRooms.length === 0 && (
-                <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center text-gray-500">
-                   <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"><Search className="w-6 h-6 text-gray-400" /></div>
-                   <p>No rooms available. Try a different time slot.</p>
-                </div>
-             )}
           </div>
         )}
 
-        {/* --- TEACHER FINDER TAB --- */}
-        {activeTab === 'teachers' && (
+        {/* --- TEACHER & CLASS FINDER TABS --- */}
+        {(activeTab === 'teachers' || activeTab === 'classes') && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 mb-6 sticky top-24 z-30">
                <div className="relative">
                  <Search className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
                  <input 
                    type="text" 
-                   placeholder="Search teacher by name..." 
-                   value={teacherSearchQuery}
-                   onChange={(e) => setTeacherSearchQuery(e.target.value)}
+                   placeholder={activeTab === 'teachers' ? "Search teacher..." : "Search class/subject (e.g. 'Tax')..."}
+                   value={finderSearchQuery}
+                   onChange={(e) => setFinderSearchQuery(e.target.value)}
                    className="w-full text-lg pl-12 pr-4 py-3 bg-gray-50 rounded-xl outline-none border border-transparent focus:bg-white focus:border-red-300 transition-all placeholder:text-gray-400"
                  />
                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-               {visibleTeachers.map((teacher: any) => {
-                 const statusInfo = getTeacherStatus(teacher);
+               {visibleEntities.map((entity: any) => {
+                 const statusInfo = getEntityStatus(entity);
                  return (
-                   <div key={teacher.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-all group">
+                   <div key={entity.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-all group">
                       <div className="flex justify-between items-start mb-3">
                          <div className="bg-gray-100 p-2.5 rounded-xl text-gray-500 group-hover:bg-red-50 group-hover:text-red-600 transition-colors">
-                           <GraduationCap className="w-6 h-6" />
+                           {entity.type === 'class' ? <BookOpen className="w-6 h-6" /> : <GraduationCap className="w-6 h-6" />}
                          </div>
                          <div className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5
                             ${statusInfo.color === 'red' ? 'bg-red-50 text-red-700' : 
@@ -449,8 +529,8 @@ function App() {
                              <statusInfo.icon className="w-3 h-3" /> {statusInfo.status}
                          </div>
                       </div>
-                      <h3 className="font-bold text-gray-900 text-lg leading-tight">{teacher.name}</h3>
-                      <p className="text-xs text-gray-500 font-bold uppercase tracking-wide mt-1">{teacher.department}</p>
+                      <h3 className="font-bold text-gray-900 text-lg leading-tight">{entity.name}</h3>
+                      <p className="text-xs text-gray-500 font-bold uppercase tracking-wide mt-1">{entity.department}</p>
                       <div className="mt-4 pt-4 border-t border-gray-100">
                         <p className="text-sm text-gray-600 flex items-center gap-2">
                           <Clock className="w-3.5 h-3.5 text-gray-400" /> {statusInfo.detail}
@@ -460,12 +540,66 @@ function App() {
                  );
                })}
             </div>
-            {visibleTeachers.length === 0 && <div className="text-center py-12 text-gray-500">No teachers found.</div>}
+            {visibleEntities.length === 0 && <div className="text-center py-12 text-gray-500">No matching results found.</div>}
           </div>
         )}
+
+        {/* --- SOCIETY ANNOUNCEMENTS TAB (NEW) --- */}
+        {activeTab === 'societies' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+             
+             {/* LIST EVENT CTA */}
+             <div className="bg-gradient-to-r from-red-600 to-red-800 rounded-2xl text-white p-6 shadow-lg mb-8 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div>
+                   <h2 className="text-2xl font-bold flex items-center gap-2"><Megaphone className="w-6 h-6 text-yellow-300" /> Upcoming Society Events</h2>
+                   <p className="text-red-100 mt-2">Discover what's happening around campus this week.</p>
+                </div>
+                <a 
+                   href="mailto:abcddcba121202@gmail.com?subject=List%20Society%20Event&body=Hi,%20I%20would%20like%20to%20list%20an%20event.%0A%0ASociety%20Name:%20%0AEvent%20Name:%20%0ADate:%20%0ATime:%20%0AVenue:%20%0ADescription:%20"
+                   className="bg-white text-red-900 px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md hover:bg-gray-100 transition-all active:scale-95"
+                >
+                   <Mail className="w-5 h-5" /> List Your Event
+                </a>
+             </div>
+
+             {/* EVENTS GRID */}
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+               {SOCIETY_EVENTS.map(event => (
+                 <div key={event.id} className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-xl transition-all group relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-150"></div>
+                    
+                    <div className="relative z-10">
+                       <span className="inline-block bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md mb-3">
+                         {event.type}
+                       </span>
+                       <h3 className="text-xl font-bold text-gray-900 leading-tight mb-1">{event.event}</h3>
+                       <p className="text-sm font-semibold text-gray-500 mb-4">{event.society}</p>
+                       
+                       <div className="space-y-2 text-sm text-gray-600">
+                          <div className="flex items-center gap-2">
+                             <CalendarDays className="w-4 h-4 text-red-500" /> {event.date}
+                          </div>
+                          <div className="flex items-center gap-2">
+                             <Clock className="w-4 h-4 text-red-500" /> {event.time}
+                          </div>
+                          <div className="flex items-center gap-2">
+                             <MapPin className="w-4 h-4 text-red-500" /> {event.location}
+                          </div>
+                       </div>
+                       
+                       <div className="mt-4 pt-4 border-t border-gray-100">
+                          <p className="text-sm text-gray-600 leading-relaxed italic">"{event.description}"</p>
+                       </div>
+                    </div>
+                 </div>
+               ))}
+             </div>
+          </div>
+        )}
+
       </main>
 
-      {/* FOOTER (RESTORED TO DETAILED VERSION) */}
+      {/* FOOTER */}
       <footer className="bg-white border-t border-gray-200 mt-12 py-8">
         <div className="max-w-4xl mx-auto px-4 text-center text-gray-500 text-sm space-y-8">
           
@@ -548,13 +682,11 @@ function App() {
                              : 'bg-green-50 border-green-200'}
                           ${isCurrentSlot ? 'ring-2 ring-offset-2 ring-red-500 shadow-lg scale-[1.02] z-10 opacity-100' : ''}
                        `}>
-                          {/* Time Column */}
                           <div className="w-16 shrink-0 flex flex-col justify-center items-center border-r border-gray-100 pr-3">
                              <span className="text-sm font-bold text-gray-900">{timeLabel.split(' ')[0]}</span>
                              <span className="text-[10px] text-gray-400 uppercase">{timeLabel.split(' ')[1]}</span>
                           </div>
 
-                          {/* Content */}
                           <div className="flex-1 flex flex-col justify-center">
                              {slot ? (
                                <>
@@ -584,7 +716,7 @@ function App() {
         </div>
       )}
 
-      {/* INSTALL MODAL (RESTORED TO DETAILED VERSION) */}
+      {/* INSTALL MODAL */}
       {isInstallModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
@@ -596,7 +728,6 @@ function App() {
             </div>
             
             <div className="p-6 space-y-6 overflow-y-auto text-gray-700">
-               {/* Android */}
                <div>
                  <h3 className="font-bold text-lg text-gray-900 mb-2 flex items-center gap-2">
                    📱 Android (Chrome)
@@ -610,8 +741,6 @@ function App() {
                    <li>The website will now appear on your home screen.</li>
                  </ol>
                </div>
-
-               {/* iOS */}
                <div>
                  <h3 className="font-bold text-lg text-gray-900 mb-2 flex items-center gap-2">
                    <Share className="w-5 h-5 text-blue-600" /> iPhone / iPad (Safari)

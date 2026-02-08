@@ -34,25 +34,23 @@ function App() {
       });
   }, []);
 
-  // 2. Admin Logic
-  const handleAdminLogin = () => {
-    // SECURITY NOTE: Replace 'SRCC2025' with your desired secure password
-    if (adminPass === 'SRCC2025') setIsLoggedIn(true);
-    else alert("Invalid Access Code");
-  };
-
-  const toggleAbsence = async (tid: string) => {
-    const isAbsent = !absentTeachers.includes(tid);
-    setAbsentTeachers(prev => isAbsent ? [...prev, tid] : prev.filter(id => id !== tid));
-
+  // REPLACEMENT for handleAdminLogin
+  const handleAdminLogin = async () => {
     try {
-      await fetch('/api/attendance', {
+      const response = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ teacherId: tid, isAbsent })
+        body: JSON.stringify({ password: adminPass })
       });
-    } catch (e) {
-      console.error("Save failed", e);
+
+      if (response.ok) {
+        setIsLoggedIn(true);
+      } else {
+        alert("Invalid Access Code");
+      }
+    } catch (error) {
+      console.error("Login failed:", error);
+      alert("Error logging in");
     }
   };
 

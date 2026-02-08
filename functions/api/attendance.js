@@ -2,6 +2,7 @@ export async function onRequest(context) {
   const { request, env } = context;
   
   // Use IST (Indian Standard Time) for date consistency
+  // This ensures the list resets at midnight Indian time, not UTC.
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); 
 
   if (!env.DB) {
@@ -11,9 +12,10 @@ export async function onRequest(context) {
     });
   }
 
-  // GET Request: Anyone can see who is absent
+  // --- GET Request: Public (Anyone can see who is absent) ---
   if (request.method === "GET") {
     try {
+      // Ensure table exists (Lazy initialization)
       await env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS daily_absences (
           date TEXT, 
@@ -29,24 +31,33 @@ export async function onRequest(context) {
       const ids = results.map(r => r.teacher_id);
       return new Response(JSON.stringify(ids), { headers: { "Content-Type": "application/json" } });
     } catch (e) {
+      // If DB fails (e.g. table doesn't exist yet), return empty list instead of crashing
       return new Response(JSON.stringify([]), { headers: { "Content-Type": "application/json" } });
     }
   }
 
-  // POST Request: Only Admin (with password) can change this
+  // --- POST Request: Protected (Only Admin) ---
   if (request.method === "POST") {
     try {
       const { teacherId, isAbsent, password } = await request.json();
 
-      // 1. SECURITY CHECK
+      // 1. SECURITY CHECK: Validate Password
       if (password !== env.ADMIN_PASSWORD) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { 
           status: 401, 
           headers: { "Content-Type": "application/json" } 
         });
       }
+
+      // 2. SECURITY CHECK: Validate Input (Prevent Garbage Data)
+      if (!teacherId || typeof teacherId !== 'string' || teacherId.length > 50) {
+        return new Response(JSON.stringify({ error: "Invalid Teacher ID" }), { 
+          status: 400,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
       
-      // 2. UPDATE DATABASE
+      // 3. UPDATE DATABASE
       if (isAbsent) {
         await env.DB.prepare(
           "INSERT OR IGNORE INTO daily_absences (date, teacher_id) VALUES (?, ?)"

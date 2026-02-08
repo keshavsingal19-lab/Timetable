@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Clock, MapPin, Search, Filter, Lock, CheckCircle, XCircle, LogOut, AlertTriangle, AlertCircle, UserMinus, CalendarDays, Download, Share } from 'lucide-react';
+import { Calendar, Clock, MapPin, Search, Filter, Lock, CheckCircle, XCircle, LogOut, AlertTriangle, AlertCircle, UserMinus, CalendarDays, Download, Share, Users, GraduationCap } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
 import { TEACHER_SCHEDULES } from './teacherData';
@@ -8,12 +8,22 @@ const getDayName = (day: DayOfWeek): string => day;
 
 function App() {
   // --- STATE VARIABLES ---
+  
+  // 1. Navigation State
+  const [activeTab, setActiveTab] = useState<'rooms' | 'teachers'>('rooms'); 
+
+  // 2. Global Time Settings
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(DayOfWeek.Monday);
   const [selectedTimeIndex, setSelectedTimeIndex] = useState<number>(0);
+  
+  // 3. Room Finder State
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterType, setFilterType] = useState<string>('All');
 
-  // Admin & Security State
+  // 4. Teacher Finder State
+  const [teacherSearchQuery, setTeacherSearchQuery] = useState('');
+
+  // 5. Admin & Security State
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [adminPass, setAdminPass] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -22,10 +32,10 @@ function App() {
   const [loginError, setLoginError] = useState(''); 
   const [adminSearchQuery, setAdminSearchQuery] = useState('');
 
-  // Install Modal State
+  // 6. Install Modal State
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
 
-  // Blocking State
+  // 7. Blocking State
   const [isSiteBlocked, setIsSiteBlocked] = useState(false);
   const [blockMessage, setBlockMessage] = useState('');
 
@@ -38,10 +48,12 @@ function App() {
 
   // --- 1. INITIAL CHECKS (Run on Load) ---
   useEffect(() => {
+    // Set default day to today (if it's a weekday)
     if (Object.values(DayOfWeek).includes(currentDayName as DayOfWeek)) {
       setSelectedDay(currentDayName as DayOfWeek);
     }
     
+    // Check Block Status
     fetch('/api/check_status')
       .then(res => res.json())
       .then(data => {
@@ -52,6 +64,7 @@ function App() {
       })
       .catch(err => console.error("Block check failed", err));
 
+    // Fetch Attendance
     fetch('/api/attendance')
       .then(res => res.json())
       .then(ids => {
@@ -126,9 +139,10 @@ function App() {
     }
   };
 
-  // --- 3. CALCULATION LOGIC ---
+  // --- 3. LOGIC: ROOM FINDER ---
 
   const freedRooms = useMemo(() => {
+    // Only apply absences if the selected day matches TODAY
     if (selectedDay !== currentDayName) {
       return []; 
     }
@@ -176,15 +190,48 @@ function App() {
     });
   }, [selectedDay, selectedTimeIndex, searchQuery, filterType, freedRooms]);
 
-  const stats = useMemo(() => {
+  const roomStats = useMemo(() => {
     const total = ROOMS.length;
     const available = availableRooms.length;
-    const percentage = Math.round((available / total) * 100);
-    return { available, total, percentage };
+    return { available, total };
   }, [availableRooms]);
 
 
-  // --- 4. RENDER (The UI) ---
+  // --- 4. LOGIC: TEACHER FINDER (New Feature) ---
+
+  const getTeacherStatus = (teacher: any) => {
+    // A. Check Absent List (Only valid if looking at Today)
+    if (absentTeachers.includes(teacher.id) && selectedDay === currentDayName) {
+      return { status: 'On Leave', color: 'red', icon: UserMinus, detail: 'Marked Absent' };
+    }
+    
+    // B. Check Schedule
+    const daySchedule = teacher.schedule[selectedDay];
+    if (!daySchedule) return { status: 'Free', color: 'green', icon: CheckCircle, detail: 'No classes today' };
+    
+    const currentClass = daySchedule.find((c: any) => c.periods.includes(selectedTimeIndex));
+    
+    if (currentClass) {
+      return { 
+        status: `In ${currentClass.room}`, 
+        color: 'blue', 
+        icon: MapPin, 
+        detail: `${currentClass.startTime} - ${currentClass.endTime} • ${currentClass.subject || 'Class'}` 
+      };
+    }
+    
+    return { status: 'Free', color: 'green', icon: CheckCircle, detail: 'Staff Room / Free' };
+  };
+
+  const visibleTeachers = useMemo(() => {
+    return Object.values(TEACHER_SCHEDULES)
+      .filter(t => t.id !== 'ADMIN')
+      .filter(t => t.name.toLowerCase().includes(teacherSearchQuery.toLowerCase()))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [teacherSearchQuery]);
+
+
+  // --- 5. RENDER (The UI) ---
 
   if (isSiteBlocked) {
     return (
@@ -195,10 +242,7 @@ function App() {
           </div>
           <h1 className="text-2xl font-bold text-red-700 mb-2">ACCESS DENIED</h1>
           <p className="text-gray-800 font-semibold text-lg">
-            {blockMessage || "You were trying to breach into admin console, you are blocked for 1 hour."}
-          </p>
-          <p className="text-gray-500 text-sm mt-4">
-            Your IP has been logged and temporarily banned.
+            {blockMessage || "You are blocked."}
           </p>
         </div>
       </div>
@@ -207,6 +251,8 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 pb-20">
+      
+      {/* HEADER */}
       <header className="bg-red-800 text-white sticky top-0 z-50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -215,40 +261,44 @@ function App() {
                 <MapPin className="w-6 h-6 text-yellow-400" />
               </div>
               <div>
-                <h1 className="text-xl font-bold leading-none">SRCC Empty Room Finder</h1>
+                <h1 className="text-xl font-bold leading-none">SRCC Finder</h1>
                 <p className="text-red-200 text-sm mt-1">Academic Session 2025-26</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-4 bg-red-900/50 rounded-lg p-2 px-4 border border-red-700/50">
-                 <div className="text-center">
-                    <span className="block text-2xl font-bold text-yellow-400">{stats.available}</span>
-                    <span className="text-xs text-red-200 uppercase tracking-wider">Free Rooms</span>
-                 </div>
-                 <div className="h-8 w-px bg-red-700"></div>
-                 <div className="text-center">
-                    <span className="block text-2xl font-bold">{stats.total}</span>
-                    <span className="text-xs text-red-200 uppercase tracking-wider">Total</span>
-                 </div>
-              </div>
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
+               {/* TAB SWITCHER */}
+               <div className="bg-red-900/50 p-1 rounded-lg flex items-center mr-2">
+                 <button 
+                   onClick={() => setActiveTab('rooms')}
+                   className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'rooms' ? 'bg-white text-red-800 shadow-sm' : 'text-red-200 hover:bg-white/10'}`}
+                 >
+                   <MapPin className="w-4 h-4" /> Rooms
+                 </button>
+                 <button 
+                   onClick={() => setActiveTab('teachers')}
+                   className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'teachers' ? 'bg-white text-red-800 shadow-sm' : 'text-red-200 hover:bg-white/10'}`}
+                 >
+                   <Users className="w-4 h-4" /> Teachers
+                 </button>
+               </div>
 
-              {/* Install Button */}
-              <button 
+               {/* ACTION BUTTONS */}
+               <button 
                 onClick={() => setIsInstallModalOpen(true)}
-                className="flex items-center gap-2 bg-white text-red-800 hover:bg-gray-100 px-4 py-2 rounded-lg font-bold shadow-sm transition-all text-sm"
-              >
-                <Download className="w-4 h-4" />
-                Install App
-              </button>
+                className="bg-white/10 text-white p-2 rounded-lg hover:bg-white/20 transition-all"
+                title="Install App"
+               >
+                <Download className="w-5 h-5" />
+               </button>
 
-              <button 
+               <button 
                 onClick={() => { setIsAdminOpen(true); setLoginError(''); }}
-                className="flex items-center gap-2 bg-white text-red-800 hover:bg-gray-100 px-4 py-2 rounded-lg font-bold shadow-sm transition-all text-sm"
-              >
-                <Lock className="w-4 h-4" />
-                Admin
-              </button>
+                className="bg-white/10 text-white p-2 rounded-lg hover:bg-white/20 transition-all"
+                title="Admin Login"
+               >
+                <Lock className="w-5 h-5" />
+               </button>
             </div>
           </div>
         </div>
@@ -256,140 +306,144 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* DASHBOARD: Teachers on Leave */}
-        <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl shadow-sm border border-red-100 p-6 mb-8">
-           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-white p-2 rounded-lg shadow-sm text-red-600">
-                  <UserMinus className="w-6 h-6" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">Teachers on Leave</h2>
-                  <div className="flex items-center gap-2 text-red-600 text-sm font-medium">
-                    <CalendarDays className="w-4 h-4" />
-                    {formattedDate}
-                  </div>
-                </div>
-              </div>
-              {absentTeachers.length > 0 && (
-                 <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-bold border border-red-200">
-                   {absentTeachers.length} Absent Today
-                 </span>
-              )}
-           </div>
-           
-           <div className="bg-white/60 rounded-lg p-4 border border-red-100/50">
-             {absentTeachers.length > 0 ? (
-               <div className="flex flex-wrap gap-2">
-                 {absentTeachers.map(tid => (
-                   <span key={tid} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-red-200 shadow-sm text-sm font-medium text-gray-700">
-                     <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                     {TEACHER_SCHEDULES[tid]?.name || tid}
-                   </span>
-                 ))}
-               </div>
-             ) : (
-               <p className="text-gray-500 text-sm italic flex items-center gap-2">
-                 <CheckCircle className="w-4 h-4 text-green-500" />
-                 No teachers marked absent today.
-               </p>
-             )}
-           </div>
-           <p className="text-xs text-gray-400 mt-2 text-right">
-             *List resets automatically at end of day
-           </p>
-        </div>
-
-        {/* Controls */}
+        {/* GLOBAL CONTROLS (Day & Time) */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <Calendar className="w-4 h-4 text-red-600" />
-                Select Day
-              </label>
-              <select 
-                value={selectedDay}
-                onChange={(e) => setSelectedDay(e.target.value as DayOfWeek)}
-                className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block p-2.5 transition-colors hover:bg-gray-100"
-              >
-                {Object.values(DayOfWeek).map(day => (
-                  <option key={day} value={day}>{day}</option>
-                ))}
-              </select>
-            </div>
+           <div className="flex items-center gap-2 mb-4 text-gray-500 text-sm font-medium uppercase tracking-wider">
+              <Clock className="w-4 h-4" /> Global Settings
+           </div>
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-900">Select Day</label>
+                <select 
+                  value={selectedDay}
+                  onChange={(e) => setSelectedDay(e.target.value as DayOfWeek)}
+                  className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg p-3 focus:ring-red-500 focus:border-red-500"
+                >
+                  {Object.values(DayOfWeek).map(day => (
+                    <option key={day} value={day}>{day}</option>
+                  ))}
+                </select>
+              </div>
 
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <Clock className="w-4 h-4 text-red-600" />
-                Select Time Slot
-              </label>
-              <select 
-                value={selectedTimeIndex}
-                onChange={(e) => setSelectedTimeIndex(Number(e.target.value))}
-                className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block p-2.5 transition-colors hover:bg-gray-100"
-              >
-                {TIME_SLOTS.map((slot, index) => (
-                  <option key={index} value={index}>{slot}</option>
-                ))}
-              </select>
-            </div>
-
-             <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <Filter className="w-4 h-4 text-red-600" />
-                Room Type
-              </label>
-              <select 
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block p-2.5 transition-colors hover:bg-gray-100"
-              >
-                <option value="All">All Types</option>
-                <option value="Lecture Hall">Lecture Hall</option>
-                <option value="Lab">Lab</option>
-                <option value="Seminar Room">Seminar Room</option>
-                <option value="Tutorial Room">Tutorial Room</option>
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <Search className="w-4 h-4 text-red-600" />
-                Search Room
-              </label>
-              <input 
-                type="text"
-                placeholder="e.g. T1 or R20"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block p-2.5"
-              />
-            </div>
-          </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-900">Select Time</label>
+                <select 
+                  value={selectedTimeIndex}
+                  onChange={(e) => setSelectedTimeIndex(Number(e.target.value))}
+                  className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg p-3 focus:ring-red-500 focus:border-red-500"
+                >
+                  {TIME_SLOTS.map((slot, index) => (
+                    <option key={index} value={index}>{slot}</option>
+                  ))}
+                </select>
+              </div>
+           </div>
         </div>
 
-        <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-              Available Rooms
-              <span className="text-sm font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                {selectedDay} • {TIME_SLOTS[selectedTimeIndex]}
-              </span>
-            </h2>
+        {/* --- TAB 1: ROOM FINDER --- */}
+        {activeTab === 'rooms' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+             
+             {/* Teachers on Leave Dashboard (Only relevant for Rooms) */}
+             <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl shadow-sm border border-red-100 p-6 mb-8">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-white p-2 rounded-lg shadow-sm text-red-600">
+                        <UserMinus className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-gray-900">Teachers on Leave</h2>
+                        <div className="flex items-center gap-2 text-red-600 text-sm font-medium">
+                          <CalendarDays className="w-4 h-4" />
+                          {formattedDate}
+                        </div>
+                      </div>
+                    </div>
+                    {absentTeachers.length > 0 && (
+                      <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-bold border border-red-200">
+                        {absentTeachers.length} Absent Today
+                      </span>
+                    )}
+                </div>
+                
+                <div className="bg-white/60 rounded-lg p-4 border border-red-100/50">
+                  {absentTeachers.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {absentTeachers.map(tid => (
+                        <span key={tid} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-red-200 shadow-sm text-sm font-medium text-gray-700">
+                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                          {TEACHER_SCHEDULES[tid]?.name || tid}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm italic flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                      No teachers marked absent today.
+                    </p>
+                  )}
+                </div>
+             </div>
 
-            {availableRooms.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+             {/* Filters & Stats */}
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                {/* Stats Card */}
+                <div className="bg-gradient-to-br from-red-600 to-red-800 rounded-xl text-white p-6 shadow-md flex items-center justify-between">
+                   <div>
+                     <p className="text-red-100 text-sm font-medium">Available Rooms</p>
+                     <p className="text-4xl font-bold mt-1">{roomStats.available}</p>
+                   </div>
+                   <div className="bg-white/20 p-3 rounded-lg">
+                     <CheckCircle className="w-8 h-8 text-white" />
+                   </div>
+                </div>
+
+                {/* Type Filter */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-2">
+                   <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                     <Filter className="w-4 h-4" /> Filter Type
+                   </label>
+                   <select 
+                     value={filterType}
+                     onChange={(e) => setFilterType(e.target.value)}
+                     className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 text-sm"
+                   >
+                      <option value="All">All Types</option>
+                      <option value="Lecture Hall">Lecture Hall</option>
+                      <option value="Lab">Lab</option>
+                      <option value="Seminar Room">Seminar Room</option>
+                      <option value="Tutorial Room">Tutorial Room</option>
+                   </select>
+                </div>
+
+                {/* Room Search */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-2">
+                   <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                     <Search className="w-4 h-4" /> Search Room
+                   </label>
+                   <input 
+                     type="text" 
+                     placeholder="e.g. T1 or R20" 
+                     value={searchQuery} 
+                     onChange={(e) => setSearchQuery(e.target.value)} 
+                     className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 text-sm" 
+                   />
+                </div>
+             </div>
+             
+             {/* Rooms Grid */}
+             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {availableRooms.map((room) => (
                   <div 
                     key={room.id}
-                    className={`group bg-white rounded-lg border hover:shadow-md transition-all duration-200 p-4 flex flex-col items-center justify-center text-center cursor-default
-                      ${(room as any).tags ? 'border-green-400 ring-1 ring-green-100' : 'border-gray-200 hover:border-red-500'}
+                    className={`bg-white rounded-lg border p-4 flex flex-col items-center justify-center text-center transition-all hover:shadow-md cursor-default
+                      ${(room as any).tags ? 'border-green-400 ring-1 ring-green-100 shadow-sm' : 'border-gray-200'}
                     `}
                   >
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-colors
-                       ${(room as any).tags ? 'bg-green-100 text-green-700' : 'bg-green-50 text-green-600 group-hover:bg-red-50 group-hover:text-red-600'}
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 font-bold text-lg
+                       ${(room as any).tags ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}
                     `}>
-                      <span className="font-bold text-lg">{room.name.replace(/[^0-9]/g, '') || room.name.charAt(0)}</span>
+                      {room.name.replace(/[^0-9]/g, '') || room.name.charAt(0)}
                     </div>
                     <h3 className="font-bold text-gray-900 text-lg">{room.name}</h3>
                     
@@ -409,119 +463,95 @@ function App() {
                     )}
                   </div>
                 ))}
-              </div>
-            ) : (
-              <div className="bg-white rounded-xl border border-dashed border-gray-300 p-12 text-center">
-                <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                  <Search className="w-8 h-8 text-gray-400" />
+             </div>
+             {availableRooms.length === 0 && (
+                <div className="bg-white rounded-xl border border-dashed border-gray-300 p-12 text-center text-gray-500">
+                   No rooms available matching your criteria.
                 </div>
-                <h3 className="text-lg font-medium text-gray-900">No rooms available</h3>
-                <p className="text-gray-500 mt-1">
-                  Try selecting a different time slot or day. Labs, Lecture Halls, and Tutorial Rooms might all be occupied.
-                </p>
-              </div>
+             )}
+          </div>
+        )}
+
+        {/* --- TAB 2: TEACHER FINDER --- */}
+        {activeTab === 'teachers' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            
+            {/* Search Bar */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8 flex items-center gap-4">
+               <Search className="w-5 h-5 text-gray-400" />
+               <input 
+                 type="text" 
+                 placeholder="Search teacher by name (e.g. 'Amit')..." 
+                 value={teacherSearchQuery}
+                 onChange={(e) => setTeacherSearchQuery(e.target.value)}
+                 className="w-full text-lg outline-none text-gray-700 placeholder:text-gray-400"
+               />
+            </div>
+
+            {/* Teachers Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+               {visibleTeachers.map((teacher: any) => {
+                 const statusInfo = getTeacherStatus(teacher);
+                 return (
+                   <div key={teacher.id} className="bg-white border border-gray-200 rounded-xl p-5 flex items-start justify-between hover:shadow-md transition-all">
+                      <div>
+                        <h3 className="font-bold text-gray-900 text-lg">{teacher.name}</h3>
+                        <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-3">{teacher.department}</p>
+                        
+                        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold border
+                          ${statusInfo.color === 'red' ? 'bg-red-50 text-red-700 border-red-100' : 
+                            statusInfo.color === 'blue' ? 'bg-blue-50 text-blue-700 border-blue-100' : 
+                            'bg-green-50 text-green-700 border-green-100'}`}>
+                           <statusInfo.icon className="w-4 h-4" />
+                           {statusInfo.status}
+                        </div>
+                        <p className="text-sm text-gray-500 mt-2 pl-1">{statusInfo.detail}</p>
+                      </div>
+                      <div className="bg-gray-50 p-2 rounded-full">
+                        <GraduationCap className="w-6 h-6 text-gray-300" />
+                      </div>
+                   </div>
+                 );
+               })}
+            </div>
+            {visibleTeachers.length === 0 && (
+                <div className="text-center py-12 text-gray-500">No teachers found.</div>
             )}
-        </div>
+          </div>
+        )}
+
       </main>
 
-      <footer className="bg-white border-t border-gray-200 mt-12 py-8">
-        <div className="max-w-4xl mx-auto px-4 text-center text-gray-500 text-sm space-y-8">
-          
-          <div className="bg-red-50/50 p-6 rounded-2xl border border-red-100 space-y-3">
-            <h3 className="font-semibold text-gray-900">Disclaimer & Contact</h3>
-            <p className="leading-relaxed">
-              <b>Corrections have been made in Rooms!</b>
-              This website is for easing the process of finding empty rooms. It is made out of curiosity 
-              and to help students. All the data used to make this website is freely publicly available 
-              on the SRCC website. Please note that minor errors may be present and shifts in classes 
-              can happen with changes in timetables.
-            </p>
-            <p className="pt-2 font-medium">
-              If you want to reach out or give any suggestion, feedback, complaint, or anything else, kindly fill this{' '}
-              <a 
-                href="https://forms.gle/zeomA3EvBPz2BGmBA" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-red-700 hover:text-red-900 underline decoration-red-300 underline-offset-2"
-              >
-                Feedback Form
-              </a>
-              {' '}or mail us at{' '}
-              <a 
-                href="mailto:abcddcba121202@gmail.com"
-                className="text-red-700 hover:text-red-900 underline decoration-red-300 underline-offset-2"
-              >
-                abcddcba121202@gmail.com
-              </a>.
-            </p>
-          </div>
-          
-          <div>
-            <p>Data derived from SRCC Time Table 2025-26.</p>
-            <p className="mt-1">Note: Break time is usually 01:30 PM - 02:00 PM.</p>
-          </div>
-        </div>
+      {/* FOOTER */}
+      <footer className="bg-white border-t border-gray-200 mt-12 py-8 text-center text-gray-500 text-sm space-y-2">
+        <p>Data derived from SRCC Time Table 2025-26.</p>
+        <p>
+           If you spot errors, please <a href="https://forms.gle/zeomA3EvBPz2BGmBA" target="_blank" rel="noopener noreferrer" className="text-red-700 underline">fill this form</a>.
+        </p>
+        <p className="text-xs text-gray-400 pt-4">Not an official college app.</p>
       </footer>
 
-      {/* INSTALL APP MODAL */}
+      {/* MODAL: INSTALL APP */}
       {isInstallModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
-            <div className="p-4 bg-red-800 text-white flex justify-between items-center">
-              <h2 className="font-bold text-lg flex items-center gap-2">
-                <Download className="w-5 h-5" /> Install App
-              </h2>
-              <button onClick={() => setIsInstallModalOpen(false)} className="hover:bg-red-700 p-1 rounded">✕</button>
-            </div>
-            
-            <div className="p-6 space-y-6 overflow-y-auto text-gray-700">
-               {/* Android */}
-               <div>
-                 <h3 className="font-bold text-lg text-gray-900 mb-2 flex items-center gap-2">
-                   {/* We reuse icons or default to text if specific icon not imported. 
-                       Since I imported CalendarDays, let's just use text or generic icon. 
-                       Actually, I'll use simple SVGs or just text structure. */}
-                   📱 Android (Chrome)
-                 </h3>
-                 <ol className="list-decimal pl-5 space-y-1 text-sm">
-                   <li>Open <b>Google Chrome</b> on your Android device.</li>
-                   <li>Go to the website you want to add.</li>
-                   <li>Tap the <b>three-dot menu</b> in the top-right corner.</li>
-                   <li>Select <b>“Add to Home screen.”</b></li>
-                   <li>Edit the name if required, then tap <b>Add</b>.</li>
-                   <li>The website will now appear on your home screen.</li>
-                 </ol>
-               </div>
-
-               {/* iOS */}
-               <div>
-                 <h3 className="font-bold text-lg text-gray-900 mb-2 flex items-center gap-2">
-                   <Share className="w-5 h-5 text-blue-600" /> iPhone / iPad (Safari)
-                 </h3>
-                 <ol className="list-decimal pl-5 space-y-1 text-sm">
-                   <li>Open <b>Safari</b> on your iPhone or iPad.</li>
-                   <li>Go to the website you want to add.</li>
-                   <li>Tap the <b>Share button</b> (square with an upward arrow).</li>
-                   <li>Scroll down and tap <b>“Add to Home Screen.”</b></li>
-                   <li>Edit the name if required, then tap <b>Add</b>.</li>
-                   <li>The website will now appear on your home screen.</li>
-                 </ol>
-               </div>
-            </div>
-
-            <div className="p-4 bg-gray-50 border-t text-center">
-              <button 
-                onClick={() => setIsInstallModalOpen(false)}
-                className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-semibold text-gray-700 transition-colors"
-              >
-                Close Instructions
-              </button>
-            </div>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center">
+             <div className="mx-auto bg-red-100 w-12 h-12 rounded-full flex items-center justify-center mb-4">
+               <Download className="w-6 h-6 text-red-600" />
+             </div>
+             <h2 className="text-xl font-bold mb-2">Install App</h2>
+             <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+               For <b>iPhone (Safari)</b>: Tap <Share className="w-3 h-3 inline" /> Share & select "Add to Home Screen".
+               <br/><br/>
+               For <b>Android (Chrome)</b>: Tap ⋮ Menu & select "Add to Home screen".
+             </p>
+             <button onClick={() => setIsInstallModalOpen(false)} className="w-full bg-gray-100 py-3 rounded-xl font-bold text-gray-800 hover:bg-gray-200">
+               Close
+             </button>
           </div>
         </div>
       )}
 
-      {/* ADMIN MODAL */}
+      {/* MODAL: ADMIN */}
       {isAdminOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
@@ -601,11 +631,6 @@ function App() {
                         </button>
                       </div>
                     ))}
-                    {Object.keys(TEACHER_SCHEDULES).length <= 1 && (
-                      <p className="text-center text-gray-400 italic p-4">
-                        Teacher database is currently empty.
-                      </p>
-                    )}
                   </div>
                 </div>
               )}

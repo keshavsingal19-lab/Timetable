@@ -3,7 +3,7 @@ import {
   Calendar, Clock, MapPin, Search, Filter, Lock, CheckCircle, 
   XCircle, LogOut, AlertTriangle, AlertCircle, UserMinus, 
   CalendarDays, Download, Share, Users, GraduationCap, 
-  ChevronRight, ArrowRight, MessageCircle 
+  ArrowRight, MessageCircle 
 } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
@@ -22,7 +22,7 @@ function App() {
   // 2. Room Finder
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterType, setFilterType] = useState<string>('All');
-  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null); // <--- NEW: Selected Room for Modal
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
 
   // 3. Teacher Finder
   const [teacherSearchQuery, setTeacherSearchQuery] = useState('');
@@ -57,8 +57,6 @@ function App() {
       // Auto-select current time slot
       const currentHour = todayDateObj.getHours();
       const currentMinutes = todayDateObj.getMinutes();
-      // Simple logic to map hour to slot (approximate)
-      // 8:30=0, 9:30=1, etc.
       let estimatedSlot = currentHour - 8; 
       if (currentMinutes < 30) estimatedSlot -= 1;
       if (estimatedSlot >= 0 && estimatedSlot < TIME_SLOTS.length) {
@@ -186,13 +184,12 @@ function App() {
     return { available: availableRooms.length, total: ROOMS.length };
   }, [availableRooms]);
 
-  // --- 4. LOGIC: ROOM TIMELINE (The "Better" Feature) ---
+  // --- 4. LOGIC: ROOM TIMELINE ---
   
   const getRoomTimeline = (roomId: string) => {
     const timeline = new Array(TIME_SLOTS.length).fill(null);
     const dayName = getDayName(selectedDay);
 
-    // Scan all teachers to find who is in this room
     Object.values(TEACHER_SCHEDULES).forEach((teacher: any) => {
        if (teacher.id === 'ADMIN') return;
        const daySchedule = teacher.schedule[dayName];
@@ -215,7 +212,7 @@ function App() {
        }
     });
 
-    return timeline; // Returns array where index = slot, value = null (Free) or Object (Occupied)
+    return timeline; 
   };
 
   const selectedRoomTimeline = useMemo(() => {
@@ -405,7 +402,6 @@ function App() {
                       </span>
                     )}
 
-                    {/* Hint for Click */}
                     <span className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <ArrowRight className="w-4 h-4 text-gray-300" />
                     </span>
@@ -469,13 +465,47 @@ function App() {
         )}
       </main>
 
-      {/* FOOTER */}
-      <footer className="mt-12 py-8 text-center border-t border-gray-200 bg-white">
-         <p className="text-sm text-gray-500 font-medium">Built for SRCC Students</p>
-         <p className="text-xs text-gray-400 mt-2">Data updated for Session 2025-26</p>
+      {/* FOOTER (RESTORED TO DETAILED VERSION) */}
+      <footer className="bg-white border-t border-gray-200 mt-12 py-8">
+        <div className="max-w-4xl mx-auto px-4 text-center text-gray-500 text-sm space-y-8">
+          
+          <div className="bg-red-50/50 p-6 rounded-2xl border border-red-100 space-y-3">
+            <h3 className="font-semibold text-gray-900">Disclaimer & Contact</h3>
+            <p className="leading-relaxed">
+              <b>Corrections have been made in Rooms!</b>
+              This website is for easing the process of finding empty rooms. It is made out of curiosity 
+              and to help students. All the data used to make this website is freely publicly available 
+              on the SRCC website. Please note that minor errors may be present and shifts in classes 
+              can happen with changes in timetables.
+            </p>
+            <p className="pt-2 font-medium">
+              If you want to reach out or give any suggestion, feedback, complaint, or anything else, kindly fill this{' '}
+              <a 
+                href="https://forms.gle/zeomA3EvBPz2BGmBA" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-red-700 hover:text-red-900 underline decoration-red-300 underline-offset-2"
+              >
+                Feedback Form
+              </a>
+              {' '}or mail us at{' '}
+              <a 
+                href="mailto:abcddcba121202@gmail.com"
+                className="text-red-700 hover:text-red-900 underline decoration-red-300 underline-offset-2"
+              >
+                abcddcba121202@gmail.com
+              </a>.
+            </p>
+          </div>
+          
+          <div>
+            <p>Data derived from SRCC Time Table 2025-26.</p>
+            <p className="mt-1">Note: Break time is usually 01:30 PM - 02:00 PM.</p>
+          </div>
+        </div>
       </footer>
 
-      {/* --- MODAL: ROOM TIMELINE (NEW) --- */}
+      {/* --- MODAL: ROOM TIMELINE --- */}
       {selectedRoomId && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
@@ -554,18 +584,57 @@ function App() {
         </div>
       )}
 
-      {/* INSTALL MODAL */}
+      {/* INSTALL MODAL (RESTORED TO DETAILED VERSION) */}
       {isInstallModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center">
-             <div className="mx-auto bg-red-100 w-12 h-12 rounded-full flex items-center justify-center mb-4"><Download className="w-6 h-6 text-red-600" /></div>
-             <h2 className="text-xl font-bold mb-2">Install App</h2>
-             <p className="text-gray-600 text-sm mb-6 leading-relaxed">
-               For <b>iPhone (Safari)</b>: Tap <Share className="w-3 h-3 inline" /> Share & select "Add to Home Screen".
-               <br/><br/>
-               For <b>Android (Chrome)</b>: Tap ⋮ Menu & select "Add to Home screen".
-             </p>
-             <button onClick={() => setIsInstallModalOpen(false)} className="w-full bg-gray-100 py-3 rounded-xl font-bold text-gray-800 hover:bg-gray-200">Close</button>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="p-4 bg-red-800 text-white flex justify-between items-center">
+              <h2 className="font-bold text-lg flex items-center gap-2">
+                <Download className="w-5 h-5" /> Install App
+              </h2>
+              <button onClick={() => setIsInstallModalOpen(false)} className="hover:bg-red-700 p-1 rounded">✕</button>
+            </div>
+            
+            <div className="p-6 space-y-6 overflow-y-auto text-gray-700">
+               {/* Android */}
+               <div>
+                 <h3 className="font-bold text-lg text-gray-900 mb-2 flex items-center gap-2">
+                   📱 Android (Chrome)
+                 </h3>
+                 <ol className="list-decimal pl-5 space-y-1 text-sm">
+                   <li>Open <b>Google Chrome</b> on your Android device.</li>
+                   <li>Go to the website you want to add.</li>
+                   <li>Tap the <b>three-dot menu</b> in the top-right corner.</li>
+                   <li>Select <b>“Add to Home screen.”</b></li>
+                   <li>Edit the name if required, then tap <b>Add</b>.</li>
+                   <li>The website will now appear on your home screen.</li>
+                 </ol>
+               </div>
+
+               {/* iOS */}
+               <div>
+                 <h3 className="font-bold text-lg text-gray-900 mb-2 flex items-center gap-2">
+                   <Share className="w-5 h-5 text-blue-600" /> iPhone / iPad (Safari)
+                 </h3>
+                 <ol className="list-decimal pl-5 space-y-1 text-sm">
+                   <li>Open <b>Safari</b> on your iPhone or iPad.</li>
+                   <li>Go to the website you want to add.</li>
+                   <li>Tap the <b>Share button</b> (square with an upward arrow).</li>
+                   <li>Scroll down and tap <b>“Add to Home Screen.”</b></li>
+                   <li>Edit the name if required, then tap <b>Add</b>.</li>
+                   <li>The website will now appear on your home screen.</li>
+                 </ol>
+               </div>
+            </div>
+
+            <div className="p-4 bg-gray-50 border-t text-center">
+              <button 
+                onClick={() => setIsInstallModalOpen(false)}
+                className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-semibold text-gray-700 transition-colors"
+              >
+                Close Instructions
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -575,26 +644,73 @@ function App() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
             <div className="p-4 bg-red-800 text-white flex justify-between items-center">
-              <h2 className="font-bold text-lg flex items-center gap-2"><Lock className="w-5 h-5" /> Admin Attendance</h2>
+              <h2 className="font-bold text-lg flex items-center gap-2">
+                <Lock className="w-5 h-5" /> Admin Attendance
+              </h2>
               <button onClick={() => setIsAdminOpen(false)} className="hover:bg-red-700 p-1 rounded">✕</button>
             </div>
+
             <div className="flex-1 overflow-y-auto p-6">
               {!isLoggedIn ? (
                 <div className="space-y-4">
                   <p className="text-gray-600 text-center">Enter Access Code</p>
-                  {loginError && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm font-medium">{loginError}</div>}
-                  <input type="password" value={adminPass} onChange={e => setAdminPass(e.target.value)} className="w-full p-3 border rounded-xl text-center text-lg tracking-widest" placeholder="••••••••" />
-                  <button onClick={handleAdminLogin} className="w-full bg-red-800 text-white py-3 rounded-xl font-bold">Unlock</button>
+                  
+                  {loginError && (
+                    <div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg border border-red-200 text-sm font-medium animate-pulse">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      {loginError}
+                    </div>
+                  )}
+
+                  <input 
+                    type="password" 
+                    value={adminPass} 
+                    onChange={e => setAdminPass(e.target.value)}
+                    className="w-full p-3 border rounded-xl text-center text-lg tracking-widest focus:ring-2 focus:ring-red-500 outline-none"
+                    placeholder="••••••••"
+                  />
+                  <button onClick={handleAdminLogin} className="w-full bg-red-800 text-white py-3 rounded-xl font-bold hover:bg-red-900 transition-colors">
+                    Unlock Dashboard
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center mb-4"><p className="text-sm text-gray-500">Mark absent teachers.</p><button onClick={() => setIsLoggedIn(false)} className="text-xs text-red-600 flex items-center gap-1"><LogOut className="w-3 h-3" /> Logout</button></div>
-                  <input type="text" className="w-full p-2 border rounded-lg text-sm mb-2" placeholder="Search teacher..." value={adminSearchQuery} onChange={(e) => setAdminSearchQuery(e.target.value)} />
+                  <div className="flex justify-between items-center mb-4">
+                    <p className="text-sm text-gray-500">Mark absent teachers to free rooms.</p>
+                    <button onClick={() => setIsLoggedIn(false)} className="text-xs text-red-600 flex items-center gap-1">
+                      <LogOut className="w-3 h-3" /> Logout
+                    </button>
+                  </div>
+
+                  <input
+                    type="text"
+                    className="block w-full p-2 border border-gray-300 rounded-lg bg-white sm:text-sm mb-4"
+                    placeholder="Search for a teacher..."
+                    value={adminSearchQuery}
+                    onChange={(e) => setAdminSearchQuery(e.target.value)}
+                  />
+                  
                   <div className="space-y-2">
-                    {Object.values(TEACHER_SCHEDULES).filter(t => t.id !== 'ADMIN').filter(t => t.name.toLowerCase().includes(adminSearchQuery.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name)).map((t: any) => (
-                      <div key={t.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div><p className="font-bold text-gray-800">{t.name}</p></div>
-                        <button onClick={() => toggleAbsence(t.id)} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${absentTeachers.includes(t.id) ? 'bg-red-500 text-white' : 'bg-white border border-gray-300'}`}>{absentTeachers.includes(t.id) ? 'ABSENT' : 'Present'}</button>
+                    {Object.values(TEACHER_SCHEDULES)
+                      .filter(t => t.id !== 'ADMIN')
+                      .filter(t => t.name.toLowerCase().includes(adminSearchQuery.toLowerCase()))
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((t: any) => (
+                      <div key={t.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100">
+                        <div>
+                          <p className="font-bold text-gray-800">{t.name}</p>
+                          <p className="text-xs text-gray-500">{t.department}</p>
+                        </div>
+                        <button
+                          onClick={() => { toggleAbsence(t.id); }}
+                          className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                            absentTeachers.includes(t.id)
+                              ? 'bg-red-500 text-white shadow-md'
+                              : 'bg-white border border-gray-300 text-gray-600'
+                          }`}
+                        >
+                          {absentTeachers.includes(t.id) ? 'ABSENT' : 'Present'}
+                        </button>
                       </div>
                     ))}
                   </div>

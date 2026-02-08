@@ -5,9 +5,9 @@ export async function onRequestPost(context) {
   try {
     const { password } = await request.json();
 
-    // 1. Ensure Table Exists
+    // 1. Ensure Table Exists (New name: access_logs_v2)
     await env.DB.prepare(`
-      CREATE TABLE IF NOT EXISTS login_attempts (
+      CREATE TABLE IF NOT EXISTS access_logs_v2 (
         ip_address TEXT PRIMARY KEY,
         attempts INTEGER,
         blocked_until INTEGER
@@ -16,7 +16,7 @@ export async function onRequestPost(context) {
 
     // 2. Check existing status for this IP
     const record = await env.DB.prepare(
-      "SELECT * FROM login_attempts WHERE ip_address = ?"
+      "SELECT * FROM access_logs_v2 WHERE ip_address = ?"
     ).bind(ip).first();
 
     // 3. IF BLOCKED: Reject immediately
@@ -30,7 +30,7 @@ export async function onRequestPost(context) {
     // 4. CHECK PASSWORD
     if (password === env.ADMIN_PASSWORD) {
       // SUCCESS: Clear any bad records for this IP
-      await env.DB.prepare("DELETE FROM login_attempts WHERE ip_address = ?").bind(ip).run();
+      await env.DB.prepare("DELETE FROM access_logs_v2 WHERE ip_address = ?").bind(ip).run();
       
       return new Response(JSON.stringify({ success: true }), { 
         status: 200, 
@@ -48,7 +48,7 @@ export async function onRequestPost(context) {
 
       // Upsert the record (Insert or Replace)
       await env.DB.prepare(`
-        INSERT INTO login_attempts (ip_address, attempts, blocked_until) 
+        INSERT INTO access_logs_v2 (ip_address, attempts, blocked_until) 
         VALUES (?, ?, ?) 
         ON CONFLICT(ip_address) DO UPDATE SET 
           attempts = excluded.attempts, 

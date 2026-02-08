@@ -9,9 +9,9 @@ export async function onRequest(context) {
   }
 
   try {
-    // 2. Check if this IP is blocked
+    // 2. Check if this IP is blocked (Using new table: access_logs_v2)
     const result = await env.DB.prepare(
-      "SELECT * FROM login_attempts WHERE ip_address = ?"
+      "SELECT * FROM access_logs_v2 WHERE ip_address = ?"
     ).bind(ip).first();
 
     if (result && result.blocked_until > Date.now()) {

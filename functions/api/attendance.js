@@ -1,12 +1,11 @@
 export async function onRequest(context) {
   const { request, env } = context;
-  const url = new URL(request.url);
   
-  // Get today's date in YYYY-MM-DD format (UTC). 
-  // This automatically "resets" the list because tomorrow will be a new date.
-  const today = new Date().toISOString().split('T')[0];
+  // 1. Get Date in Indian Standard Time (IST)
+  // This ensures the list resets at midnight India time, not UTC.
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); 
+  // Output format: "YYYY-MM-DD" (e.g., "2025-02-10")
 
-  // 1. Safety Check: Ensure Database is connected
   if (!env.DB) {
     return new Response(JSON.stringify({ error: "Database not configured" }), { 
       status: 500, 
@@ -14,10 +13,9 @@ export async function onRequest(context) {
     });
   }
 
-  // 2. GET Request: Fetch all absent teacher IDs for today
+  // 2. GET Request: Fetch today's absences
   if (request.method === "GET") {
     try {
-      // Create table if it doesn't exist (First run logic)
       await env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS daily_absences (
           date TEXT, 
@@ -37,18 +35,24 @@ export async function onRequest(context) {
     }
   }
 
-  // 3. POST Request: Admin marks a teacher as Absent or Present
+  // 3. POST Request: Mark/Unmark absent
   if (request.method === "POST") {
     try {
-      const { teacherId, isAbsent } = await request.json();
+      const { teacherId, isAbsent, password } = await request.json();
+
+      // Verify Password (Security Check)
+      if (password !== env.ADMIN_PASSWORD) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { 
+          status: 401, 
+          headers: { "Content-Type": "application/json" } 
+        });
+      }
       
       if (isAbsent) {
-        // Add to absent list
         await env.DB.prepare(
           "INSERT OR IGNORE INTO daily_absences (date, teacher_id) VALUES (?, ?)"
         ).bind(today, teacherId).run();
       } else {
-        // Remove from absent list
         await env.DB.prepare(
           "DELETE FROM daily_absences WHERE date = ? AND teacher_id = ?"
         ).bind(today, teacherId).run();

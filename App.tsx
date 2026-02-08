@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Clock, MapPin, Search, Filter, Lock, CheckCircle, XCircle, LogOut, AlertTriangle } from 'lucide-react';
+import { Calendar, Clock, MapPin, Search, Filter, Lock, CheckCircle, XCircle, LogOut, AlertTriangle, AlertCircle, UserMinus, CalendarDays } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
 import { TEACHER_SCHEDULES } from './teacherData';
@@ -19,14 +19,28 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [absentTeachers, setAbsentTeachers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loginError, setLoginError] = useState(''); 
 
   // Blocking State
   const [isSiteBlocked, setIsSiteBlocked] = useState(false);
   const [blockMessage, setBlockMessage] = useState('');
 
+  // --- HELPER: Get Current Date Details ---
+  // We use this to display the date and enforce "Today Only" logic
+  const todayDateObj = new Date();
+  const currentDayName = todayDateObj.toLocaleDateString('en-US', { weekday: 'long' });
+  const formattedDate = todayDateObj.toLocaleDateString('en-GB', { 
+    day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' 
+  });
+
   // --- 1. INITIAL CHECKS (Run on Load) ---
   useEffect(() => {
-    // Check if user is blocked
+    // A. Set default day to today (if it's a weekday)
+    if (Object.values(DayOfWeek).includes(currentDayName as DayOfWeek)) {
+      setSelectedDay(currentDayName as DayOfWeek);
+    }
+    
+    // B. Check Block Status
     fetch('/api/check_status')
       .then(res => res.json())
       .then(data => {
@@ -37,7 +51,7 @@ function App() {
       })
       .catch(err => console.error("Block check failed", err));
 
-    // Fetch existing attendance
+    // C. Fetch existing attendance
     fetch('/api/attendance')
       .then(res => res.json())
       .then(ids => {
@@ -48,11 +62,12 @@ function App() {
         console.error("Attendance fetch error:", err);
         setLoading(false);
       });
-  }, []);
+  }, []); // Empty dependency array = runs once on mount
 
   // --- 2. ADMIN ACTIONS ---
   
   const handleAdminLogin = async () => {
+    setLoginError(''); 
     try {
       const response = await fetch('/api/login', {
         method: 'POST',
@@ -65,18 +80,23 @@ function App() {
       if (response.ok) {
         setIsLoggedIn(true);
         setAdminPass(''); 
+        setLoginError('');
       } else {
         if (response.status === 403) {
            setIsSiteBlocked(true);
            setBlockMessage(data.message);
            setIsAdminOpen(false); 
         } else {
-           alert(data.error || "Invalid Access Code");
+           if (data.attemptsLeft !== undefined) {
+             setLoginError(`Incorrect password. ${data.attemptsLeft} attempts remaining.`);
+           } else {
+             setLoginError(data.error || "Invalid Access Code");
+           }
         }
       }
     } catch (error) {
       console.error("Login failed:", error);
-      alert("Error logging in");
+      setLoginError("Connection error. Please try again.");
     }
   };
 
@@ -110,6 +130,12 @@ function App() {
   // --- 3. CALCULATION LOGIC ---
 
   const freedRooms = useMemo(() => {
+    // LOGIC CHECK: Only apply absences if the selected day matches TODAY
+    // If user selects "Tuesday" but today is "Monday", absences shouldn't apply.
+    if (selectedDay !== currentDayName) {
+      return []; 
+    }
+
     const freed: RoomData[] = [];
     const dayName = getDayName(selectedDay);
 
@@ -132,7 +158,7 @@ function App() {
       }
     });
     return freed;
-  }, [absentTeachers, selectedDay, selectedTimeIndex]);
+  }, [absentTeachers, selectedDay, selectedTimeIndex, currentDayName]);
 
   const availableRooms = useMemo(() => {
     const staticRooms = ROOMS.filter(room => {
@@ -163,7 +189,6 @@ function App() {
 
   // --- 4. RENDER (The UI) ---
 
-  // A. Blocked Screen
   if (isSiteBlocked) {
     return (
       <div className="min-h-screen bg-red-900 flex flex-col items-center justify-center p-4 text-center">
@@ -183,7 +208,6 @@ function App() {
     );
   }
 
-  // B. Main App Screen
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 pb-20">
       <header className="bg-red-800 text-white sticky top-0 z-50 shadow-lg">
@@ -197,31 +221,80 @@ function App() {
                 <h1 className="text-xl font-bold leading-none">SRCC Empty Room Finder</h1>
                 <p className="text-red-200 text-sm mt-1">Academic Session 2025-26</p>
               </div>
-              <button 
-                onClick={() => setIsAdminOpen(true)}
-                className="ml-2 p-1.5 bg-red-900/50 rounded-full hover:bg-red-900/80 transition-colors text-red-200"
-                title="Admin Access"
-              >
-                <Lock className="w-3 h-3" />
-              </button>
             </div>
             
-            <div className="flex items-center gap-4 bg-red-900/50 rounded-lg p-2 px-4 border border-red-700/50">
-               <div className="text-center">
-                  <span className="block text-2xl font-bold text-yellow-400">{stats.available}</span>
-                  <span className="text-xs text-red-200 uppercase tracking-wider">Free Rooms</span>
-               </div>
-               <div className="h-8 w-px bg-red-700"></div>
-               <div className="text-center">
-                  <span className="block text-2xl font-bold">{stats.total}</span>
-                  <span className="text-xs text-red-200 uppercase tracking-wider">Total</span>
-               </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 bg-red-900/50 rounded-lg p-2 px-4 border border-red-700/50">
+                 <div className="text-center">
+                    <span className="block text-2xl font-bold text-yellow-400">{stats.available}</span>
+                    <span className="text-xs text-red-200 uppercase tracking-wider">Free Rooms</span>
+                 </div>
+                 <div className="h-8 w-px bg-red-700"></div>
+                 <div className="text-center">
+                    <span className="block text-2xl font-bold">{stats.total}</span>
+                    <span className="text-xs text-red-200 uppercase tracking-wider">Total</span>
+                 </div>
+              </div>
+
+              <button 
+                onClick={() => { setIsAdminOpen(true); setLoginError(''); }}
+                className="flex items-center gap-2 bg-white text-red-800 hover:bg-gray-100 px-4 py-2 rounded-lg font-bold shadow-sm transition-all text-sm"
+              >
+                <Lock className="w-4 h-4" />
+                Admin Login
+              </button>
             </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* NEW DASHBOARD: Teachers on Leave */}
+        <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl shadow-sm border border-red-100 p-6 mb-8">
+           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-white p-2 rounded-lg shadow-sm text-red-600">
+                  <UserMinus className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Teachers on Leave</h2>
+                  <div className="flex items-center gap-2 text-red-600 text-sm font-medium">
+                    <CalendarDays className="w-4 h-4" />
+                    {formattedDate}
+                  </div>
+                </div>
+              </div>
+              {absentTeachers.length > 0 && (
+                 <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-bold border border-red-200">
+                   {absentTeachers.length} Absent Today
+                 </span>
+              )}
+           </div>
+           
+           <div className="bg-white/60 rounded-lg p-4 border border-red-100/50">
+             {absentTeachers.length > 0 ? (
+               <div className="flex flex-wrap gap-2">
+                 {absentTeachers.map(tid => (
+                   <span key={tid} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-red-200 shadow-sm text-sm font-medium text-gray-700">
+                     <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                     {TEACHER_SCHEDULES[tid]?.name || tid}
+                   </span>
+                 ))}
+               </div>
+             ) : (
+               <p className="text-gray-500 text-sm italic flex items-center gap-2">
+                 <CheckCircle className="w-4 h-4 text-green-500" />
+                 No teachers marked absent today.
+               </p>
+             )}
+           </div>
+           <p className="text-xs text-gray-400 mt-2 text-right">
+             *List resets automatically at end of day
+           </p>
+        </div>
+
+        {/* Controls */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="space-y-2">
@@ -399,14 +472,22 @@ function App() {
               {!isLoggedIn ? (
                 <div className="space-y-4">
                   <p className="text-gray-600 text-center">Enter Access Code</p>
+                  
+                  {loginError && (
+                    <div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg border border-red-200 text-sm font-medium animate-pulse">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      {loginError}
+                    </div>
+                  )}
+
                   <input 
                     type="password" 
                     value={adminPass} 
                     onChange={e => setAdminPass(e.target.value)}
-                    className="w-full p-3 border rounded-xl text-center text-lg tracking-widest"
+                    className="w-full p-3 border rounded-xl text-center text-lg tracking-widest focus:ring-2 focus:ring-red-500 outline-none"
                     placeholder="••••••••"
                   />
-                  <button onClick={handleAdminLogin} className="w-full bg-red-800 text-white py-3 rounded-xl font-bold hover:bg-red-900">
+                  <button onClick={handleAdminLogin} className="w-full bg-red-800 text-white py-3 rounded-xl font-bold hover:bg-red-900 transition-colors">
                     Unlock Dashboard
                   </button>
                 </div>

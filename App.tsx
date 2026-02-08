@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
-  Calendar, Clock, MapPin, Search, Filter, Lock, CheckCircle, 
+  Clock, MapPin, Search, Filter, Lock, CheckCircle, 
   XCircle, LogOut, AlertTriangle, AlertCircle, UserMinus, 
   CalendarDays, Download, Share, Users, GraduationCap, 
   ArrowRight, MessageCircle, Star, Timer, Megaphone, Mail
@@ -9,7 +9,7 @@ import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
 import { TEACHER_SCHEDULES } from './teacherData';
 
-// --- SOCIETY EVENTS DATA (HYPOTHETICAL EXAMPLE) ---
+// --- SOCIETY EVENTS DATA ---
 const SOCIETY_EVENTS = [
   {
     id: 1,
@@ -29,7 +29,6 @@ function App() {
   // --- STATE VARIABLES ---
   
   // 1. Navigation & Global
-  // Removed 'classes' from the type
   const [activeTab, setActiveTab] = useState<'rooms' | 'teachers' | 'societies'>('rooms'); 
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(DayOfWeek.Monday);
   const [selectedTimeIndex, setSelectedTimeIndex] = useState<number>(0);
@@ -148,7 +147,7 @@ function App() {
 
   // --- 3. LOGIC: ROOM FINDER (SMART SORT & DURATION) ---
 
-  const calculateFreeDuration = (room: any, startSlotIndex: number, daySchedule: any[]) => {
+  const calculateFreeDuration = (room: any, startSlotIndex: number) => {
     let freeSlots = 0;
     for (let i = startSlotIndex; i < TIME_SLOTS.length; i++) {
        const isStaticallyFree = room.emptySlots[selectedDay]?.includes(i);
@@ -202,8 +201,8 @@ function App() {
     });
 
     return filtered.sort((a, b) => {
-       const durA = calculateFreeDuration(a, selectedTimeIndex, []);
-       const durB = calculateFreeDuration(b, selectedTimeIndex, []);
+       const durA = calculateFreeDuration(a, selectedTimeIndex);
+       const durB = calculateFreeDuration(b, selectedTimeIndex);
        return durB - durA;
     });
 
@@ -278,7 +277,7 @@ function App() {
       .map(t => ({ ...t, type: 'teacher' }));
 
     return teachers.sort((a, b) => a.name.localeCompare(b.name));
-  }, [finderSearchQuery, activeTab, selectedDay, selectedTimeIndex]);
+  }, [finderSearchQuery]); // <--- FIXED: Removed unused dependencies
 
 
   // --- 6. RENDER ---
@@ -327,7 +326,6 @@ function App() {
                  >
                    <Users className="w-4 h-4" /> Teachers
                  </button>
-                 {/* Class Button Removed */}
                  <button 
                    onClick={() => setActiveTab('societies')}
                    className={`px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all duration-200 ${activeTab === 'societies' ? 'bg-white text-red-900 shadow-sm transform scale-105' : 'text-red-200 hover:bg-white/10'}`}
@@ -403,7 +401,7 @@ function App() {
              {/* Rooms Grid */}
              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {availableRooms.map((room) => {
-                  const duration = calculateFreeDuration(room, selectedTimeIndex, []);
+                  const duration = calculateFreeDuration(room, selectedTimeIndex);
                   const isLongDuration = duration >= 3; 
 
                   return (

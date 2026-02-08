@@ -1,7 +1,5 @@
 export async function onRequest(context) {
   const { request, env } = context;
-  
-  // 1. Get User IP
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
   
   if (!env.DB) {
@@ -9,13 +7,12 @@ export async function onRequest(context) {
   }
 
   try {
-    // 2. Check if this IP is blocked (Using new table: access_logs_v2)
+    // Check against the NEW table: access_logs_v3
     const result = await env.DB.prepare(
-      "SELECT * FROM access_logs_v2 WHERE ip_address = ?"
+      "SELECT * FROM access_logs_v3 WHERE ip_address = ?"
     ).bind(ip).first();
 
     if (result && result.blocked_until > Date.now()) {
-      // User is still blocked
       const remainingMs = result.blocked_until - Date.now();
       const remainingMinutes = Math.ceil(remainingMs / 60000);
       
@@ -27,13 +24,11 @@ export async function onRequest(context) {
       });
     }
 
-    // User is NOT blocked
     return new Response(JSON.stringify({ blocked: false }), { 
       headers: { "Content-Type": "application/json" } 
     });
 
   } catch (e) {
-    // If table doesn't exist yet, they aren't blocked
     return new Response(JSON.stringify({ blocked: false }), { 
       headers: { "Content-Type": "application/json" } 
     });

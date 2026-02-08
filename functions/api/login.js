@@ -5,21 +5,19 @@ export async function onRequestPost(context) {
   try {
     const { password } = await request.json();
 
-    // 1. Ensure Table Exists (New name: access_logs_v2)
+    // 1. Ensure Table Exists (New Name: access_logs_v3)
     await env.DB.prepare(`
-      CREATE TABLE IF NOT EXISTS access_logs_v2 (
+      CREATE TABLE IF NOT EXISTS access_logs_v3 (
         ip_address TEXT PRIMARY KEY,
         attempts INTEGER,
         blocked_until INTEGER
       )
     `).run();
 
-    // 2. Check existing status for this IP
     const record = await env.DB.prepare(
-      "SELECT * FROM access_logs_v2 WHERE ip_address = ?"
+      "SELECT * FROM access_logs_v3 WHERE ip_address = ?"
     ).bind(ip).first();
 
-    // 3. IF BLOCKED: Reject immediately
     if (record && record.blocked_until > Date.now()) {
       return new Response(JSON.stringify({ 
         error: "BLOCKED", 
@@ -27,28 +25,22 @@ export async function onRequestPost(context) {
       }), { status: 403, headers: { "Content-Type": "application/json" } });
     }
 
-    // 4. CHECK PASSWORD
     if (password === env.ADMIN_PASSWORD) {
-      // SUCCESS: Clear any bad records for this IP
-      await env.DB.prepare("DELETE FROM access_logs_v2 WHERE ip_address = ?").bind(ip).run();
-      
+      await env.DB.prepare("DELETE FROM access_logs_v3 WHERE ip_address = ?").bind(ip).run();
       return new Response(JSON.stringify({ success: true }), { 
         status: 200, 
         headers: { "Content-Type": "application/json" } 
       });
     } else {
-      // FAILURE: Update counts
       let newAttempts = (record?.attempts || 0) + 1;
-      let blockedUntil = 0; // 0 means not blocked
+      let blockedUntil = 0; 
 
-      // If 3rd wrong attempt, block for 1 hour (3600000 ms)
       if (newAttempts >= 3) {
         blockedUntil = Date.now() + 3600000;
       }
 
-      // Upsert the record (Insert or Replace)
       await env.DB.prepare(`
-        INSERT INTO access_logs_v2 (ip_address, attempts, blocked_until) 
+        INSERT INTO access_logs_v3 (ip_address, attempts, blocked_until) 
         VALUES (?, ?, ?) 
         ON CONFLICT(ip_address) DO UPDATE SET 
           attempts = excluded.attempts, 

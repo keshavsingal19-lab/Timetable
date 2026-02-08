@@ -1,10 +1,8 @@
 export async function onRequest(context) {
   const { request, env } = context;
   
-  // 1. Get Date in Indian Standard Time (IST)
-  // This ensures the list resets at midnight India time, not UTC.
+  // Use IST (Indian Standard Time) for date consistency
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); 
-  // Output format: "YYYY-MM-DD" (e.g., "2025-02-10")
 
   if (!env.DB) {
     return new Response(JSON.stringify({ error: "Database not configured" }), { 
@@ -13,7 +11,7 @@ export async function onRequest(context) {
     });
   }
 
-  // 2. GET Request: Fetch today's absences
+  // GET Request: Anyone can see who is absent
   if (request.method === "GET") {
     try {
       await env.DB.prepare(`
@@ -35,12 +33,12 @@ export async function onRequest(context) {
     }
   }
 
-  // 3. POST Request: Mark/Unmark absent
+  // POST Request: Only Admin (with password) can change this
   if (request.method === "POST") {
     try {
       const { teacherId, isAbsent, password } = await request.json();
 
-      // Verify Password (Security Check)
+      // 1. SECURITY CHECK
       if (password !== env.ADMIN_PASSWORD) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { 
           status: 401, 
@@ -48,6 +46,7 @@ export async function onRequest(context) {
         });
       }
       
+      // 2. UPDATE DATABASE
       if (isAbsent) {
         await env.DB.prepare(
           "INSERT OR IGNORE INTO daily_absences (date, teacher_id) VALUES (?, ?)"

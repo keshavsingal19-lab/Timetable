@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Clock, MapPin, Search, Filter, Lock, CheckCircle, XCircle, LogOut, AlertTriangle, AlertCircle, UserMinus, CalendarDays } from 'lucide-react';
+import { Calendar, Clock, MapPin, Search, Filter, Lock, CheckCircle, XCircle, LogOut, AlertTriangle, AlertCircle, UserMinus, CalendarDays, Download, Share } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
 import { TEACHER_SCHEDULES } from './teacherData';
@@ -20,13 +20,16 @@ function App() {
   const [absentTeachers, setAbsentTeachers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [loginError, setLoginError] = useState(''); 
+  const [adminSearchQuery, setAdminSearchQuery] = useState('');
+
+  // Install Modal State
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
 
   // Blocking State
   const [isSiteBlocked, setIsSiteBlocked] = useState(false);
   const [blockMessage, setBlockMessage] = useState('');
 
   // --- HELPER: Get Current Date Details ---
-  // We use this to display the date and enforce "Today Only" logic
   const todayDateObj = new Date();
   const currentDayName = todayDateObj.toLocaleDateString('en-US', { weekday: 'long' });
   const formattedDate = todayDateObj.toLocaleDateString('en-GB', { 
@@ -35,12 +38,10 @@ function App() {
 
   // --- 1. INITIAL CHECKS (Run on Load) ---
   useEffect(() => {
-    // A. Set default day to today (if it's a weekday)
     if (Object.values(DayOfWeek).includes(currentDayName as DayOfWeek)) {
       setSelectedDay(currentDayName as DayOfWeek);
     }
     
-    // B. Check Block Status
     fetch('/api/check_status')
       .then(res => res.json())
       .then(data => {
@@ -51,7 +52,6 @@ function App() {
       })
       .catch(err => console.error("Block check failed", err));
 
-    // C. Fetch existing attendance
     fetch('/api/attendance')
       .then(res => res.json())
       .then(ids => {
@@ -62,7 +62,7 @@ function App() {
         console.error("Attendance fetch error:", err);
         setLoading(false);
       });
-  }, []); // Empty dependency array = runs once on mount
+  }, []); 
 
   // --- 2. ADMIN ACTIONS ---
   
@@ -79,7 +79,6 @@ function App() {
 
       if (response.ok) {
         setIsLoggedIn(true);
-        // FIX: Password is NO LONGER cleared here, so it stays available for updates
         setLoginError('');
       } else {
         if (response.status === 403) {
@@ -130,8 +129,6 @@ function App() {
   // --- 3. CALCULATION LOGIC ---
 
   const freedRooms = useMemo(() => {
-    // LOGIC CHECK: Only apply absences if the selected day matches TODAY
-    // If user selects "Tuesday" but today is "Monday", absences shouldn't apply.
     if (selectedDay !== currentDayName) {
       return []; 
     }
@@ -236,12 +233,21 @@ function App() {
                  </div>
               </div>
 
+              {/* Install Button */}
+              <button 
+                onClick={() => setIsInstallModalOpen(true)}
+                className="flex items-center gap-2 bg-white text-red-800 hover:bg-gray-100 px-4 py-2 rounded-lg font-bold shadow-sm transition-all text-sm"
+              >
+                <Download className="w-4 h-4" />
+                Install App
+              </button>
+
               <button 
                 onClick={() => { setIsAdminOpen(true); setLoginError(''); }}
                 className="flex items-center gap-2 bg-white text-red-800 hover:bg-gray-100 px-4 py-2 rounded-lg font-bold shadow-sm transition-all text-sm"
               >
                 <Lock className="w-4 h-4" />
-                Admin Login
+                Admin
               </button>
             </div>
           </div>
@@ -250,7 +256,7 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* NEW DASHBOARD: Teachers on Leave */}
+        {/* DASHBOARD: Teachers on Leave */}
         <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl shadow-sm border border-red-100 p-6 mb-8">
            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
               <div className="flex items-center gap-3">
@@ -457,6 +463,64 @@ function App() {
         </div>
       </footer>
 
+      {/* INSTALL APP MODAL */}
+      {isInstallModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="p-4 bg-red-800 text-white flex justify-between items-center">
+              <h2 className="font-bold text-lg flex items-center gap-2">
+                <Download className="w-5 h-5" /> Install App
+              </h2>
+              <button onClick={() => setIsInstallModalOpen(false)} className="hover:bg-red-700 p-1 rounded">✕</button>
+            </div>
+            
+            <div className="p-6 space-y-6 overflow-y-auto text-gray-700">
+               {/* Android */}
+               <div>
+                 <h3 className="font-bold text-lg text-gray-900 mb-2 flex items-center gap-2">
+                   {/* We reuse icons or default to text if specific icon not imported. 
+                       Since I imported CalendarDays, let's just use text or generic icon. 
+                       Actually, I'll use simple SVGs or just text structure. */}
+                   📱 Android (Chrome)
+                 </h3>
+                 <ol className="list-decimal pl-5 space-y-1 text-sm">
+                   <li>Open <b>Google Chrome</b> on your Android device.</li>
+                   <li>Go to the website you want to add.</li>
+                   <li>Tap the <b>three-dot menu</b> in the top-right corner.</li>
+                   <li>Select <b>“Add to Home screen.”</b></li>
+                   <li>Edit the name if required, then tap <b>Add</b>.</li>
+                   <li>The website will now appear on your home screen.</li>
+                 </ol>
+               </div>
+
+               {/* iOS */}
+               <div>
+                 <h3 className="font-bold text-lg text-gray-900 mb-2 flex items-center gap-2">
+                   <Share className="w-5 h-5 text-blue-600" /> iPhone / iPad (Safari)
+                 </h3>
+                 <ol className="list-decimal pl-5 space-y-1 text-sm">
+                   <li>Open <b>Safari</b> on your iPhone or iPad.</li>
+                   <li>Go to the website you want to add.</li>
+                   <li>Tap the <b>Share button</b> (square with an upward arrow).</li>
+                   <li>Scroll down and tap <b>“Add to Home Screen.”</b></li>
+                   <li>Edit the name if required, then tap <b>Add</b>.</li>
+                   <li>The website will now appear on your home screen.</li>
+                 </ol>
+               </div>
+            </div>
+
+            <div className="p-4 bg-gray-50 border-t text-center">
+              <button 
+                onClick={() => setIsInstallModalOpen(false)}
+                className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-semibold text-gray-700 transition-colors"
+              >
+                Close Instructions
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ADMIN MODAL */}
       {isAdminOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -499,10 +563,25 @@ function App() {
                       <LogOut className="w-3 h-3" /> Logout
                     </button>
                   </div>
+
+                  {/* SEARCH BAR FOR TEACHERS */}
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                      placeholder="Search for a teacher..."
+                      value={adminSearchQuery}
+                      onChange={(e) => setAdminSearchQuery(e.target.value)}
+                    />
+                  </div>
                   
                   <div className="space-y-2">
                     {Object.values(TEACHER_SCHEDULES)
                       .filter(t => t.id !== 'ADMIN')
+                      .filter(t => t.name.toLowerCase().includes(adminSearchQuery.toLowerCase()))
                       .sort((a, b) => a.name.localeCompare(b.name))
                       .map((t: any) => (
                       <div key={t.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100">

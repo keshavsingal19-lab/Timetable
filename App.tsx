@@ -3,43 +3,23 @@ import {
   Calendar, Clock, MapPin, Search, Filter, Lock, CheckCircle, 
   XCircle, LogOut, AlertTriangle, AlertCircle, UserMinus, 
   CalendarDays, Download, Share, Users, GraduationCap, 
-  ArrowRight, MessageCircle, BookOpen, Star, Timer, Megaphone, Mail
+  ArrowRight, MessageCircle, Star, Timer, Megaphone, Mail
 } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
 import { TEACHER_SCHEDULES } from './teacherData';
 
-// --- SOCIETY EVENTS DATA (EDIT THIS TO UPDATE EVENTS) ---
+// --- SOCIETY EVENTS DATA (HYPOTHETICAL EXAMPLE) ---
 const SOCIETY_EVENTS = [
   {
     id: 1,
-    society: "The Debating Society",
-    event: "Freshers' Auditions",
-    date: "Feb 20, 2026",
-    time: "10:30 AM Onwards",
-    location: "Seminar Room",
-    type: "Recruitment",
-    description: "Join the legacy. Open to all courses. No prior experience required."
-  },
-  {
-    id: 2,
-    society: "Dramatics Society",
-    event: "Street Play Practice",
-    date: "Feb 21, 2026",
-    time: "2:00 PM - 5:00 PM",
-    location: "Sports Complex",
-    type: "Cultural",
-    description: "Open workshop for anyone interested in nukkad natak."
-  },
-  {
-    id: 3,
-    society: "Commerce Society",
-    event: "BizQuiz 2026",
-    date: "Feb 24, 2026",
-    time: "11:30 AM",
-    location: "Room 14",
-    type: "Competition",
-    description: "Test your business acumen. Cash prizes worth ₹5000."
+    society: "The XYZ Society",
+    event: "Sample Event Name",
+    date: "01 Jan 2026",
+    time: "10:00 AM Onwards",
+    location: "Sample Venue",
+    type: "Sample",
+    description: "This is a hypothetical event description. Your society's event details, poster, and registration links will appear here."
   }
 ];
 
@@ -49,8 +29,8 @@ function App() {
   // --- STATE VARIABLES ---
   
   // 1. Navigation & Global
-  // Added 'societies' to the allowed tabs
-  const [activeTab, setActiveTab] = useState<'rooms' | 'teachers' | 'classes' | 'societies'>('rooms'); 
+  // Removed 'classes' from the type
+  const [activeTab, setActiveTab] = useState<'rooms' | 'teachers' | 'societies'>('rooms'); 
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(DayOfWeek.Monday);
   const [selectedTimeIndex, setSelectedTimeIndex] = useState<number>(0);
   
@@ -59,7 +39,7 @@ function App() {
   const [filterType, setFilterType] = useState<string>('All');
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
 
-  // 3. Teacher/Class Finder
+  // 3. Teacher Finder
   const [finderSearchQuery, setFinderSearchQuery] = useState('');
 
   // 4. Admin & Security
@@ -268,7 +248,7 @@ function App() {
     return getRoomTimeline(selectedRoomId);
   }, [selectedRoomId, selectedDay, absentTeachers]);
 
-  // --- 5. LOGIC: TEACHER & CLASS FINDER (Unified) ---
+  // --- 5. LOGIC: TEACHER FINDER ---
 
   const getEntityStatus = (teacher: any) => {
     if (absentTeachers.includes(teacher.id) && selectedDay === currentDayName) {
@@ -296,27 +276,6 @@ function App() {
       .filter(t => t.id !== 'ADMIN')
       .filter(t => t.name.toLowerCase().includes(query))
       .map(t => ({ ...t, type: 'teacher' }));
-
-    const classes: any[] = [];
-    if (activeTab === 'classes') {
-       Object.values(TEACHER_SCHEDULES).forEach((t: any) => {
-          if (t.id === 'ADMIN') return;
-          const daySchedule = t.schedule[selectedDay];
-          if (daySchedule) {
-             const currentClass = daySchedule.find((c: any) => c.periods.includes(selectedTimeIndex));
-             if (currentClass && currentClass.subject && currentClass.subject.toLowerCase().includes(query)) {
-                classes.push({
-                   id: t.id + '_class',
-                   name: currentClass.subject,
-                   department: `Taught by ${t.name}`,
-                   schedule: t.schedule,
-                   type: 'class'
-                });
-             }
-          }
-       });
-       return classes.sort((a, b) => a.name.localeCompare(b.name));
-    }
 
     return teachers.sort((a, b) => a.name.localeCompare(b.name));
   }, [finderSearchQuery, activeTab, selectedDay, selectedTimeIndex]);
@@ -368,12 +327,7 @@ function App() {
                  >
                    <Users className="w-4 h-4" /> Teachers
                  </button>
-                 <button 
-                   onClick={() => setActiveTab('classes')}
-                   className={`px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all duration-200 ${activeTab === 'classes' ? 'bg-white text-red-900 shadow-sm transform scale-105' : 'text-red-200 hover:bg-white/10'}`}
-                 >
-                   <BookOpen className="w-4 h-4" /> Class
-                 </button>
+                 {/* Class Button Removed */}
                  <button 
                    onClick={() => setActiveTab('societies')}
                    className={`px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all duration-200 ${activeTab === 'societies' ? 'bg-white text-red-900 shadow-sm transform scale-105' : 'text-red-200 hover:bg-white/10'}`}
@@ -391,7 +345,7 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
-        {/* TIME CONTROLS (Only for Rooms/Teachers/Classes) */}
+        {/* TIME CONTROLS (Only for Rooms/Teachers) */}
         {activeTab !== 'societies' && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-6">
              <div className="flex items-center gap-2 mb-4 text-gray-500 text-xs font-bold uppercase tracking-widest">
@@ -497,15 +451,15 @@ function App() {
           </div>
         )}
 
-        {/* --- TEACHER & CLASS FINDER TABS --- */}
-        {(activeTab === 'teachers' || activeTab === 'classes') && (
+        {/* --- TEACHER FINDER TAB --- */}
+        {activeTab === 'teachers' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 mb-6 sticky top-24 z-30">
                <div className="relative">
                  <Search className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
                  <input 
                    type="text" 
-                   placeholder={activeTab === 'teachers' ? "Search teacher..." : "Search class/subject (e.g. 'Tax')..."}
+                   placeholder="Search teacher..."
                    value={finderSearchQuery}
                    onChange={(e) => setFinderSearchQuery(e.target.value)}
                    className="w-full text-lg pl-12 pr-4 py-3 bg-gray-50 rounded-xl outline-none border border-transparent focus:bg-white focus:border-red-300 transition-all placeholder:text-gray-400"
@@ -520,7 +474,7 @@ function App() {
                    <div key={entity.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-all group">
                       <div className="flex justify-between items-start mb-3">
                          <div className="bg-gray-100 p-2.5 rounded-xl text-gray-500 group-hover:bg-red-50 group-hover:text-red-600 transition-colors">
-                           {entity.type === 'class' ? <BookOpen className="w-6 h-6" /> : <GraduationCap className="w-6 h-6" />}
+                           <GraduationCap className="w-6 h-6" />
                          </div>
                          <div className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5
                             ${statusInfo.color === 'red' ? 'bg-red-50 text-red-700' : 
@@ -544,7 +498,7 @@ function App() {
           </div>
         )}
 
-        {/* --- SOCIETY ANNOUNCEMENTS TAB (NEW) --- */}
+        {/* --- SOCIETY ANNOUNCEMENTS TAB --- */}
         {activeTab === 'societies' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
              
@@ -554,12 +508,15 @@ function App() {
                    <h2 className="text-2xl font-bold flex items-center gap-2"><Megaphone className="w-6 h-6 text-yellow-300" /> Upcoming Society Events</h2>
                    <p className="text-red-100 mt-2">Discover what's happening around campus this week.</p>
                 </div>
-                <a 
-                   href="mailto:abcddcba121202@gmail.com?subject=List%20Society%20Event&body=Hi,%20I%20would%20like%20to%20list%20an%20event.%0A%0ASociety%20Name:%20%0AEvent%20Name:%20%0ADate:%20%0ATime:%20%0AVenue:%20%0ADescription:%20"
-                   className="bg-white text-red-900 px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md hover:bg-gray-100 transition-all active:scale-95"
-                >
-                   <Mail className="w-5 h-5" /> List Your Event
-                </a>
+                <div className="text-center md:text-right">
+                   <a 
+                      href="mailto:abcddcba121202@gmail.com?subject=List%20Society%20Event&body=Hi,%20I%20would%20like%20to%20list%20an%20event.%0A%0ASociety%20Name:%20%0AEvent%20Name:%20%0ADate:%20%0ATime:%20%0AVenue:%20%0ADescription:%20"
+                      className="bg-white text-red-900 px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md hover:bg-gray-100 transition-all active:scale-95"
+                   >
+                      <Mail className="w-5 h-5" /> List Your Event
+                   </a>
+                   <p className="text-xs text-red-200 mt-2 font-medium opacity-80">Listing starts @ ₹5/day</p>
+                </div>
              </div>
 
              {/* EVENTS GRID */}

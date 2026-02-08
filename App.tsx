@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Clock, MapPin, Search, Filter, Lock, CheckCircle, XCircle, LogOut } from 'lucide-react';
+import { Calendar, Clock, MapPin, Search, Filter, Lock, CheckCircle, XCircle, LogOut, AlertTriangle } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
 import { TEACHER_SCHEDULES } from './teacherData';
@@ -7,21 +7,37 @@ import { TEACHER_SCHEDULES } from './teacherData';
 const getDayName = (day: DayOfWeek): string => day;
 
 function App() {
-  // --- EXISTING STATE ---
+  // --- STATE VARIABLES ---
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(DayOfWeek.Monday);
   const [selectedTimeIndex, setSelectedTimeIndex] = useState<number>(0);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterType, setFilterType] = useState<string>('All');
 
-  // --- NEW ADMIN STATE ---
+  // Admin & Security State
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [adminPass, setAdminPass] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [absentTeachers, setAbsentTeachers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 1. Fetch Absences on Load
+  // Blocking State
+  const [isSiteBlocked, setIsSiteBlocked] = useState(false);
+  const [blockMessage, setBlockMessage] = useState('');
+
+  // --- 1. INITIAL CHECKS (Run on Load) ---
   useEffect(() => {
+    // Check if user is blocked
+    fetch('/api/check_status')
+      .then(res => res.json())
+      .then(data => {
+        if (data.blocked) {
+          setIsSiteBlocked(true);
+          setBlockMessage(data.message);
+        }
+      })
+      .catch(err => console.error("Block check failed", err));
+
+    // Fetch existing attendance
     fetch('/api/attendance')
       .then(res => res.json())
       .then(ids => {
@@ -34,7 +50,8 @@ function App() {
       });
   }, []);
 
-  // REPLACEMENT for handleAdminLogin
+  // --- 2. ADMIN ACTIONS ---
+  
   const handleAdminLogin = async () => {
     try {
       const response = await fetch('/api/login', {
@@ -43,10 +60,19 @@ function App() {
         body: JSON.stringify({ password: adminPass })
       });
 
+      const data = await response.json();
+
       if (response.ok) {
         setIsLoggedIn(true);
+        setAdminPass(''); 
       } else {
-        alert("Invalid Access Code");
+        if (response.status === 403) {
+           setIsSiteBlocked(true);
+           setBlockMessage(data.message);
+           setIsAdminOpen(false); 
+        } else {
+           alert(data.error || "Invalid Access Code");
+        }
       }
     } catch (error) {
       console.error("Login failed:", error);
@@ -54,7 +80,35 @@ function App() {
     }
   };
 
-  // 3. SMART LOGIC: Find Rooms Freed by Absences
+  const toggleAbsence = async (tid: string) => {
+    const isAbsent = !absentTeachers.includes(tid);
+    
+    // Optimistic UI update
+    setAbsentTeachers(prev => isAbsent ? [...prev, tid] : prev.filter(id => id !== tid));
+
+    try {
+      const response = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          teacherId: tid, 
+          isAbsent, 
+          password: adminPass 
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error("Unauthorized or Failed");
+      }
+    } catch (e) {
+      console.error("Save failed", e);
+      alert("Failed to save. Session may have expired.");
+      setAbsentTeachers(prev => isAbsent ? prev.filter(id => id !== tid) : [...prev, tid]);
+    }
+  };
+
+  // --- 3. CALCULATION LOGIC ---
+
   const freedRooms = useMemo(() => {
     const freed: RoomData[] = [];
     const dayName = getDayName(selectedDay);
@@ -71,24 +125,20 @@ function App() {
         freed.push({
           id: classAtSlot.room,
           name: classAtSlot.room,
-          type: 'Lecture Hall', // Keep generic for filter consistency
+          type: 'Lecture Hall', 
           emptySlots: { [selectedDay]: [selectedTimeIndex] } as any,
-          tags: [`Freed: ${teacher.name}`] // Special tag to identify them
+          tags: [`Freed: ${teacher.name}`]
         } as any);
       }
     });
     return freed;
   }, [absentTeachers, selectedDay, selectedTimeIndex]);
 
-  // 4. MERGED LOGIC: Combine Standard Empty Rooms + Freed Rooms
   const availableRooms = useMemo(() => {
-    // A. Original Static Check
     const staticRooms = ROOMS.filter(room => {
-      const isFree = room.emptySlots[selectedDay]?.includes(selectedTimeIndex);
-      return isFree;
+      return room.emptySlots[selectedDay]?.includes(selectedTimeIndex);
     });
 
-    // B. Merge Lists (Avoid duplicates)
     const allRooms = [...staticRooms];
     freedRooms.forEach(freed => {
       if (!allRooms.find(r => r.id === freed.id)) {
@@ -96,16 +146,13 @@ function App() {
       }
     });
 
-    // C. Apply User Search & Type Filters
     return allRooms.filter(room => {
       const matchesSearch = room.name.toLowerCase().includes(searchQuery.toLowerCase());
-      // Check tags for 'Lecture Hall' type logic if needed, or keep standard
       const matchesType = filterType === 'All' || room.type === filterType;
       return matchesSearch && matchesType;
     });
   }, [selectedDay, selectedTimeIndex, searchQuery, filterType, freedRooms]);
 
-  // Stats calculation
   const stats = useMemo(() => {
     const total = ROOMS.length;
     const available = availableRooms.length;
@@ -113,9 +160,32 @@ function App() {
     return { available, total, percentage };
   }, [availableRooms]);
 
+
+  // --- 4. RENDER (The UI) ---
+
+  // A. Blocked Screen
+  if (isSiteBlocked) {
+    return (
+      <div className="min-h-screen bg-red-900 flex flex-col items-center justify-center p-4 text-center">
+        <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full animate-pulse">
+          <div className="flex justify-center mb-4">
+            <AlertTriangle className="w-16 h-16 text-red-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-red-700 mb-2">ACCESS DENIED</h1>
+          <p className="text-gray-800 font-semibold text-lg">
+            {blockMessage || "You were trying to breach into admin console, you are blocked for 1 hour."}
+          </p>
+          <p className="text-gray-500 text-sm mt-4">
+            Your IP has been logged and temporarily banned.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // B. Main App Screen
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 pb-20">
-      {/* Header */}
       <header className="bg-red-800 text-white sticky top-0 z-50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -127,7 +197,6 @@ function App() {
                 <h1 className="text-xl font-bold leading-none">SRCC Empty Room Finder</h1>
                 <p className="text-red-200 text-sm mt-1">Academic Session 2025-26</p>
               </div>
-              {/* Admin Lock Button Added Here */}
               <button 
                 onClick={() => setIsAdminOpen(true)}
                 className="ml-2 p-1.5 bg-red-900/50 rounded-full hover:bg-red-900/80 transition-colors text-red-200"
@@ -152,14 +221,9 @@ function App() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* Controls */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            
-            {/* Day Selector */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <Calendar className="w-4 h-4 text-red-600" />
@@ -176,7 +240,6 @@ function App() {
               </select>
             </div>
 
-            {/* Time Selector */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <Clock className="w-4 h-4 text-red-600" />
@@ -193,7 +256,6 @@ function App() {
               </select>
             </div>
 
-             {/* Room Type Filter */}
              <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <Filter className="w-4 h-4 text-red-600" />
@@ -212,7 +274,6 @@ function App() {
               </select>
             </div>
 
-            {/* Search */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <Search className="w-4 h-4 text-red-600" />
@@ -229,7 +290,6 @@ function App() {
           </div>
         </div>
 
-        {/* Results Grid */}
         <div className="space-y-4">
             <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
               Available Rooms
@@ -254,7 +314,6 @@ function App() {
                     </div>
                     <h3 className="font-bold text-gray-900 text-lg">{room.name}</h3>
                     
-                    {/* Special tag for freed rooms, otherwise standard type */}
                     {(room as any).tags ? (
                        <span className="text-xs px-2 py-1 rounded-full mt-2 font-bold bg-green-100 text-green-800 border border-green-200">
                          FREED UP
@@ -286,11 +345,9 @@ function App() {
         </div>
       </main>
 
-       {/* Footer */}
       <footer className="bg-white border-t border-gray-200 mt-12 py-8">
         <div className="max-w-4xl mx-auto px-4 text-center text-gray-500 text-sm space-y-8">
           
-          {/* Disclaimer & Contact Section */}
           <div className="bg-red-50/50 p-6 rounded-2xl border border-red-100 space-y-3">
             <h3 className="font-semibold text-gray-900">Disclaimer & Contact</h3>
             <p className="leading-relaxed">
@@ -320,7 +377,6 @@ function App() {
             </p>
           </div>
           
-          {/* Original Footer Info */}
           <div>
             <p>Data derived from SRCC Time Table 2025-26.</p>
             <p className="mt-1">Note: Break time is usually 01:30 PM - 02:00 PM.</p>
@@ -374,7 +430,7 @@ function App() {
                           <p className="text-xs text-gray-500">{t.department}</p>
                         </div>
                         <button
-                          onClick={() => toggleAbsence(t.id)}
+                          onClick={() => { toggleAbsence(t.id); }}
                           className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
                             absentTeachers.includes(t.id)
                               ? 'bg-red-500 text-white shadow-md'
@@ -398,15 +454,6 @@ function App() {
         </div>
       )}
     </div>
-  );
-}
-
-// Icon Helper
-function UserXIcon(props: any) {
-  return (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" x2="22" y1="8" y2="13"/><line x1="22" x2="17" y1="8" y2="13"/>
-    </svg>
   );
 }
 

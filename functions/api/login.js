@@ -1,72 +1,74 @@
 export async function onRequestPost(context) {
   const { request, env } = context;
-  
-  // 1. Parse Request
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+
   try {
     const { password } = await request.json();
-    const clientIP = request.headers.get("CF-Connecting-IP") || "unknown";
-    
-    // 2. Rate Limit Check (using D1)
-    const now = Date.now();
-    const blockUntil = await getBlockStatus(env.DB, clientIP);
-    
-    if (blockUntil && blockUntil > now) {
-      const minutesLeft = Math.ceil((blockUntil - now) / 60000);
+
+    // 1. Ensure Table Exists
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS login_attempts (
+        ip_address TEXT PRIMARY KEY,
+        attempts INTEGER,
+        blocked_until INTEGER
+      )
+    `).run();
+
+    // 2. Check existing status for this IP
+    const record = await env.DB.prepare(
+      "SELECT * FROM login_attempts WHERE ip_address = ?"
+    ).bind(ip).first();
+
+    // 3. IF BLOCKED: Reject immediately
+    if (record && record.blocked_until > Date.now()) {
       return new Response(JSON.stringify({ 
-        success: false, 
-        error: `Too many failed attempts. Try again in ${minutesLeft} minutes.` 
-      }), { status: 429 });
+        error: "BLOCKED", 
+        message: "You were trying to breach into admin console, you are blocked for 1 hour" 
+      }), { status: 403, headers: { "Content-Type": "application/json" } });
     }
 
-    // 3. Verify Password
-    // Access password from environment variable or fallback securely
-    const CORRECT_PASSWORD = env.ADMIN_PASSWORD || "kroni2005"; 
-
-    if (password === CORRECT_PASSWORD) {
-      // Reset failures on success
-      await resetFailures(env.DB, clientIP);
-      return new Response(JSON.stringify({ success: true, token: "admin-session-valid" }), { status: 200 });
+    // 4. CHECK PASSWORD
+    if (password === env.ADMIN_PASSWORD) {
+      // SUCCESS: Clear any bad records for this IP
+      await env.DB.prepare("DELETE FROM login_attempts WHERE ip_address = ?").bind(ip).run();
+      
+      return new Response(JSON.stringify({ success: true }), { 
+        status: 200, 
+        headers: { "Content-Type": "application/json" } 
+      });
     } else {
-      // 4. Handle Failure & Locking
-      await recordFailure(env.DB, clientIP, now);
-      return new Response(JSON.stringify({ success: false, error: "Invalid Access Code" }), { status: 401 });
+      // FAILURE: Update counts
+      let newAttempts = (record?.attempts || 0) + 1;
+      let blockedUntil = 0; // 0 means not blocked
+
+      // If 3rd wrong attempt, block for 1 hour (3600000 ms)
+      if (newAttempts >= 3) {
+        blockedUntil = Date.now() + 3600000;
+      }
+
+      // Upsert the record (Insert or Replace)
+      await env.DB.prepare(`
+        INSERT INTO login_attempts (ip_address, attempts, blocked_until) 
+        VALUES (?, ?, ?) 
+        ON CONFLICT(ip_address) DO UPDATE SET 
+          attempts = excluded.attempts, 
+          blocked_until = excluded.blocked_until
+      `).bind(ip, newAttempts, blockedUntil).run();
+
+      if (blockedUntil > 0) {
+        return new Response(JSON.stringify({ 
+          error: "BLOCKED",
+          message: "You were trying to breach into admin console, you are blocked for 1 hour" 
+        }), { status: 403, headers: { "Content-Type": "application/json" } });
+      }
+
+      return new Response(JSON.stringify({ 
+        error: "Invalid password", 
+        attemptsLeft: 3 - newAttempts 
+      }), { status: 401, headers: { "Content-Type": "application/json" } });
     }
 
   } catch (e) {
-    return new Response(JSON.stringify({ error: "Server error" }), { status: 500 });
+    return new Response(JSON.stringify({ error: "Server error: " + e.message }), { status: 500 });
   }
-}
-
-// --- HELPER FUNCTIONS FOR D1 RATE LIMITING ---
-
-async function getBlockStatus(db, ip) {
-  // Create table if missing (best effort init)
-  try {
-    await db.prepare(`CREATE TABLE IF NOT EXISTS login_attempts (ip TEXT PRIMARY KEY, failures INT, block_until INT)`).run();
-  } catch (e) { /* ignore if already exists */ }
-  
-  const result = await db.prepare("SELECT block_until FROM login_attempts WHERE ip = ?").bind(ip).first();
-  return result ? result.block_until : null;
-}
-
-async function recordFailure(db, ip, now) {
-  // Check current failures
-  const row = await db.prepare("SELECT failures FROM login_attempts WHERE ip = ?").bind(ip).first();
-  let failures = row ? row.failures + 1 : 1;
-  let blockUntil = 0;
-
-  // Block after 3 failed attempts
-  if (failures >= 3) {
-    blockUntil = now + (60 * 60 * 1000); // Block for 1 hour
-  }
-
-  // Upsert the failure record
-  await db.prepare(`
-    INSERT INTO login_attempts (ip, failures, block_until) VALUES (?, ?, ?)
-    ON CONFLICT(ip) DO UPDATE SET failures = ?, block_until = ?
-  `).bind(ip, failures, blockUntil, failures, blockUntil).run();
-}
-
-async function resetFailures(db, ip) {
-  await db.prepare("DELETE FROM login_attempts WHERE ip = ?").bind(ip).run();
 }

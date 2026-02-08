@@ -1,29 +1,113 @@
-import React, { useState, useMemo } from 'react';
-import { Calendar, Clock, MapPin, Search, Filter } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Calendar, Clock, MapPin, Search, Filter, Lock, CheckCircle, XCircle, LogOut } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
+import { TEACHER_SCHEDULES } from './teacherData';
+
+const getDayName = (day: DayOfWeek): string => day;
 
 function App() {
+  // --- EXISTING STATE ---
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(DayOfWeek.Monday);
   const [selectedTimeIndex, setSelectedTimeIndex] = useState<number>(0);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterType, setFilterType] = useState<string>('All');
 
-  const availableRooms = useMemo(() => {
-    return ROOMS.filter(room => {
-      // 1. Check if room is free at selected slot
-      const isFree = room.emptySlots[selectedDay].includes(selectedTimeIndex);
-      
-      // 2. Check search query
-      const matchesSearch = room.name.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      // 3. Check type filter
-      const matchesType = filterType === 'All' || room.type === filterType;
+  // --- NEW ADMIN STATE ---
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [adminPass, setAdminPass] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [absentTeachers, setAbsentTeachers] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
-      return isFree && matchesSearch && matchesType;
+  // 1. Fetch Absences on Load
+  useEffect(() => {
+    fetch('/api/attendance')
+      .then(res => res.json())
+      .then(ids => {
+        setAbsentTeachers(Array.isArray(ids) ? ids : []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Attendance fetch error:", err);
+        setLoading(false);
+      });
+  }, []);
+
+  // 2. Admin Logic
+  const handleAdminLogin = () => {
+    // SECURITY NOTE: Replace 'SRCC2025' with your desired secure password
+    if (adminPass === 'SRCC2025') setIsLoggedIn(true);
+    else alert("Invalid Access Code");
+  };
+
+  const toggleAbsence = async (tid: string) => {
+    const isAbsent = !absentTeachers.includes(tid);
+    setAbsentTeachers(prev => isAbsent ? [...prev, tid] : prev.filter(id => id !== tid));
+
+    try {
+      await fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teacherId: tid, isAbsent })
+      });
+    } catch (e) {
+      console.error("Save failed", e);
+    }
+  };
+
+  // 3. SMART LOGIC: Find Rooms Freed by Absences
+  const freedRooms = useMemo(() => {
+    const freed: RoomData[] = [];
+    const dayName = getDayName(selectedDay);
+
+    absentTeachers.forEach(tid => {
+      const teacher = TEACHER_SCHEDULES[tid];
+      if (!teacher) return;
+      const schedule = teacher.schedule[dayName];
+      if (!schedule) return;
+
+      const classAtSlot = schedule.find((c: any) => c.periods.includes(selectedTimeIndex));
+
+      if (classAtSlot && classAtSlot.room) {
+        freed.push({
+          id: classAtSlot.room,
+          name: classAtSlot.room,
+          type: 'Lecture Hall', // Keep generic for filter consistency
+          emptySlots: { [selectedDay]: [selectedTimeIndex] } as any,
+          tags: [`Freed: ${teacher.name}`] // Special tag to identify them
+        } as any);
+      }
     });
-  }, [selectedDay, selectedTimeIndex, searchQuery, filterType]);
+    return freed;
+  }, [absentTeachers, selectedDay, selectedTimeIndex]);
 
+  // 4. MERGED LOGIC: Combine Standard Empty Rooms + Freed Rooms
+  const availableRooms = useMemo(() => {
+    // A. Original Static Check
+    const staticRooms = ROOMS.filter(room => {
+      const isFree = room.emptySlots[selectedDay]?.includes(selectedTimeIndex);
+      return isFree;
+    });
+
+    // B. Merge Lists (Avoid duplicates)
+    const allRooms = [...staticRooms];
+    freedRooms.forEach(freed => {
+      if (!allRooms.find(r => r.id === freed.id)) {
+        allRooms.push(freed);
+      }
+    });
+
+    // C. Apply User Search & Type Filters
+    return allRooms.filter(room => {
+      const matchesSearch = room.name.toLowerCase().includes(searchQuery.toLowerCase());
+      // Check tags for 'Lecture Hall' type logic if needed, or keep standard
+      const matchesType = filterType === 'All' || room.type === filterType;
+      return matchesSearch && matchesType;
+    });
+  }, [selectedDay, selectedTimeIndex, searchQuery, filterType, freedRooms]);
+
+  // Stats calculation
   const stats = useMemo(() => {
     const total = ROOMS.length;
     const available = availableRooms.length;
@@ -45,6 +129,14 @@ function App() {
                 <h1 className="text-xl font-bold leading-none">SRCC Empty Room Finder</h1>
                 <p className="text-red-200 text-sm mt-1">Academic Session 2025-26</p>
               </div>
+              {/* Admin Lock Button Added Here */}
+              <button 
+                onClick={() => setIsAdminOpen(true)}
+                className="ml-2 p-1.5 bg-red-900/50 rounded-full hover:bg-red-900/80 transition-colors text-red-200"
+                title="Admin Access"
+              >
+                <Lock className="w-3 h-3" />
+              </button>
             </div>
             
             <div className="flex items-center gap-4 bg-red-900/50 rounded-lg p-2 px-4 border border-red-700/50">
@@ -153,20 +245,32 @@ function App() {
                 {availableRooms.map((room) => (
                   <div 
                     key={room.id}
-                    className="group bg-white rounded-lg border border-gray-200 hover:border-red-500 hover:shadow-md transition-all duration-200 p-4 flex flex-col items-center justify-center text-center cursor-default"
+                    className={`group bg-white rounded-lg border hover:shadow-md transition-all duration-200 p-4 flex flex-col items-center justify-center text-center cursor-default
+                      ${(room as any).tags ? 'border-green-400 ring-1 ring-green-100' : 'border-gray-200 hover:border-red-500'}
+                    `}
                   >
-                    <div className="w-12 h-12 rounded-full bg-green-50 text-green-600 flex items-center justify-center mb-3 group-hover:bg-red-50 group-hover:text-red-600 transition-colors">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-colors
+                       ${(room as any).tags ? 'bg-green-100 text-green-700' : 'bg-green-50 text-green-600 group-hover:bg-red-50 group-hover:text-red-600'}
+                    `}>
                       <span className="font-bold text-lg">{room.name.replace(/[^0-9]/g, '') || room.name.charAt(0)}</span>
                     </div>
                     <h3 className="font-bold text-gray-900 text-lg">{room.name}</h3>
-                    <span className={`text-xs px-2 py-1 rounded-full mt-2 font-medium
-                      ${room.type === 'Lab' ? 'bg-purple-100 text-purple-700' : 
-                        room.type === 'Seminar Room' ? 'bg-orange-100 text-orange-700' : 
-                        room.type === 'Tutorial Room' ? 'bg-teal-100 text-teal-700' :
-                        'bg-blue-100 text-blue-700'}`}
-                    >
-                      {room.type}
-                    </span>
+                    
+                    {/* Special tag for freed rooms, otherwise standard type */}
+                    {(room as any).tags ? (
+                       <span className="text-xs px-2 py-1 rounded-full mt-2 font-bold bg-green-100 text-green-800 border border-green-200">
+                         FREED UP
+                       </span>
+                    ) : (
+                      <span className={`text-xs px-2 py-1 rounded-full mt-2 font-medium
+                        ${room.type === 'Lab' ? 'bg-purple-100 text-purple-700' : 
+                          room.type === 'Seminar Room' ? 'bg-orange-100 text-orange-700' : 
+                          room.type === 'Tutorial Room' ? 'bg-teal-100 text-teal-700' :
+                          'bg-blue-100 text-blue-700'}`}
+                      >
+                        {room.type}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -225,7 +329,86 @@ function App() {
           </div>
         </div>
       </footer>
+
+      {/* ADMIN MODAL */}
+      {isAdminOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="p-4 bg-red-800 text-white flex justify-between items-center">
+              <h2 className="font-bold text-lg flex items-center gap-2">
+                <Lock className="w-5 h-5" /> Admin Attendance
+              </h2>
+              <button onClick={() => setIsAdminOpen(false)} className="hover:bg-red-700 p-1 rounded">✕</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {!isLoggedIn ? (
+                <div className="space-y-4">
+                  <p className="text-gray-600 text-center">Enter Access Code</p>
+                  <input 
+                    type="password" 
+                    value={adminPass} 
+                    onChange={e => setAdminPass(e.target.value)}
+                    className="w-full p-3 border rounded-xl text-center text-lg tracking-widest"
+                    placeholder="••••••••"
+                  />
+                  <button onClick={handleAdminLogin} className="w-full bg-red-800 text-white py-3 rounded-xl font-bold hover:bg-red-900">
+                    Unlock Dashboard
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <p className="text-sm text-gray-500">Mark absent teachers to free rooms.</p>
+                    <button onClick={() => setIsLoggedIn(false)} className="text-xs text-red-600 flex items-center gap-1">
+                      <LogOut className="w-3 h-3" /> Logout
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {Object.values(TEACHER_SCHEDULES)
+                      .filter(t => t.id !== 'ADMIN')
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((t: any) => (
+                      <div key={t.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100">
+                        <div>
+                          <p className="font-bold text-gray-800">{t.name}</p>
+                          <p className="text-xs text-gray-500">{t.department}</p>
+                        </div>
+                        <button
+                          onClick={() => toggleAbsence(t.id)}
+                          className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                            absentTeachers.includes(t.id)
+                              ? 'bg-red-500 text-white shadow-md'
+                              : 'bg-white border border-gray-300 text-gray-600'
+                          }`}
+                        >
+                          {absentTeachers.includes(t.id) ? 'ABSENT' : 'Present'}
+                        </button>
+                      </div>
+                    ))}
+                    {Object.keys(TEACHER_SCHEDULES).length <= 1 && (
+                      <p className="text-center text-gray-400 italic p-4">
+                        Teacher database is currently empty.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+// Icon Helper
+function UserXIcon(props: any) {
+  return (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" x2="22" y1="8" y2="13"/><line x1="22" x2="17" y1="8" y2="13"/>
+    </svg>
   );
 }
 

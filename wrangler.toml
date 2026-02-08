@@ -1,0 +1,8 @@
+name = "srcc-room-finder"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-02-04"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "school-db"
+database_id = "deaadb8b-6d35-4211-9201-66dcb9439e94"

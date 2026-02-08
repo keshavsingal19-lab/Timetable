@@ -79,7 +79,7 @@ function App() {
 
       if (response.ok) {
         setIsLoggedIn(true);
-        setAdminPass(''); 
+        // FIX: Password is NO LONGER cleared here, so it stays available for updates
         setLoginError('');
       } else {
         if (response.status === 403) {

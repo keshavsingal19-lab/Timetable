@@ -609,7 +609,7 @@ function App() {
               This website is for easing the process of finding empty rooms. It is made out of curiosity 
               and to help students. All the data used to make this website is freely publicly available 
               on the SRCC website. Please note that minor errors may be present and shifts in classes 
-              can happen with changes in timetables.
+              can happen with changes in timetables. Any money earned through this website will be used to keep it operational.
             </p>
             <p className="pt-2 font-medium">
               If you want to reach out or give any suggestion, feedback, complaint, or anything else, kindly fill this{' '}
@@ -634,6 +634,7 @@ function App() {
           <div>
             <p>Data derived from SRCC Time Table 2025-26.</p>
             <p className="mt-1">Note: Break time is usually 01:30 PM - 02:00 PM.</p>
+            <p>Not an official website.</p>
           </div>
         </div>
       </footer>

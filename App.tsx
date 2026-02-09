@@ -19,7 +19,7 @@ const SOCIETY_EVENTS = [
     time: "10:00 AM Onwards",
     location: "Sample Venue",
     type: "Sample",
-    description: "This is a hypothetical event description. Your society's event details and registration links will appear here."
+    description: "This is a hypothetical event description. Your society's event details, poster, and registration links will appear here."
   }
 ];
 
@@ -277,7 +277,7 @@ function App() {
       .map(t => ({ ...t, type: 'teacher' }));
 
     return teachers.sort((a, b) => a.name.localeCompare(b.name));
-  }, [finderSearchQuery]); // <--- FIXED: Removed unused dependencies
+  }, [finderSearchQuery]);
 
 
   // --- 6. RENDER ---
@@ -368,6 +368,50 @@ function App() {
         {activeTab === 'rooms' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
              
+             {/* Teachers on Leave Dashboard (Restored) */}
+             <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl shadow-sm border border-red-100 p-6 mb-8">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-white p-2 rounded-lg shadow-sm text-red-600">
+                        <UserMinus className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-gray-900">Teachers on Leave</h2>
+                        <div className="flex items-center gap-2 text-red-600 text-sm font-medium">
+                          <CalendarDays className="w-4 h-4" />
+                          {formattedDate}
+                        </div>
+                      </div>
+                    </div>
+                    {absentTeachers.length > 0 && (
+                      <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-bold border border-red-200">
+                        {absentTeachers.length} Absent Today
+                      </span>
+                    )}
+                </div>
+                
+                <div className="bg-white/60 rounded-lg p-4 border border-red-100/50">
+                  {absentTeachers.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {absentTeachers.map(tid => (
+                        <span key={tid} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-red-200 shadow-sm text-sm font-medium text-gray-700">
+                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                          {TEACHER_SCHEDULES[tid]?.name || tid}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm italic flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                      No teachers marked absent today.
+                    </p>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 mt-2 text-right">
+                  *List resets automatically at end of day
+                </p>
+             </div>
+
              {/* Stats & Filters */}
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl text-white p-5 shadow-lg flex items-center justify-between relative overflow-hidden group">
@@ -565,7 +609,7 @@ function App() {
               This website is for easing the process of finding empty rooms. It is made out of curiosity 
               and to help students. All the data used to make this website is freely publicly available 
               on the SRCC website. Please note that minor errors may be present and shifts in classes 
-              can happen with changes in timetables. Any money earned through this website is used to keep it operational.
+              can happen with changes in timetables.
             </p>
             <p className="pt-2 font-medium">
               If you want to reach out or give any suggestion, feedback, complaint, or anything else, kindly fill this{' '}
@@ -590,7 +634,6 @@ function App() {
           <div>
             <p>Data derived from SRCC Time Table 2025-26.</p>
             <p className="mt-1">Note: Break time is usually 01:30 PM - 02:00 PM.</p>
-            <p>Not an offical website.</p>
           </div>
         </div>
       </footer>

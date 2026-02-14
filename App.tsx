@@ -9,7 +9,6 @@ import {
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
 import { TEACHER_SCHEDULES } from './teacherData';
-// --- NEW IMPORT: Imports the file generated from your Google Sheet ---
 import { STUDENT_SCHEDULES } from './studentData';
 
 // --- SOCIETY EVENTS DATA ---
@@ -399,67 +398,69 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
-        {/* --- MAIN MENU TAB --- */}
+        {/* --- MAIN MENU TAB (MOBILE OPTIMIZED) --- */}
         {activeTab === 'menu' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center md:text-left">What do you want to do?</h2>
+            <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4 md:mb-6 text-center md:text-left">What do you want to do?</h2>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {/* Grid structure updated to grid-cols-2 for mobile to save space */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
               
-              <button onClick={() => setActiveTab('rooms')} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-red-50 text-red-600 group-hover:bg-red-600 group-hover:text-white">
-                  <MapPin className="w-8 h-8" />
+              <button onClick={() => setActiveTab('rooms')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-red-50 text-red-600 group-hover:bg-red-600 group-hover:text-white">
+                  <MapPin className="w-6 h-6 md:w-8 md:h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-1">Room Finder</h3>
-                <p className="text-sm text-gray-500 font-medium leading-tight">Find empty classrooms instantly.</p>
+                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Room Finder</h3>
+                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Find empty classrooms.</p>
               </button>
 
-              <button onClick={() => setActiveTab('teachers')} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
-                  <Users className="w-8 h-8" />
+              <button onClick={() => setActiveTab('teachers')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
+                  <Users className="w-6 h-6 md:w-8 md:h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-1">Teacher Finder</h3>
-                <p className="text-sm text-gray-500 font-medium leading-tight">Locate teachers and their status.</p>
+                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Teacher Finder</h3>
+                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Locate staff status.</p>
               </button>
 
-              <button onClick={() => setActiveTab('timetable')} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white">
-                  <CalendarDays className="w-8 h-8" />
+              <button onClick={() => setActiveTab('timetable')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white">
+                  <CalendarDays className="w-6 h-6 md:w-8 md:h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-1">Timetable</h3>
-                <p className="text-sm text-gray-500 font-medium leading-tight">View weekly schedules.</p>
+                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Timetable</h3>
+                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">View personal schedule.</p>
               </button>
 
-              <button onClick={() => setActiveTab('leave')} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white">
-                  <UserMinus className="w-8 h-8" />
+              <button onClick={() => setActiveTab('leave')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white">
+                  <UserMinus className="w-6 h-6 md:w-8 md:h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-1">Teachers on Leave</h3>
-                <p className="text-sm text-gray-500 font-medium leading-tight">See today's absent teachers.</p>
+                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">On Leave</h3>
+                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Today's absent faculty.</p>
               </button>
 
-              <button onClick={() => setActiveTab('societies')} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-green-50 text-green-600 group-hover:bg-green-600 group-hover:text-white">
-                  <Megaphone className="w-8 h-8" />
+              <button onClick={() => setActiveTab('societies')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-green-50 text-green-600 group-hover:bg-green-600 group-hover:text-white">
+                  <Megaphone className="w-6 h-6 md:w-8 md:h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-1">Society Events</h3>
-                <p className="text-sm text-gray-500 font-medium leading-tight">Campus announcements & events.</p>
+                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Societies</h3>
+                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Campus events.</p>
               </button>
 
-              <button onClick={() => setIsInstallModalOpen(true)} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-pink-50 text-pink-600 group-hover:bg-pink-600 group-hover:text-white">
-                  <Download className="w-8 h-8" />
+              <button onClick={() => setIsInstallModalOpen(true)} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-pink-50 text-pink-600 group-hover:bg-pink-600 group-hover:text-white">
+                  <Download className="w-6 h-6 md:w-8 md:h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-1">Download App</h3>
-                <p className="text-sm text-gray-500 font-medium leading-tight">Install Finder on your device.</p>
+                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Get App</h3>
+                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Install on your phone.</p>
               </button>
 
-              <button onClick={() => { setIsAdminOpen(true); setLoginError(''); }} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-gray-100 text-gray-700 group-hover:bg-gray-800 group-hover:text-white">
-                  <Lock className="w-8 h-8" />
+              {/* Admin button stretches across 2 columns on mobile so it doesn't look like an odd one out */}
+              <button onClick={() => { setIsAdminOpen(true); setLoginError(''); }} className="col-span-2 sm:col-span-1 bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-gray-100 text-gray-700 group-hover:bg-gray-800 group-hover:text-white">
+                  <Lock className="w-6 h-6 md:w-8 md:h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-1">Admin Login</h3>
-                <p className="text-sm text-gray-500 font-medium leading-tight">Manage attendance (Authorized Only).</p>
+                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Admin Login</h3>
+                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Authorized access only.</p>
               </button>
 
             </div>

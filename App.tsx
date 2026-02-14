@@ -9,6 +9,8 @@ import {
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
 import { TEACHER_SCHEDULES } from './teacherData';
+// --- NEW IMPORT: Imports the file generated from your Google Sheet ---
+import { STUDENT_SCHEDULES } from './studentData';
 
 // --- SOCIETY EVENTS DATA ---
 const SOCIETY_EVENTS = [
@@ -152,35 +154,21 @@ function App() {
     }
   };
 
-  // --- 3. TIMETABLE LOGIC (MOCK DATA) ---
+  // --- 3. TIMETABLE LOGIC (REAL DATA IMPORT) ---
   const handleSearchTimetable = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!timetableRollNo.trim()) return;
+    const roll = timetableRollNo.trim().toUpperCase();
+    if (!roll) return;
 
-    // TODO: Replace this mock data with real data from studentData.ts later
-    const mockScheduleData = {
-      [DayOfWeek.Monday]: [
-        { periodIndex: 0, subject: "Cost Accounting", room: "R15", type: "Lecture", teacher: "Dr. A. Sharma" },
-        { periodIndex: 1, subject: "Cost Accounting", room: "R15", type: "Lecture", teacher: "Dr. A. Sharma" },
-        { periodIndex: 3, subject: "Business Mathematics", room: "T4", type: "Tutorial", teacher: "Prof. B. Singh" },
-        { periodIndex: 4, subject: "Computer Applications", room: "Lab 2", type: "Practical", teacher: "Ms. C. Gupta" },
-      ],
-      [DayOfWeek.Tuesday]: [
-        { periodIndex: 2, subject: "Corporate Laws", room: "R11", type: "Lecture", teacher: "Dr. D. Verma" },
-        { periodIndex: 3, subject: "Corporate Laws", room: "R11", type: "Lecture", teacher: "Dr. D. Verma" },
-      ],
-      [DayOfWeek.Wednesday]: [],
-      [DayOfWeek.Thursday]: [
-        { periodIndex: 0, subject: "Cost Accounting", room: "R15", type: "Lecture", teacher: "Dr. A. Sharma" },
-      ],
-      [DayOfWeek.Friday]: [
-        { periodIndex: 5, subject: "Business Mathematics", room: "R22", type: "Lecture", teacher: "Prof. B. Singh" },
-      ],
-      [DayOfWeek.Saturday]: []
-    };
+    // Fetch the data straight from the injected studentData.ts
+    const studentData = STUDENT_SCHEDULES[roll];
 
-    setActiveTimetable(mockScheduleData);
-    setTimetableDay(Object.values(DayOfWeek).includes(currentDayName as DayOfWeek) ? (currentDayName as DayOfWeek) : DayOfWeek.Monday);
+    if (studentData) {
+      setActiveTimetable(studentData);
+      setTimetableDay(Object.values(DayOfWeek).includes(currentDayName as DayOfWeek) ? (currentDayName as DayOfWeek) : DayOfWeek.Monday);
+    } else {
+      alert("Roll Number not found! Please check for typos and try again.");
+    }
   };
 
   // --- 4. LOGIC: ROOM FINDER (SMART SORT & DURATION) ---
@@ -503,7 +491,6 @@ function App() {
         {activeTab === 'timetable' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             
-            {/* DISCLAIMER BOX */}
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-r-xl shadow-sm flex items-start gap-3">
                <AlertCircle className="w-6 h-6 text-yellow-500 shrink-0 mt-0.5" />
                <div>
@@ -515,7 +502,6 @@ function App() {
             </div>
 
             {!activeTimetable ? (
-               // SEARCH INTERFACE
                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center max-w-md mx-auto mt-10">
                   <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
                     <BookOpen className="w-10 h-10 text-red-600" />
@@ -528,7 +514,7 @@ function App() {
                        <Search className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
                        <input 
                          type="text" 
-                         placeholder="e.g. 23BC001" 
+                         placeholder="e.g. 24BC008" 
                          value={timetableRollNo}
                          onChange={(e) => setTimetableRollNo(e.target.value.toUpperCase())}
                          className="w-full text-center text-lg p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-red-500 outline-none transition-all uppercase placeholder:normal-case font-bold text-gray-800"
@@ -540,10 +526,7 @@ function App() {
                   </form>
                </div>
             ) : (
-               // TIMETABLE DISPLAY INTERFACE
                <div className="max-w-3xl mx-auto">
-                  
-                  {/* Header */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
                      <div>
                        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -559,7 +542,6 @@ function App() {
                      </button>
                   </div>
 
-                  {/* Day Selector Navigation */}
                   <div className="flex overflow-x-auto gap-2 pb-4 mb-2 scrollbar-hide">
                     {Object.values(DayOfWeek).map(day => (
                       <button 
@@ -576,7 +558,6 @@ function App() {
                     ))}
                   </div>
 
-                  {/* Daily Timeline */}
                   <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
                      <div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">
                         <span className="font-bold text-gray-800">{timetableDay}'s Classes</span>
@@ -585,14 +566,10 @@ function App() {
 
                      <div className="p-4 space-y-3">
                         {activeTimetable[timetableDay] && activeTimetable[timetableDay].length > 0 ? (
-                           // Render the full day timeline (only up to the last class to save space)
                            TIME_SLOTS.map((timeLabel, index) => {
                               const classData = activeTimetable[timetableDay].find((c: any) => c.periodIndex === index);
-                              
-                              // Check if we should render this slot (only render if there's a class OR if it's a small break between classes)
                               const hasClass = !!classData;
                               
-                              // Simple logic to skip trailing empty slots at the end of the day
                               const lastClassIndex = Math.max(...activeTimetable[timetableDay].map((c: any) => c.periodIndex));
                               if (index > lastClassIndex) return null;
 
@@ -601,13 +578,11 @@ function App() {
                                    hasClass ? 'bg-white border-red-100 shadow-sm' : 'bg-gray-50 border-gray-100 border-dashed opacity-60'
                                 }`}>
                                    
-                                   {/* Time Column */}
                                    <div className="w-20 shrink-0 flex flex-col justify-center items-center border-r border-gray-100 pr-3">
                                       <span className={`text-sm font-bold ${hasClass ? 'text-red-700' : 'text-gray-500'}`}>{timeLabel.split(' ')[0]}</span>
                                       <span className="text-[10px] text-gray-400 uppercase">{timeLabel.split(' ')[1]}</span>
                                    </div>
 
-                                   {/* Details Column */}
                                    <div className="flex-1 flex flex-col justify-center">
                                       {hasClass ? (
                                         <>
@@ -643,7 +618,6 @@ function App() {
                               );
                            })
                         ) : (
-                           // No classes that day
                            <div className="text-center py-12">
                              <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
                              <p className="font-bold text-lg text-gray-900">No Classes Scheduled!</p>

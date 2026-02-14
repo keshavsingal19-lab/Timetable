@@ -3,7 +3,7 @@ import {
   Clock, MapPin, Search, Filter, Lock, CheckCircle, 
   XCircle, LogOut, AlertTriangle, AlertCircle, UserMinus, 
   CalendarDays, Download, Share, Users, GraduationCap, 
-  ArrowRight, MessageCircle, Star, Timer, Megaphone, Mail
+  ArrowRight, MessageCircle, Star, Timer, Megaphone, Mail, Home
 } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
@@ -29,7 +29,8 @@ function App() {
   // --- STATE VARIABLES ---
   
   // 1. Navigation & Global
-  const [activeTab, setActiveTab] = useState<'rooms' | 'teachers' | 'societies'>('rooms'); 
+  // NEW: Added 'menu', 'timetable', and 'leave' to the tabs. Default is 'menu'.
+  const [activeTab, setActiveTab] = useState<'menu' | 'rooms' | 'teachers' | 'societies' | 'timetable' | 'leave'>('menu'); 
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(DayOfWeek.Monday);
   const [selectedTimeIndex, setSelectedTimeIndex] = useState<number>(0);
   
@@ -279,6 +280,52 @@ function App() {
     return teachers.sort((a, b) => a.name.localeCompare(b.name));
   }, [finderSearchQuery]);
 
+  // --- COMPONENT: Teachers On Leave Dashboard (Reused) ---
+  const TeachersOnLeaveDashboard = () => (
+    <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl shadow-sm border border-red-100 p-6 mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-white p-2 rounded-lg shadow-sm text-red-600">
+              <UserMinus className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Teachers on Leave</h2>
+              <div className="flex items-center gap-2 text-red-600 text-sm font-medium">
+                <CalendarDays className="w-4 h-4" />
+                {formattedDate}
+              </div>
+            </div>
+          </div>
+          {absentTeachers.length > 0 && (
+            <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-bold border border-red-200">
+              {absentTeachers.length} Absent Today
+            </span>
+          )}
+      </div>
+      
+      <div className="bg-white/60 rounded-lg p-4 border border-red-100/50">
+        {absentTeachers.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {absentTeachers.map(tid => (
+              <span key={tid} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-red-200 shadow-sm text-sm font-medium text-gray-700">
+                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                {TEACHER_SCHEDULES[tid]?.name || tid}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500 text-sm italic flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-green-500" />
+            No teachers marked absent today.
+          </p>
+        )}
+      </div>
+      <p className="text-xs text-gray-400 mt-2 text-right">
+        *List resets automatically at end of day
+      </p>
+    </div>
+  );
+
 
   // --- 6. RENDER ---
 
@@ -311,31 +358,16 @@ function App() {
               </div>
             </div>
             
+            {/* UNIVERSAL MENU BUTTON */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
-               {/* NAV PILLS */}
-               <div className="bg-red-900/50 p-1 rounded-xl flex items-center mr-2 border border-red-700/50">
+               {activeTab !== 'menu' && (
                  <button 
-                   onClick={() => setActiveTab('rooms')}
-                   className={`px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all duration-200 ${activeTab === 'rooms' ? 'bg-white text-red-900 shadow-sm transform scale-105' : 'text-red-200 hover:bg-white/10'}`}
+                   onClick={() => setActiveTab('menu')}
+                   className="bg-white text-red-900 px-5 py-2.5 rounded-xl hover:bg-gray-100 transition-all active:scale-95 flex items-center gap-2 font-bold shadow-md"
                  >
-                   <MapPin className="w-4 h-4" /> Rooms
+                   <Home className="w-5 h-5" /> Menu
                  </button>
-                 <button 
-                   onClick={() => setActiveTab('teachers')}
-                   className={`px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all duration-200 ${activeTab === 'teachers' ? 'bg-white text-red-900 shadow-sm transform scale-105' : 'text-red-200 hover:bg-white/10'}`}
-                 >
-                   <Users className="w-4 h-4" /> Teachers
-                 </button>
-                 <button 
-                   onClick={() => setActiveTab('societies')}
-                   className={`px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all duration-200 ${activeTab === 'societies' ? 'bg-white text-red-900 shadow-sm transform scale-105' : 'text-red-200 hover:bg-white/10'}`}
-                 >
-                   <Megaphone className="w-4 h-4" /> Society
-                 </button>
-               </div>
-
-               <button onClick={() => setIsInstallModalOpen(true)} className="bg-white/10 text-white p-2.5 rounded-xl hover:bg-white/20 transition-all active:scale-95"><Download className="w-5 h-5" /></button>
-               <button onClick={() => { setIsAdminOpen(true); setLoginError(''); }} className="bg-white/10 text-white p-2.5 rounded-xl hover:bg-white/20 transition-all active:scale-95"><Lock className="w-5 h-5" /></button>
+               )}
             </div>
           </div>
         </div>
@@ -343,8 +375,82 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
-        {/* TIME CONTROLS (Only for Rooms/Teachers) */}
-        {activeTab !== 'societies' && (
+        {/* --- MAIN MENU TAB --- */}
+        {activeTab === 'menu' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center md:text-left">What do you want to do?</h2>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              
+              {/* Room Finder Card */}
+              <button onClick={() => setActiveTab('rooms')} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-red-50 text-red-600 group-hover:bg-red-600 group-hover:text-white">
+                  <MapPin className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-1">Room Finder</h3>
+                <p className="text-sm text-gray-500 font-medium leading-tight">Find empty classrooms instantly.</p>
+              </button>
+
+              {/* Teacher Finder Card */}
+              <button onClick={() => setActiveTab('teachers')} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
+                  <Users className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-1">Teacher Finder</h3>
+                <p className="text-sm text-gray-500 font-medium leading-tight">Locate teachers and their status.</p>
+              </button>
+
+              {/* Timetable Card */}
+              <button onClick={() => setActiveTab('timetable')} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white">
+                  <CalendarDays className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-1">Timetable</h3>
+                <p className="text-sm text-gray-500 font-medium leading-tight">View weekly schedules.</p>
+              </button>
+
+              {/* Teachers on Leave Card */}
+              <button onClick={() => setActiveTab('leave')} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white">
+                  <UserMinus className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-1">Teachers on Leave</h3>
+                <p className="text-sm text-gray-500 font-medium leading-tight">See today's absent teachers.</p>
+              </button>
+
+              {/* Societies Card */}
+              <button onClick={() => setActiveTab('societies')} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-green-50 text-green-600 group-hover:bg-green-600 group-hover:text-white">
+                  <Megaphone className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-1">Society Events</h3>
+                <p className="text-sm text-gray-500 font-medium leading-tight">Campus announcements & events.</p>
+              </button>
+
+              {/* Download App Card */}
+              <button onClick={() => setIsInstallModalOpen(true)} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-pink-50 text-pink-600 group-hover:bg-pink-600 group-hover:text-white">
+                  <Download className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-1">Download App</h3>
+                <p className="text-sm text-gray-500 font-medium leading-tight">Install Finder on your device.</p>
+              </button>
+
+              {/* Admin Login Card */}
+              <button onClick={() => { setIsAdminOpen(true); setLoginError(''); }} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-gray-100 text-gray-700 group-hover:bg-gray-800 group-hover:text-white">
+                  <Lock className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-1">Admin Login</h3>
+                <p className="text-sm text-gray-500 font-medium leading-tight">Manage attendance (Authorized Only).</p>
+              </button>
+
+            </div>
+          </div>
+        )}
+
+        {/* TIME CONTROLS (Only visible for Rooms and Teachers now) */}
+        {(activeTab === 'rooms' || activeTab === 'teachers') && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-6">
              <div className="flex items-center gap-2 mb-4 text-gray-500 text-xs font-bold uppercase tracking-widest">
                 <Clock className="w-4 h-4 text-red-600" /> Global Time Settings
@@ -368,49 +474,8 @@ function App() {
         {activeTab === 'rooms' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
              
-             {/* Teachers on Leave Dashboard (Restored) */}
-             <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl shadow-sm border border-red-100 p-6 mb-8">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-white p-2 rounded-lg shadow-sm text-red-600">
-                        <UserMinus className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <h2 className="text-lg font-bold text-gray-900">Teachers on Leave</h2>
-                        <div className="flex items-center gap-2 text-red-600 text-sm font-medium">
-                          <CalendarDays className="w-4 h-4" />
-                          {formattedDate}
-                        </div>
-                      </div>
-                    </div>
-                    {absentTeachers.length > 0 && (
-                      <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-bold border border-red-200">
-                        {absentTeachers.length} Absent Today
-                      </span>
-                    )}
-                </div>
-                
-                <div className="bg-white/60 rounded-lg p-4 border border-red-100/50">
-                  {absentTeachers.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {absentTeachers.map(tid => (
-                        <span key={tid} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-red-200 shadow-sm text-sm font-medium text-gray-700">
-                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                          {TEACHER_SCHEDULES[tid]?.name || tid}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-sm italic flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                      No teachers marked absent today.
-                    </p>
-                  )}
-                </div>
-                <p className="text-xs text-gray-400 mt-2 text-right">
-                  *List resets automatically at end of day
-                </p>
-             </div>
+             {/* Teachers on Leave Dashboard is kept here so students still see it inside Room Finder */}
+             <TeachersOnLeaveDashboard />
 
              {/* Stats & Filters */}
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -538,6 +603,29 @@ function App() {
             </div>
             {visibleEntities.length === 0 && <div className="text-center py-12 text-gray-500">No matching results found.</div>}
           </div>
+        )}
+
+        {/* --- TIMETABLE TAB (NEW PLACEHOLDER) --- */}
+        {activeTab === 'timetable' && (
+           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col items-center justify-center py-20 text-center">
+              <div className="bg-red-50 p-6 rounded-full mb-6">
+                 <CalendarDays className="w-16 h-16 text-red-600" />
+              </div>
+              <h2 className="text-3xl font-extrabold text-gray-900 mb-4">Timetable Interface</h2>
+              <p className="text-gray-500 max-w-md mx-auto text-lg">
+                This section is under construction. We will add the detailed timetable viewing features here soon!
+              </p>
+           </div>
+        )}
+
+        {/* --- TEACHERS ON LEAVE TAB (DEDICATED VIEW) --- */}
+        {activeTab === 'leave' && (
+           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <UserMinus className="w-6 h-6 text-orange-500" /> Absent Faculty List
+              </h2>
+              <TeachersOnLeaveDashboard />
+           </div>
         )}
 
         {/* --- SOCIETY ANNOUNCEMENTS TAB --- */}

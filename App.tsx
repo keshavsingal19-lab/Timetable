@@ -3,7 +3,8 @@ import {
   Clock, MapPin, Search, Filter, Lock, CheckCircle, 
   XCircle, LogOut, AlertTriangle, AlertCircle, UserMinus, 
   CalendarDays, Download, Share, Users, GraduationCap, 
-  ArrowRight, MessageCircle, Star, Timer, Megaphone, Mail, Home
+  ArrowRight, MessageCircle, Star, Timer, Megaphone, Mail, Home,
+  BookOpen
 } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
@@ -29,7 +30,6 @@ function App() {
   // --- STATE VARIABLES ---
   
   // 1. Navigation & Global
-  // NEW: Added 'menu', 'timetable', and 'leave' to the tabs. Default is 'menu'.
   const [activeTab, setActiveTab] = useState<'menu' | 'rooms' | 'teachers' | 'societies' | 'timetable' | 'leave'>('menu'); 
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(DayOfWeek.Monday);
   const [selectedTimeIndex, setSelectedTimeIndex] = useState<number>(0);
@@ -56,6 +56,11 @@ function App() {
   const [isSiteBlocked, setIsSiteBlocked] = useState(false);
   const [blockMessage, setBlockMessage] = useState('');
 
+  // 6. Timetable State
+  const [timetableRollNo, setTimetableRollNo] = useState('');
+  const [activeTimetable, setActiveTimetable] = useState<any>(null);
+  const [timetableDay, setTimetableDay] = useState<DayOfWeek>(DayOfWeek.Monday);
+
   // --- HELPER: Get Current Date Details ---
   const todayDateObj = new Date();
   const currentDayName = todayDateObj.toLocaleDateString('en-US', { weekday: 'long' });
@@ -67,6 +72,7 @@ function App() {
   useEffect(() => {
     if (Object.values(DayOfWeek).includes(currentDayName as DayOfWeek)) {
       setSelectedDay(currentDayName as DayOfWeek);
+      setTimetableDay(currentDayName as DayOfWeek);
       
       const currentHour = todayDateObj.getHours();
       const currentMinutes = todayDateObj.getMinutes();
@@ -146,7 +152,38 @@ function App() {
     }
   };
 
-  // --- 3. LOGIC: ROOM FINDER (SMART SORT & DURATION) ---
+  // --- 3. TIMETABLE LOGIC (MOCK DATA) ---
+  const handleSearchTimetable = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!timetableRollNo.trim()) return;
+
+    // TODO: Replace this mock data with real data from studentData.ts later
+    const mockScheduleData = {
+      [DayOfWeek.Monday]: [
+        { periodIndex: 0, subject: "Cost Accounting", room: "R15", type: "Lecture", teacher: "Dr. A. Sharma" },
+        { periodIndex: 1, subject: "Cost Accounting", room: "R15", type: "Lecture", teacher: "Dr. A. Sharma" },
+        { periodIndex: 3, subject: "Business Mathematics", room: "T4", type: "Tutorial", teacher: "Prof. B. Singh" },
+        { periodIndex: 4, subject: "Computer Applications", room: "Lab 2", type: "Practical", teacher: "Ms. C. Gupta" },
+      ],
+      [DayOfWeek.Tuesday]: [
+        { periodIndex: 2, subject: "Corporate Laws", room: "R11", type: "Lecture", teacher: "Dr. D. Verma" },
+        { periodIndex: 3, subject: "Corporate Laws", room: "R11", type: "Lecture", teacher: "Dr. D. Verma" },
+      ],
+      [DayOfWeek.Wednesday]: [],
+      [DayOfWeek.Thursday]: [
+        { periodIndex: 0, subject: "Cost Accounting", room: "R15", type: "Lecture", teacher: "Dr. A. Sharma" },
+      ],
+      [DayOfWeek.Friday]: [
+        { periodIndex: 5, subject: "Business Mathematics", room: "R22", type: "Lecture", teacher: "Prof. B. Singh" },
+      ],
+      [DayOfWeek.Saturday]: []
+    };
+
+    setActiveTimetable(mockScheduleData);
+    setTimetableDay(Object.values(DayOfWeek).includes(currentDayName as DayOfWeek) ? (currentDayName as DayOfWeek) : DayOfWeek.Monday);
+  };
+
+  // --- 4. LOGIC: ROOM FINDER (SMART SORT & DURATION) ---
 
   const calculateFreeDuration = (room: any, startSlotIndex: number) => {
     let freeSlots = 0;
@@ -213,7 +250,7 @@ function App() {
     return { available: availableRooms.length, total: ROOMS.length };
   }, [availableRooms]);
 
-  // --- 4. LOGIC: TIMELINE & FINDER ---
+  // --- 5. LOGIC: TIMELINE & FINDER ---
   
   const getRoomTimeline = (roomId: string) => {
     const timeline = new Array(TIME_SLOTS.length).fill(null);
@@ -248,7 +285,7 @@ function App() {
     return getRoomTimeline(selectedRoomId);
   }, [selectedRoomId, selectedDay, absentTeachers]);
 
-  // --- 5. LOGIC: TEACHER FINDER ---
+  // --- 6. LOGIC: TEACHER FINDER ---
 
   const getEntityStatus = (teacher: any) => {
     if (absentTeachers.includes(teacher.id) && selectedDay === currentDayName) {
@@ -327,7 +364,7 @@ function App() {
   );
 
 
-  // --- 6. RENDER ---
+  // --- 7. RENDER ---
 
   if (isSiteBlocked) {
     return (
@@ -358,7 +395,6 @@ function App() {
               </div>
             </div>
             
-            {/* UNIVERSAL MENU BUTTON */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
                {activeTab !== 'menu' && (
                  <button 
@@ -382,7 +418,6 @@ function App() {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               
-              {/* Room Finder Card */}
               <button onClick={() => setActiveTab('rooms')} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-red-50 text-red-600 group-hover:bg-red-600 group-hover:text-white">
                   <MapPin className="w-8 h-8" />
@@ -391,7 +426,6 @@ function App() {
                 <p className="text-sm text-gray-500 font-medium leading-tight">Find empty classrooms instantly.</p>
               </button>
 
-              {/* Teacher Finder Card */}
               <button onClick={() => setActiveTab('teachers')} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
                   <Users className="w-8 h-8" />
@@ -400,7 +434,6 @@ function App() {
                 <p className="text-sm text-gray-500 font-medium leading-tight">Locate teachers and their status.</p>
               </button>
 
-              {/* Timetable Card */}
               <button onClick={() => setActiveTab('timetable')} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white">
                   <CalendarDays className="w-8 h-8" />
@@ -409,7 +442,6 @@ function App() {
                 <p className="text-sm text-gray-500 font-medium leading-tight">View weekly schedules.</p>
               </button>
 
-              {/* Teachers on Leave Card */}
               <button onClick={() => setActiveTab('leave')} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white">
                   <UserMinus className="w-8 h-8" />
@@ -418,7 +450,6 @@ function App() {
                 <p className="text-sm text-gray-500 font-medium leading-tight">See today's absent teachers.</p>
               </button>
 
-              {/* Societies Card */}
               <button onClick={() => setActiveTab('societies')} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-green-50 text-green-600 group-hover:bg-green-600 group-hover:text-white">
                   <Megaphone className="w-8 h-8" />
@@ -427,7 +458,6 @@ function App() {
                 <p className="text-sm text-gray-500 font-medium leading-tight">Campus announcements & events.</p>
               </button>
 
-              {/* Download App Card */}
               <button onClick={() => setIsInstallModalOpen(true)} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-pink-50 text-pink-600 group-hover:bg-pink-600 group-hover:text-white">
                   <Download className="w-8 h-8" />
@@ -436,7 +466,6 @@ function App() {
                 <p className="text-sm text-gray-500 font-medium leading-tight">Install Finder on your device.</p>
               </button>
 
-              {/* Admin Login Card */}
               <button onClick={() => { setIsAdminOpen(true); setLoginError(''); }} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-gray-100 text-gray-700 group-hover:bg-gray-800 group-hover:text-white">
                   <Lock className="w-8 h-8" />
@@ -449,7 +478,7 @@ function App() {
           </div>
         )}
 
-        {/* TIME CONTROLS (Only visible for Rooms and Teachers now) */}
+        {/* TIME CONTROLS */}
         {(activeTab === 'rooms' || activeTab === 'teachers') && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-6">
              <div className="flex items-center gap-2 mb-4 text-gray-500 text-xs font-bold uppercase tracking-widest">
@@ -470,14 +499,170 @@ function App() {
           </div>
         )}
 
+        {/* --- TIMETABLE TAB --- */}
+        {activeTab === 'timetable' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            
+            {/* DISCLAIMER BOX */}
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-r-xl shadow-sm flex items-start gap-3">
+               <AlertCircle className="w-6 h-6 text-yellow-500 shrink-0 mt-0.5" />
+               <div>
+                 <h3 className="text-yellow-800 font-bold text-sm uppercase tracking-wide">Notice</h3>
+                 <p className="text-yellow-700 text-sm mt-1">
+                   Currently, data for <b>B.Com (Hons) Sem IV</b> has been updated. Errors can be expected as the timetable is subject to change.
+                 </p>
+               </div>
+            </div>
+
+            {!activeTimetable ? (
+               // SEARCH INTERFACE
+               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center max-w-md mx-auto mt-10">
+                  <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <BookOpen className="w-10 h-10 text-red-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">My Timetable</h2>
+                  <p className="text-gray-500 text-sm mb-8">Enter your College Roll Number to view your personalized daily class schedule.</p>
+                  
+                  <form onSubmit={handleSearchTimetable} className="space-y-4">
+                     <div className="relative">
+                       <Search className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
+                       <input 
+                         type="text" 
+                         placeholder="e.g. 23BC001" 
+                         value={timetableRollNo}
+                         onChange={(e) => setTimetableRollNo(e.target.value.toUpperCase())}
+                         className="w-full text-center text-lg p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-red-500 outline-none transition-all uppercase placeholder:normal-case font-bold text-gray-800"
+                       />
+                     </div>
+                     <button type="submit" className="w-full bg-red-800 text-white font-bold py-3.5 rounded-xl hover:bg-red-900 transition-colors shadow-md active:scale-95">
+                       View Schedule
+                     </button>
+                  </form>
+               </div>
+            ) : (
+               // TIMETABLE DISPLAY INTERFACE
+               <div className="max-w-3xl mx-auto">
+                  
+                  {/* Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
+                     <div>
+                       <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                         <CalendarDays className="w-6 h-6 text-red-600" /> My Schedule
+                       </h2>
+                       <p className="text-gray-500 font-medium mt-1">Roll No: <span className="text-gray-900 font-bold bg-gray-100 px-2 py-0.5 rounded">{timetableRollNo}</span></p>
+                     </div>
+                     <button 
+                       onClick={() => { setActiveTimetable(null); setTimetableRollNo(''); }} 
+                       className="text-sm font-bold text-gray-600 bg-gray-100 px-4 py-2.5 rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+                     >
+                       <Search className="w-4 h-4" /> Change Roll No
+                     </button>
+                  </div>
+
+                  {/* Day Selector Navigation */}
+                  <div className="flex overflow-x-auto gap-2 pb-4 mb-2 scrollbar-hide">
+                    {Object.values(DayOfWeek).map(day => (
+                      <button 
+                        key={day}
+                        onClick={() => setTimetableDay(day)}
+                        className={`px-5 py-2.5 rounded-xl font-bold whitespace-nowrap transition-all flex-shrink-0 ${
+                          timetableDay === day 
+                          ? 'bg-red-800 text-white shadow-md scale-105' 
+                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Daily Timeline */}
+                  <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+                     <div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">
+                        <span className="font-bold text-gray-800">{timetableDay}'s Classes</span>
+                        <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">{formattedDate}</span>
+                     </div>
+
+                     <div className="p-4 space-y-3">
+                        {activeTimetable[timetableDay] && activeTimetable[timetableDay].length > 0 ? (
+                           // Render the full day timeline (only up to the last class to save space)
+                           TIME_SLOTS.map((timeLabel, index) => {
+                              const classData = activeTimetable[timetableDay].find((c: any) => c.periodIndex === index);
+                              
+                              // Check if we should render this slot (only render if there's a class OR if it's a small break between classes)
+                              const hasClass = !!classData;
+                              
+                              // Simple logic to skip trailing empty slots at the end of the day
+                              const lastClassIndex = Math.max(...activeTimetable[timetableDay].map((c: any) => c.periodIndex));
+                              if (index > lastClassIndex) return null;
+
+                              return (
+                                <div key={index} className={`relative flex gap-4 p-3 rounded-xl border transition-all ${
+                                   hasClass ? 'bg-white border-red-100 shadow-sm' : 'bg-gray-50 border-gray-100 border-dashed opacity-60'
+                                }`}>
+                                   
+                                   {/* Time Column */}
+                                   <div className="w-20 shrink-0 flex flex-col justify-center items-center border-r border-gray-100 pr-3">
+                                      <span className={`text-sm font-bold ${hasClass ? 'text-red-700' : 'text-gray-500'}`}>{timeLabel.split(' ')[0]}</span>
+                                      <span className="text-[10px] text-gray-400 uppercase">{timeLabel.split(' ')[1]}</span>
+                                   </div>
+
+                                   {/* Details Column */}
+                                   <div className="flex-1 flex flex-col justify-center">
+                                      {hasClass ? (
+                                        <>
+                                           <div className="flex justify-between items-start mb-1">
+                                             <h4 className="font-bold text-gray-900 text-base leading-tight">
+                                               {classData.subject}
+                                             </h4>
+                                             <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md ${
+                                                classData.type === 'Lecture' ? 'bg-blue-50 text-blue-700' :
+                                                classData.type === 'Tutorial' ? 'bg-purple-50 text-purple-700' :
+                                                'bg-green-50 text-green-700'
+                                             }`}>
+                                                {classData.type}
+                                             </span>
+                                           </div>
+                                           <div className="flex items-center gap-3 text-sm mt-1">
+                                              <span className="flex items-center gap-1 text-gray-600 font-medium">
+                                                <MapPin className="w-3.5 h-3.5 text-red-500" /> Room {classData.room}
+                                              </span>
+                                              <span className="flex items-center gap-1 text-gray-500">
+                                                <Users className="w-3.5 h-3.5" /> {classData.teacher}
+                                              </span>
+                                           </div>
+                                        </>
+                                      ) : (
+                                        <div className="flex items-center gap-2 text-gray-500">
+                                           <Timer className="w-4 h-4" />
+                                           <span className="font-medium text-sm">Free Slot / Break</span>
+                                        </div>
+                                      )}
+                                   </div>
+                                </div>
+                              );
+                           })
+                        ) : (
+                           // No classes that day
+                           <div className="text-center py-12">
+                             <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
+                             <p className="font-bold text-lg text-gray-900">No Classes Scheduled!</p>
+                             <p className="text-gray-500 text-sm mt-1">Enjoy your day off.</p>
+                           </div>
+                        )}
+                     </div>
+                  </div>
+               </div>
+            )}
+          </div>
+        )}
+
         {/* --- ROOM FINDER TAB --- */}
         {activeTab === 'rooms' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
              
-             {/* Teachers on Leave Dashboard is kept here so students still see it inside Room Finder */}
              <TeachersOnLeaveDashboard />
 
-             {/* Stats & Filters */}
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl text-white p-5 shadow-lg flex items-center justify-between relative overflow-hidden group">
                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
@@ -507,7 +692,6 @@ function App() {
                 </div>
              </div>
              
-             {/* Rooms Grid */}
              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {availableRooms.map((room) => {
                   const duration = calculateFreeDuration(room, selectedTimeIndex);
@@ -521,7 +705,6 @@ function App() {
                         ${(room as any).tags ? 'border-green-400 ring-2 ring-green-50' : 'border-gray-200 hover:border-red-200'}
                       `}
                     >
-                      {/* BEST PICK BADGE */}
                       {isLongDuration && !(room as any).tags && (
                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-400 text-yellow-900 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1">
                             <Star className="w-2.5 h-2.5 fill-current" /> Best Pick
@@ -605,20 +788,7 @@ function App() {
           </div>
         )}
 
-        {/* --- TIMETABLE TAB (NEW PLACEHOLDER) --- */}
-        {activeTab === 'timetable' && (
-           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col items-center justify-center py-20 text-center">
-              <div className="bg-red-50 p-6 rounded-full mb-6">
-                 <CalendarDays className="w-16 h-16 text-red-600" />
-              </div>
-              <h2 className="text-3xl font-extrabold text-gray-900 mb-4">Timetable Interface</h2>
-              <p className="text-gray-500 max-w-md mx-auto text-lg">
-                This section is under construction. We will add the detailed timetable viewing features here soon!
-              </p>
-           </div>
-        )}
-
-        {/* --- TEACHERS ON LEAVE TAB (DEDICATED VIEW) --- */}
+        {/* --- TEACHERS ON LEAVE TAB --- */}
         {activeTab === 'leave' && (
            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
@@ -632,7 +802,6 @@ function App() {
         {activeTab === 'societies' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
              
-             {/* LIST EVENT CTA */}
              <div className="bg-gradient-to-r from-red-600 to-red-800 rounded-2xl text-white p-6 shadow-lg mb-8 flex flex-col md:flex-row items-center justify-between gap-6">
                 <div>
                    <h2 className="text-2xl font-bold flex items-center gap-2"><Megaphone className="w-6 h-6 text-yellow-300" /> Upcoming Society Events</h2>
@@ -649,7 +818,6 @@ function App() {
                 </div>
              </div>
 
-             {/* EVENTS GRID */}
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                {SOCIETY_EVENTS.map(event => (
                  <div key={event.id} className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-xl transition-all group relative overflow-hidden">
@@ -731,7 +899,6 @@ function App() {
       {selectedRoomId && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-              {/* Header */}
               <div className="p-5 bg-gray-900 text-white flex justify-between items-center shrink-0">
                  <div>
                    <h2 className="font-bold text-2xl flex items-center gap-2">
@@ -743,9 +910,7 @@ function App() {
                  <button onClick={() => setSelectedRoomId(null)} className="bg-white/10 p-2 rounded-full hover:bg-white/20 transition-all">✕</button>
               </div>
 
-              {/* Timeline Scroll Area */}
               <div className="overflow-y-auto p-0 bg-gray-50 flex-1">
-                 {/* WhatsApp Share Button */}
                  <div className="p-4 bg-white border-b border-gray-100 sticky top-0 z-10">
                    <button 
                      onClick={() => {

@@ -542,7 +542,7 @@ function App() {
                <div>
                  <h3 className="text-yellow-800 font-bold text-sm uppercase tracking-wide">Notice</h3>
                  <p className="text-yellow-700 text-sm mt-1">
-                   Only <b>B.Com (Hons) Sem II, IV & VI</b> has been updated. SEC, VAC & AEC are not yet added properly. Errors can be expected as the timetables are complex and subject to changes. Corrections are ongoing!
+                   Only <b>B.Com (Hons) Sem II, IV & VI</b> has been updated. SEC, VAC & AEC are not yet added prop. Errors can be expected as the timetables are complex and subject to changes. Corrections are ongoing!
                  </p>
                </div>
             </div>

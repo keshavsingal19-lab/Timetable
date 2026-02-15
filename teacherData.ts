@@ -1,5 +1,5 @@
 // Auto-generated teacher data from Google Sheets
-// Generated on: 2026-02-08T14:29:27.504Z
+// Generated on: 2026-02-15T00:03:11.664Z
 
 // Helper: Map time strings to array indices
 export const timeSlotMap: Record<string, number> = {
@@ -42,7 +42,7 @@ const EMPTY_SCHEDULE = {
 };
 
 // --- TEACHER SCHEDULES ---
-const scheduleSIS = {
+const scheduleID_MSSMITASHARMA = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R1', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T18', 'Main'),
@@ -67,10 +67,11 @@ const scheduleSIS = {
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R1', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T18', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleDPE = {
+const scheduleID_PROFDEEPASHREE = {
   'Monday': [
     createClass('Monday', '2:00 PM', '3:00 PM', 'Class', 'All', 'R3', 'Main'),
     createClass('Monday', '3:00 PM', '4:00 PM', 'Class', 'All', 'R3', 'Main'),
@@ -95,10 +96,11 @@ const scheduleDPE = {
     createClass('Friday', '3:00 PM', '4:00 PM', 'Class', 'All', 'R3', 'Main'),
     createClass('Friday', '4:00 PM', '5:00 PM', 'Class', 'All', 'R3', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleRNC = {
+const scheduleID_DRREENACHADHA = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R1', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T17', 'Main'),
@@ -123,10 +125,11 @@ const scheduleRNC = {
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T17', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T17', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleSLG = {
+const scheduleID_DRSNEHLATAGUPTA = {
   'Monday': [
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R17', 'Main'),
   ],
@@ -151,10 +154,11 @@ const scheduleSLG = {
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T8', 'Main'),
     createClass('Friday', '12:30 PM', '1:30 PM', 'Class', 'All', 'T8', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleRUA = {
+const scheduleID_MSRENUAGARWAL = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R2', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T9', 'Main'),
@@ -179,10 +183,11 @@ const scheduleRUA = {
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T9', 'Main'),
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T9', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleAMS = {
+const scheduleID_DRAMITSACHDEVA = {
   'Monday': [
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R33', 'Main'),
   ],
@@ -206,10 +211,11 @@ const scheduleAMS = {
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T1', 'Main'),
     createClass('Friday', '12:30 PM', '1:30 PM', 'Class', 'All', 'T1', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleRAJ = {
+const scheduleID_PROFRACHNAJAWA = {
   'Monday': [
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R5', 'Main'),
     createClass('Monday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T7', 'Main'),
@@ -234,10 +240,11 @@ const scheduleRAJ = {
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T7', 'Main'),
     createClass('Friday', '12:30 PM', '1:30 PM', 'Class', 'All', 'R5', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleAAJ = {
+const scheduleID_PROFARUNAJHA = {
   'Monday': [
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R8', 'Main'),
     createClass('Monday', '12:30 PM', '1:30 PM', 'Class', 'All', 'T29', 'Main'),
@@ -260,11 +267,13 @@ const scheduleAAJ = {
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R24', 'Main'),
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T29', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleSSS = {
-  'Monday': [],
+const scheduleID_MSSANTOSHSABHARWAL = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '2:00 PM', '3:00 PM', 'Class', 'All', 'R34', 'Main'),
     createClass('Tuesday', '3:00 PM', '4:00 PM', 'Class', 'All', 'R34', 'Main'),
@@ -291,7 +300,7 @@ const scheduleSSS = {
   ],
 };
 
-const scheduleMAK = {
+const scheduleID_PROFMALLIKAKUMAR = {
   'Monday': [
     createClass('Monday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R13', 'Main'),
     createClass('Monday', '12:30 PM', '1:30 PM', 'Class', 'All', 'R13', 'Main'),
@@ -316,10 +325,11 @@ const scheduleMAK = {
   'Friday': [
     createClass('Friday', '2:00 PM', '3:00 PM', 'Class', 'All', 'R22', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleSNK = {
+const scheduleID_DRSANTOSHKUMAR = {
   'Monday': [
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'PB3', 'Main'),
     createClass('Monday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T36', 'Main'),
@@ -335,7 +345,8 @@ const scheduleSNK = {
     createClass('Wednesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T36', 'Main'),
     createClass('Wednesday', '12:30 PM', '1:30 PM', 'Class', 'All', 'T36', 'Main'),
   ],
-  'Thursday': [],
+  'Thursday': [
+  ],
   'Friday': [
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'SCR1', 'Main'),
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T36', 'Main'),
@@ -347,7 +358,7 @@ const scheduleSNK = {
   ],
 };
 
-const scheduleAYJ = {
+const scheduleID_PROFABHAYJAIN = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R10', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R3', 'Main'),
@@ -372,11 +383,13 @@ const scheduleAYJ = {
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T11', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T11', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleSHK = {
-  'Monday': [],
+const scheduleID_PROFSANTOSHKUMARI = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '2:00 PM', '3:00 PM', 'Class', 'All', 'R25', 'Main'),
     createClass('Tuesday', '3:00 PM', '4:00 PM', 'Class', 'All', 'R25', 'Main'),
@@ -403,7 +416,7 @@ const scheduleSHK = {
   ],
 };
 
-const schedulePRD = {
+const scheduleID_PROFPADMESHWARDOLEY = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R8', 'Main'),
   ],
@@ -428,10 +441,11 @@ const schedulePRD = {
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T24', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T24', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleHNT = {
+const scheduleID_PROFHARENDRANATHTIWARI = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R5', 'Main'),
   ],
@@ -456,11 +470,13 @@ const scheduleHNT = {
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R5', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T5', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleTNM = {
-  'Monday': [],
+const scheduleID_PROFTARUNMANJHI = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R14', 'Main'),
   ],
@@ -487,7 +503,7 @@ const scheduleTNM = {
   ],
 };
 
-const scheduleSAP = {
+const scheduleID_PROFSURYAPRAKASH = {
   'Monday': [
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R10', 'Main'),
     createClass('Monday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T12', 'Main'),
@@ -510,10 +526,11 @@ const scheduleSAP = {
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T12', 'Main'),
     createClass('Friday', '12:30 PM', '1:30 PM', 'Class', 'All', 'R10', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleNNM = {
+const scheduleID_PROFNAVEENMITTAL = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R34', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T35', 'Main'),
@@ -527,7 +544,8 @@ const scheduleNNM = {
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T35', 'Main'),
     createClass('Tuesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T35', 'Main'),
   ],
-  'Wednesday': [],
+  'Wednesday': [
+  ],
   'Thursday': [
     createClass('Thursday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R21', 'Main'),
     createClass('Thursday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T35', 'Main'),
@@ -541,7 +559,7 @@ const scheduleNNM = {
   ],
 };
 
-const scheduleKIJ = {
+const scheduleID_PROFKINNERIJAIN = {
   'Monday': [
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R22', 'Main'),
   ],
@@ -566,10 +584,11 @@ const scheduleKIJ = {
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R15', 'Main'),
     createClass('Friday', '12:30 PM', '1:30 PM', 'Class', 'All', 'T27', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleVAJ = {
+const scheduleID_PROFVANDANAJAIN = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R21', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T26', 'Main'),
@@ -594,10 +613,11 @@ const scheduleVAJ = {
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T27', 'Main'),
     createClass('Friday', '12:30 PM', '1:30 PM', 'Class', 'All', 'R27', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleKRA = {
+const scheduleID_MSKARUNA = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R26', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R29', 'Main'),
@@ -622,10 +642,11 @@ const scheduleKRA = {
     createClass('Friday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R19', 'Main'),
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R22', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleMAB = {
+const scheduleID_DRMONIKABANSAL = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R17', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T25', 'Main'),
@@ -650,10 +671,11 @@ const scheduleMAB = {
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T27', 'Main'),
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R33', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleANK = {
+const scheduleID_DRAMANPREETKAUR = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R22', 'Main'),
   ],
@@ -678,11 +700,13 @@ const scheduleANK = {
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R26', 'Main'),
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R34', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleAOK = {
-  'Monday': [],
+const scheduleID_DRALOKKUMAR = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R17', 'Main'),
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T39', 'Main'),
@@ -709,7 +733,7 @@ const scheduleAOK = {
   ],
 };
 
-const scheduleASA = {
+const scheduleID_DRANISHA = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R13', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T8', 'Main'),
@@ -734,10 +758,11 @@ const scheduleASA = {
     createClass('Friday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R2', 'Main'),
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T8', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleRKS = {
+const scheduleID_DRRAJKUMARSAH = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R2', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T5', 'Main'),
@@ -762,10 +787,11 @@ const scheduleRKS = {
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T1', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T1', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleSIA = {
+const scheduleID_DRSHALINIAGGARWAL = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R28', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R27', 'Main'),
@@ -792,10 +818,11 @@ const scheduleSIA = {
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T32', 'Main'),
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T33', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleBLK = {
+const scheduleID_MRBALKISHAN = {
   'Monday': [
     createClass('Monday', '11:30 AM', '12:30 PM', 'Class', 'All', 'CL2', 'Main'),
     createClass('Monday', '12:30 PM', '1:30 PM', 'Class', 'All', 'CL2', 'Main'),
@@ -822,10 +849,11 @@ const scheduleBLK = {
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'CL1', 'Main'),
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'CL1', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleSUY = {
+const scheduleID_MRSUDHANSHUYADAV = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R15', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T7', 'Main'),
@@ -852,10 +880,11 @@ const scheduleSUY = {
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T7', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R22', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleHHK = {
+const scheduleID_MRHARISHKUMAR = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'PB2', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'CL1', 'Main'),
@@ -882,10 +911,11 @@ const scheduleHHK = {
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'CL2', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'CL2', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleMTS = {
+const scheduleID_MSMANPREETSHARMA = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R15', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R15', 'Main'),
@@ -912,10 +942,11 @@ const scheduleMTS = {
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R20', 'Main'),
     createClass('Friday', '12:30 PM', '1:30 PM', 'Class', 'All', 'R20', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const schedulePNM = {
+const scheduleID_MSPOONAM = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R32', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R32', 'Main'),
@@ -933,7 +964,8 @@ const schedulePNM = {
     createClass('Wednesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R2', 'Main'),
     createClass('Wednesday', '12:30 PM', '1:30 PM', 'Class', 'All', 'T37', 'Main'),
   ],
-  'Thursday': [],
+  'Thursday': [
+  ],
   'Friday': [
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T50', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'LIBRARY FF', 'Main'),
@@ -945,7 +977,7 @@ const schedulePNM = {
   ],
 };
 
-const schedulePAA = {
+const scheduleID_DRPRIYANKAAGGARWAL = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T38', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R1', 'Main'),
@@ -972,11 +1004,13 @@ const schedulePAA = {
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R10', 'Main'),
     createClass('Friday', '12:30 PM', '1:30 PM', 'Class', 'All', 'R3', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleMDH = {
-  'Monday': [],
+const scheduleID_MRMOHDHASSAN = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T24', 'Main'),
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T27', 'Main'),
@@ -1005,7 +1039,7 @@ const scheduleMDH = {
   ],
 };
 
-const scheduleVAK = {
+const scheduleID_MSVARTIKAKHANDELWAL = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R3', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R13', 'Main'),
@@ -1032,10 +1066,11 @@ const scheduleVAK = {
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R4', 'Main'),
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T32', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleJDP = {
+const scheduleID_DRJAIDEEP = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T39', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T40', 'Main'),
@@ -1062,10 +1097,11 @@ const scheduleJDP = {
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T39', 'Main'),
     createClass('Friday', '12:30 PM', '1:30 PM', 'Class', 'All', 'R35', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleAAR = {
+const scheduleID_DRASHARANI = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R22', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T33', 'Main'),
@@ -1092,11 +1128,13 @@ const scheduleAAR = {
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R14', 'Main'),
     createClass('Friday', '12:30 PM', '1:30 PM', 'Class', 'All', 'R14', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleJTW = {
-  'Monday': [],
+const scheduleID_DRJIGMETWANGDUS = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T50', 'Main'),
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R3', 'Main'),
@@ -1125,8 +1163,9 @@ const scheduleJTW = {
   ],
 };
 
-const scheduleYAM = {
-  'Monday': [],
+const scheduleID_DRYUSRANASEEM = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '8:30 AM', '9:30 AM', 'Class', 'All', 'CLIB', 'Main'),
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R6', 'Main'),
@@ -1155,8 +1194,9 @@ const scheduleYAM = {
   ],
 };
 
-const scheduleAUV = {
-  'Monday': [],
+const scheduleID_MSANJUVERMA = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'CLIB', 'Main'),
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'CLIB', 'Main'),
@@ -1185,8 +1225,9 @@ const scheduleAUV = {
   ],
 };
 
-const scheduleSVP = {
-  'Monday': [],
+const scheduleID_DRSHASHANKVIKRAMPRATAPSINGH = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R33', 'Main'),
     createClass('Tuesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T14', 'Main'),
@@ -1215,7 +1256,7 @@ const scheduleSVP = {
   ],
 };
 
-const scheduleDAB = {
+const scheduleID_DRDIPIKABANSAL = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R27', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T41', 'Main'),
@@ -1242,10 +1283,11 @@ const scheduleDAB = {
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R33', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R17', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const schedulePRA = {
+const scheduleID_DRPRERANA = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R17', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T31', 'Main'),
@@ -1272,10 +1314,11 @@ const schedulePRA = {
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R20', 'Main'),
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R31', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleSHG = {
+const scheduleID_DRSAURABHGUPTA = {
   'Monday': [
     createClass('Monday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T27', 'Main'),
     createClass('Monday', '12:30 PM', '1:30 PM', 'Class', 'All', 'R15', 'Main'),
@@ -1302,11 +1345,13 @@ const scheduleSHG = {
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R3', 'Main'),
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T26', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleSAA = {
-  'Monday': [],
+const scheduleID_DRSAUMYAAGGARWAL = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R4', 'Main'),
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R4', 'Main'),
@@ -1335,7 +1380,7 @@ const scheduleSAA = {
   ],
 };
 
-const scheduleATS = {
+const scheduleID_DRAMARJEETSINGH = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R21', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T49', 'Main'),
@@ -1348,7 +1393,8 @@ const scheduleATS = {
     createClass('Tuesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R26', 'Main'),
     createClass('Tuesday', '12:30 PM', '1:30 PM', 'Class', 'All', 'T49', 'Main'),
   ],
-  'Wednesday': [],
+  'Wednesday': [
+  ],
   'Thursday': [
     createClass('Thursday', '8:30 AM', '9:30 AM', 'Class', 'All', 'PB3', 'Main'),
     createClass('Thursday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T49', 'Main'),
@@ -1357,7 +1403,7 @@ const scheduleATS = {
   'Friday': [
     createClass('Friday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R33', 'Main'),
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T27', 'Main'),
-    createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R32', 'Main'),
+    createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R1', 'Main'),
   ],
   'Saturday': [
     createClass('Saturday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R3', 'Main'),
@@ -1365,8 +1411,9 @@ const scheduleATS = {
   ],
 };
 
-const scheduleSTS = {
-  'Monday': [],
+const scheduleID_MRSATNAMSINGH = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R30', 'Main'),
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T50', 'Main'),
@@ -1395,7 +1442,7 @@ const scheduleSTS = {
   ],
 };
 
-const scheduleSJJ = {
+const scheduleID_DRSAROJJOSHI = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R35', 'Main'),
   ],
@@ -1422,11 +1469,13 @@ const scheduleSJJ = {
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R26', 'Main'),
     createClass('Friday', '12:30 PM', '1:30 PM', 'Class', 'All', 'CL1', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleAJJ = {
-  'Monday': [],
+const scheduleID_DRANUJJATAV = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R34', 'Main'),
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T40', 'Main'),
@@ -1455,8 +1504,9 @@ const scheduleAJJ = {
   ],
 };
 
-const scheduleDTY = {
-  'Monday': [],
+const scheduleID_DRDIXITYADAV = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R35', 'Main'),
     createClass('Tuesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T27', 'Main'),
@@ -1485,7 +1535,7 @@ const scheduleDTY = {
   ],
 };
 
-const scheduleAAT = {
+const scheduleID_MSANKITATOMAR = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R28', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T32', 'Main'),
@@ -1512,32 +1562,44 @@ const scheduleAAT = {
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R28', 'Main'),
     createClass('Friday', '12:30 PM', '1:30 PM', 'Class', 'All', 'T33', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleVIC = {
+const scheduleID_MSVAISHALICHHOKAR = {
   'Monday': [
+    createClass('Monday', '2:00 PM', '3:00 PM', 'Class', 'All', 'R23', 'Main'),
     createClass('Monday', '3:00 PM', '4:00 PM', 'Class', 'All', 'R23', 'Main'),
     createClass('Monday', '4:00 PM', '5:00 PM', 'Class', 'All', 'R23', 'Main'),
     createClass('Monday', '5:00 PM', '6:00 PM', 'Class', 'All', 'R23', 'Main'),
   ],
-  'Tuesday': [],
-  'Wednesday': [],
+  'Tuesday': [
+    createClass('Tuesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T4', 'Main'),
+    createClass('Tuesday', '12:30 PM', '1:30 PM', 'Class', 'All', 'R29', 'Main'),
+  ],
+  'Wednesday': [
+    createClass('Wednesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R6', 'Main'),
+    createClass('Wednesday', '12:30 PM', '1:30 PM', 'Class', 'All', 'R29', 'Main'),
+  ],
   'Thursday': [
+    createClass('Thursday', '2:00 PM', '3:00 PM', 'Class', 'All', 'R19', 'Main'),
     createClass('Thursday', '3:00 PM', '4:00 PM', 'Class', 'All', 'R19', 'Main'),
     createClass('Thursday', '4:00 PM', '5:00 PM', 'Class', 'All', 'R19', 'Main'),
     createClass('Thursday', '5:00 PM', '6:00 PM', 'Class', 'All', 'R19', 'Main'),
   ],
   'Friday': [
+    createClass('Friday', '2:00 PM', '3:00 PM', 'Class', 'All', 'R13', 'Main'),
     createClass('Friday', '3:00 PM', '4:00 PM', 'Class', 'All', 'R13', 'Main'),
     createClass('Friday', '4:00 PM', '5:00 PM', 'Class', 'All', 'R13', 'Main'),
     createClass('Friday', '5:00 PM', '6:00 PM', 'Class', 'All', 'R13', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleATK = {
-  'Monday': [],
+const scheduleID_DRAMITKUMAR = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '8:30 AM', '9:30 AM', 'Class', 'All', 'CL2', 'Main'),
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R3', 'Main'),
@@ -1566,7 +1628,7 @@ const scheduleATK = {
   ],
 };
 
-const scheduleSNS = {
+const scheduleID_DRSUMANSI = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R10', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R34', 'Main'),
@@ -1593,10 +1655,11 @@ const scheduleSNS = {
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T38', 'Main'),
     createClass('Friday', '12:30 PM', '1:30 PM', 'Class', 'All', 'PB2', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleGVR = {
+const scheduleID_MRGAURAVRANA = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R33', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T13', 'Main'),
@@ -1623,11 +1686,13 @@ const scheduleGVR = {
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R18', 'Main'),
     createClass('Friday', '12:30 PM', '1:30 PM', 'Class', 'All', 'R17', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const schedulePKK = {
-  'Monday': [],
+const scheduleID_DRPALAKKANOJIA = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'PB3', 'Main'),
     createClass('Tuesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R28', 'Main'),
@@ -1656,7 +1721,7 @@ const schedulePKK = {
   ],
 };
 
-const scheduleAAA = {
+const scheduleID_DRANURADHAAGGARWAL = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R19', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R19', 'Main'),
@@ -1683,15 +1748,18 @@ const scheduleAAA = {
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'PB2', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'PB2', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleRAC = {
+const scheduleID_DRRUCHIKACHOUDHARY = {
   'Monday': [
+    createClass('Monday', '2:00 PM', '3:00 PM', 'Class', 'All', 'R16', 'Main'),
     createClass('Monday', '3:00 PM', '4:00 PM', 'Class', 'All', 'R16', 'Main'),
     createClass('Monday', '4:00 PM', '5:00 PM', 'Class', 'All', 'R16', 'Main'),
   ],
   'Tuesday': [
+    createClass('Tuesday', '2:00 PM', '3:00 PM', 'Class', 'All', 'R19', 'Main'),
     createClass('Tuesday', '3:00 PM', '4:00 PM', 'Class', 'All', 'R19', 'Main'),
     createClass('Tuesday', '4:00 PM', '5:00 PM', 'Class', 'All', 'R19', 'Main'),
   ],
@@ -1703,6 +1771,7 @@ const scheduleRAC = {
   'Thursday': [
     createClass('Thursday', '11:30 AM', '12:30 PM', 'Class', 'All', 'CL2', 'Main'),
     createClass('Thursday', '12:30 PM', '1:30 PM', 'Class', 'All', 'R31', 'Main'),
+    createClass('Thursday', '2:00 PM', '3:00 PM', 'Class', 'All', 'R20', 'Main'),
     createClass('Thursday', '3:00 PM', '4:00 PM', 'Class', 'All', 'R20', 'Main'),
     createClass('Thursday', '4:00 PM', '5:00 PM', 'Class', 'All', 'R20', 'Main'),
   ],
@@ -1710,10 +1779,11 @@ const scheduleRAC = {
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R32', 'Main'),
     createClass('Friday', '12:30 PM', '1:30 PM', 'Class', 'All', 'SCR4', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleRAS = {
+const scheduleID_DRRUTIKASAINI = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R18', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T43', 'Main'),
@@ -1721,46 +1791,63 @@ const scheduleRAS = {
   'Tuesday': [
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'PB3', 'Main'),
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T43', 'Main'),
+    createClass('Tuesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R33', 'Main'),
   ],
   'Wednesday': [
     createClass('Wednesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T43', 'Main'),
     createClass('Wednesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R33', 'Main'),
+    createClass('Wednesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R33', 'Main'),
+    createClass('Wednesday', '12:30 PM', '1:30 AM', 'Class', 'All', 'T40', 'Main'),
   ],
   'Thursday': [
     createClass('Thursday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R21', 'Main'),
     createClass('Thursday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T43', 'Main'),
+    createClass('Thursday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R18', 'Main'),
   ],
   'Friday': [
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R28', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T43', 'Main'),
+    createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T43', 'Main'),
+    createClass('Friday', '12:30 PM', '1:30 AM', 'Class', 'All', 'R33', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleKKS = {
+const scheduleID_DRKAMALDEEPKAURSARNA = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T44', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R35', 'Main'),
+    createClass('Monday', '11:30 AM', '12:30 PM', 'Class', 'All', 'PB3', 'Main'),
+    createClass('Monday', '12:30 PM', '1:30 AM', 'Class', 'All', 'PB3', 'Main'),
   ],
   'Tuesday': [
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R28', 'Main'),
+    createClass('Tuesday', '12:30 PM', '1:30 AM', 'Class', 'All', 'T44', 'Main'),
   ],
   'Wednesday': [
     createClass('Wednesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T44', 'Main'),
     createClass('Wednesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R35', 'Main'),
+    createClass('Wednesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T44', 'Main'),
   ],
   'Thursday': [
     createClass('Thursday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T44', 'Main'),
     createClass('Thursday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R35', 'Main'),
+    createClass('Thursday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T44', 'Main'),
+    createClass('Thursday', '12:30 PM', '1:30 AM', 'Class', 'All', 'R13', 'Main'),
   ],
   'Friday': [
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R33', 'Main'),
+    createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'SCR4', 'Main'),
+    createClass('Friday', '12:30 PM', '1:30 AM', 'Class', 'All', 'T44', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const schedulePAC = {
-  'Monday': [],
+const scheduleID_DRPRIYACHAURASIA = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T42', 'Main'),
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R27', 'Main'),
@@ -1789,7 +1876,7 @@ const schedulePAC = {
   ],
 };
 
-const scheduleAVB = {
+const scheduleID_MRANUJVIJAYBHATIA = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R34', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T29', 'Main'),
@@ -1816,10 +1903,11 @@ const scheduleAVB = {
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T29', 'Main'),
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T30', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleCUS = {
+const scheduleID_DRCHARUSHRI = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R8', 'Main'),
   ],
@@ -1827,21 +1915,30 @@ const scheduleCUS = {
     createClass('Tuesday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R27', 'Main'),
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T46', 'Main'),
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R7', 'Main'),
+    createClass('Tuesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T44', 'Main'),
+    createClass('Tuesday', '12:30 PM', '1:30 AM', 'Class', 'All', 'R23', 'Main'),
   ],
   'Wednesday': [
     createClass('Wednesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T44', 'Main'),
+    createClass('Wednesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'PB4', 'Main'),
+    createClass('Wednesday', '12:30 PM', '1:30 AM', 'Class', 'All', 'R23', 'Main'),
   ],
   'Thursday': [
     createClass('Thursday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R2', 'Main'),
+    createClass('Thursday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T45', 'Main'),
+    createClass('Thursday', '12:30 PM', '1:30 AM', 'Class', 'All', 'R23', 'Main'),
   ],
   'Friday': [
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T25', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T44', 'Main'),
+    createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R24', 'Main'),
+    createClass('Friday', '12:30 PM', '1:30 AM', 'Class', 'All', 'T25', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleNJA = {
+const scheduleID_DRNIKUNJAGGARWAL = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R5', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T4', 'Main'),
@@ -1868,25 +1965,34 @@ const scheduleNJA = {
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R10', 'Main'),
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T4', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleAKY = {
-  'Monday': [],
+const scheduleID_MRABHISHEKKUMARYADAV = {
+  'Monday': [
+    createClass('Monday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R27', 'Main'),
+    createClass('Monday', '12:30 PM', '1:30 PM', 'Class', 'All', 'R27', 'Main'),
+  ],
   'Tuesday': [
+    createClass('Tuesday', '2:00 PM', '3:00 PM', 'Class', 'All', 'R17', 'Main'),
     createClass('Tuesday', '3:00 PM', '4:00 PM', 'Class', 'All', 'R17', 'Main'),
   ],
-  'Wednesday': [],
+  'Wednesday': [
+  ],
   'Thursday': [
+    createClass('Thursday', '2:00 PM', '3:00 PM', 'Class', 'All', 'R24', 'Main'),
     createClass('Thursday', '3:00 PM', '4:00 PM', 'Class', 'All', 'R24', 'Main'),
   ],
   'Friday': [
+    createClass('Friday', '2:00 PM', '3:00 PM', 'Class', 'All', 'R17', 'Main'),
     createClass('Friday', '3:00 PM', '4:00 PM', 'Class', 'All', 'R17', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleALK = {
+const scheduleID_MRANILKUMAR = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R14', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R14', 'Main'),
@@ -1899,7 +2005,8 @@ const scheduleALK = {
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'CL2', 'Main'),
     createClass('Tuesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R4', 'Main'),
   ],
-  'Wednesday': [],
+  'Wednesday': [
+  ],
   'Thursday': [
     createClass('Thursday', '8:30 AM', '9:30 AM', 'Class', 'All', 'CLIB', 'Main'),
     createClass('Thursday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R14', 'Main'),
@@ -1916,24 +2023,38 @@ const scheduleALK = {
   ],
 };
 
-const scheduleSIM = {
-  'Monday': [],
+const scheduleID_DRSHRUTIMALLIK = {
+  'Monday': [
+    createClass('Monday', '11:00 AM', '12:30 PM', 'Class', 'All', 'R37', 'Main'),
+    createClass('Monday', '12:30 PM', '1:30 PM', 'Class', 'All', 'R37', 'Main'),
+    createClass('Monday', '2:00 PM', '3:00 PM', 'Class', 'All', 'SCR4', 'Main'),
+    createClass('Monday', '3:00 PM', '4:00 PM', 'Class', 'All', 'SCR4', 'Main'),
+  ],
   'Tuesday': [
+    createClass('Tuesday', '2:00 PM', '3:00 PM', 'Class', 'All', 'R7', 'Main'),
+    createClass('Tuesday', '3:00 PM', '4:00 PM', 'Class', 'All', 'R33', 'Main'),
     createClass('Tuesday', '4:00 PM', '5:00 PM', 'Class', 'All', 'R33', 'Main'),
   ],
   'Wednesday': [
+    createClass('Wednesday', '2:00 PM', '3:00 PM', 'Class', 'All', 'R13', 'Main'),
+    createClass('Wednesday', '3:00 PM', '4:00 PM', 'Class', 'All', 'R13', 'Main'),
     createClass('Wednesday', '4:00 PM', '5:00 PM', 'Class', 'All', 'R13', 'Main'),
   ],
   'Thursday': [
+    createClass('Thursday', '2:00 PM', '3:00 PM', 'Class', 'All', 'R21', 'Main'),
+    createClass('Thursday', '3:00 PM', '4:00 PM', 'Class', 'All', 'R21', 'Main'),
     createClass('Thursday', '4:00 PM', '5:00 PM', 'Class', 'All', 'R21', 'Main'),
   ],
   'Friday': [
+    createClass('Friday', '2:00 PM', '3:00 PM', 'Class', 'All', 'R24', 'Main'),
+    createClass('Friday', '3:00 PM', '4:00 PM', 'Class', 'All', 'T1', 'Main'),
     createClass('Friday', '4:00 PM', '5:00 PM', 'Class', 'All', 'T1', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleSAG = {
+const scheduleID_DRSHIKHAGUPTA = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'CL2', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'CL2', 'Main'),
@@ -1960,11 +2081,13 @@ const scheduleSAG = {
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R34', 'Main'),
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'SCR2', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleAAG = {
-  'Monday': [],
+const scheduleID_MSANUBHAGODARA = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R16', 'Main'),
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R16', 'Main'),
@@ -1993,7 +2116,7 @@ const scheduleAAG = {
   ],
 };
 
-const scheduleLKB = {
+const scheduleID_MSLATIKABAJETHA = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R30', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R30', 'Main'),
@@ -2020,10 +2143,11 @@ const scheduleLKB = {
     createClass('Friday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R30', 'Main'),
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R30', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleSAR = {
+const scheduleID_DRSHIKHARAJPUT = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R32', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'PB3', 'Main'),
@@ -2047,13 +2171,14 @@ const scheduleSAR = {
   'Friday': [
     createClass('Friday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R22', 'Main'),
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T43', 'Main'),
-    createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R1', 'Main'),
+    createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R23', 'Main'),
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R2', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleVIS = {
+const scheduleID_MRVIKKISHARMA = {
   'Monday': [
     createClass('Monday', '12:30 PM', '1:30 PM', 'Class', 'All', 'T12', 'Main'),
     createClass('Monday', '2:00 PM', '3:00 PM', 'Class', 'All', 'R6', 'Main'),
@@ -2080,10 +2205,11 @@ const scheduleVIS = {
     createClass('Friday', '2:00 PM', '3:00 PM', 'Class', 'All', 'SCR4', 'Main'),
     createClass('Friday', '3:00 PM', '4:00 PM', 'Class', 'All', 'SCR4', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleNAD = {
+const scheduleID_DRNISHADEVI = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R27', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T42', 'Main'),
@@ -2110,10 +2236,11 @@ const scheduleNAD = {
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T42', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T42', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleKNK = {
+const scheduleID_MRKRISHANKANT = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R33', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'CLIB', 'Main'),
@@ -2140,11 +2267,13 @@ const scheduleKNK = {
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T49', 'Main'),
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R17', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleSPB = {
-  'Monday': [],
+const scheduleID_DRSAPNABANSAL = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R37', 'Main'),
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T45', 'Main'),
@@ -2173,7 +2302,7 @@ const scheduleSPB = {
   ],
 };
 
-const scheduleSVK = {
+const scheduleID_DRSHIVANGIKAUSHIK = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'CLIB', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'CLIB', 'Main'),
@@ -2200,10 +2329,11 @@ const scheduleSVK = {
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R19', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R19', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleRJ = {
+const scheduleID_DRRAJIVJHA = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R23', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R23', 'Main'),
@@ -2226,11 +2356,13 @@ const scheduleRJ = {
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R23', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T6', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleRUR = {
-  'Monday': [],
+const scheduleID_PROFRITURANJAN = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T2', 'Main'),
     createClass('Tuesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R25', 'Main'),
@@ -2257,7 +2389,7 @@ const scheduleRUR = {
   ],
 };
 
-const schedulePB = {
+const scheduleID_MSPRIYANKABHATIA = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R25', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R24', 'Main'),
@@ -2265,6 +2397,7 @@ const schedulePB = {
   'Tuesday': [
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R24', 'Main'),
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R29', 'Main'),
+    createClass('Tuesday', '11:30 AM', '12:30 AM', 'Class', 'All', 'R29', 'Main'),
   ],
   'Wednesday': [
     createClass('Wednesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R24', 'Main'),
@@ -2273,16 +2406,19 @@ const schedulePB = {
   'Thursday': [
     createClass('Thursday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R24', 'Main'),
     createClass('Thursday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R29', 'Main'),
+    createClass('Thursday', '11:30 AM', '12:30 AM', 'Class', 'All', 'R29', 'Main'),
   ],
   'Friday': [
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R24', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R29', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleENN = {
-  'Monday': [],
+const scheduleID_DRESTHERNGAIHTE = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R25', 'Main'),
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R24', 'Main'),
@@ -2309,7 +2445,7 @@ const scheduleENN = {
   ],
 };
 
-const scheduleAKJ = {
+const scheduleID_DRAVINASHKUMARJHA = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R7', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R24', 'Main'),
@@ -2334,11 +2470,13 @@ const scheduleAKJ = {
     createClass('Friday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R24', 'Main'),
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T3', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleRB = {
-  'Monday': [],
+const scheduleID_DRRENUBANSAL = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T41', 'Main'),
     createClass('Tuesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R8', 'Main'),
@@ -2363,7 +2501,7 @@ const scheduleRB = {
   ],
 };
 
-const scheduleRAK = {
+const scheduleID_DRRAKESHRANJAN = {
   'Monday': [
     createClass('Monday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R26', 'Main'),
     createClass('Monday', '12:30 PM', '1:30 PM', 'Class', 'All', 'T51', 'Main'),
@@ -2388,16 +2526,18 @@ const scheduleRAK = {
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R21', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T51', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleNG = {
+const scheduleID_MSNIDHIGUPTA = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'PB4', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T16', 'Main'),
     createClass('Monday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T16', 'Main'),
   ],
-  'Tuesday': [],
+  'Tuesday': [
+  ],
   'Wednesday': [
     createClass('Wednesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R7', 'Main'),
     createClass('Wednesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T16', 'Main'),
@@ -2421,8 +2561,9 @@ const scheduleNG = {
   ],
 };
 
-const scheduleRK = {
-  'Monday': [],
+const scheduleID_DRRAVIKANT = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '12:30 PM', '1:30 PM', 'Class', 'All', 'SCR4', 'Main'),
   ],
@@ -2431,6 +2572,7 @@ const scheduleRK = {
     createClass('Wednesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T53', 'Main'),
     createClass('Wednesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T50', 'Main'),
     createClass('Wednesday', '12:30 PM', '1:30 PM', 'Class', 'All', 'PB3', 'Main'),
+    createClass('Wednesday', '2:00 PM', '3:00 PM', 'Class', 'All', 'T51', 'Main'),
   ],
   'Thursday': [
     createClass('Thursday', '10:30 AM', '11:30 AM', 'Class', 'All', 'SCR4', 'Main'),
@@ -2450,7 +2592,7 @@ const scheduleRK = {
   ],
 };
 
-const scheduleRHT = {
+const scheduleID_MRROHIT = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R23', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R26', 'Main'),
@@ -2477,11 +2619,13 @@ const scheduleRHT = {
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T54', 'Main'),
     createClass('Friday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T54', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleKD = {
-  'Monday': [],
+const scheduleID_DRKAPILDEVYADAV = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R26', 'Main'),
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T16', 'Main'),
@@ -2510,7 +2654,7 @@ const scheduleKD = {
   ],
 };
 
-const scheduleYAA = {
+const scheduleID_MSYUTHIKAAGARWAL = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'PB4', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T54', 'Main'),
@@ -2537,11 +2681,13 @@ const scheduleYAA = {
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T45', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T45', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleCG = {
-  'Monday': [],
+const scheduleID_MSCHHAVIGAUTAM = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T16', 'Main'),
     createClass('Tuesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'R24', 'Main'),
@@ -2570,8 +2716,9 @@ const scheduleCG = {
   ],
 };
 
-const scheduleJK = {
-  'Monday': [],
+const scheduleID_MRJAGADISHKONTHOUJAM = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'PB4', 'Main'),
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T23', 'Main'),
@@ -2600,7 +2747,7 @@ const scheduleJK = {
   ],
 };
 
-const scheduleAK = {
+const scheduleID_MRASHWANIKUMAR = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R37', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T30', 'Main'),
@@ -2617,7 +2764,8 @@ const scheduleAK = {
     createClass('Wednesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T30', 'Main'),
     createClass('Wednesday', '12:30 PM', '1:30 PM', 'Class', 'All', 'T30', 'Main'),
   ],
-  'Thursday': [],
+  'Thursday': [
+  ],
   'Friday': [
     createClass('Friday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R37', 'Main'),
     createClass('Friday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T31', 'Main'),
@@ -2630,8 +2778,9 @@ const scheduleAK = {
   ],
 };
 
-const scheduleAG = {
-  'Monday': [],
+const scheduleID_DRAMITGIRDHARWAL = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '8:30 AM', '9:30 AM', 'Class', 'All', 'PB4', 'Main'),
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T2', 'Main'),
@@ -2660,8 +2809,9 @@ const scheduleAG = {
   ],
 };
 
-const scheduleAGD = {
-  'Monday': [],
+const scheduleID_MSANURADHAGULATIDASGUPTA = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R26', 'Main'),
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R26', 'Main'),
@@ -2690,8 +2840,9 @@ const scheduleAGD = {
   ],
 };
 
-const scheduleABK = {
-  'Monday': [],
+const scheduleID_MRABHISHEKKHADGAWAT = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '8:30 AM', '9:30 AM', 'Class', 'All', 'R32', 'Main'),
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T30', 'Main'),
@@ -2720,7 +2871,7 @@ const scheduleABK = {
   ],
 };
 
-const scheduleHA = {
+const scheduleID_MSHIMANSHIAGGARWAL = {
   'Monday': [
     createClass('Monday', '8:30 AM', '9:30 AM', 'Class', 'All', 'T16', 'Main'),
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R6', 'Main'),
@@ -2747,10 +2898,11 @@ const scheduleHA = {
     createClass('Friday', '12:30 PM', '1:30 PM', 'Class', 'All', 'R34', 'Main'),
     createClass('Friday', '2:00 PM', '3:00 PM', 'Class', 'All', 'T16', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleSHS = {
+const scheduleID_MSSHREYASHREEDHAR = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T2', 'Main'),
     createClass('Monday', '10:30 AM', '11:30 AM', 'Class', 'All', 'T1', 'Main'),
@@ -2777,10 +2929,11 @@ const scheduleSHS = {
     createClass('Friday', '12:30 PM', '1:30 PM', 'Class', 'All', 'R4', 'Main'),
     createClass('Friday', '2:00 PM', '3:00 PM', 'Class', 'All', 'T4', 'Main'),
   ],
-  'Saturday': [],
+  'Saturday': [
+  ],
 };
 
-const scheduleKK = {
+const scheduleID_DRKAUSHALKISHORE = {
   'Monday': [
     createClass('Monday', '9:30 AM', '10:30 AM', 'Class', 'All', 'R7', 'Main'),
   ],
@@ -2790,7 +2943,8 @@ const scheduleKK = {
     createClass('Tuesday', '11:30 AM', '12:30 PM', 'Class', 'All', 'T37', 'Main'),
     createClass('Tuesday', '12:30 PM', '1:30 PM', 'Class', 'All', 'SCR2', 'Main'),
   ],
-  'Wednesday': [],
+  'Wednesday': [
+  ],
   'Thursday': [
     createClass('Thursday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T23', 'Main'),
     createClass('Thursday', '10:30 AM', '11:30 AM', 'Class', 'All', 'R23', 'Main'),
@@ -2810,8 +2964,9 @@ const scheduleKK = {
   ],
 };
 
-const scheduleMG = {
-  'Monday': [],
+const scheduleID_DRMONIKAGAUR = {
+  'Monday': [
+  ],
   'Tuesday': [
     createClass('Tuesday', '9:30 AM', '10:30 AM', 'Class', 'All', 'T23', 'Main'),
     createClass('Tuesday', '10:30 AM', '11:30 AM', 'Class', 'All', 'PB4', 'Main'),
@@ -2840,105 +2995,104 @@ const scheduleMG = {
   ],
 };
 
-// --- MAIN EXPORT ---
 export const TEACHER_SCHEDULES: Record<string, any> = {
-  'SIS': { id: 'SIS', name: 'Ms. Smita Sharma', department: 'Commerce', schedule: scheduleSIS },
-  'DPE': { id: 'DPE', name: 'Prof. Deepashree', department: 'Commerce', schedule: scheduleDPE },
-  'RNC': { id: 'RNC', name: 'Dr. Reena Chadha', department: 'Commerce', schedule: scheduleRNC },
-  'SLG': { id: 'SLG', name: 'Dr. Sneh Lata Gupta', department: 'Commerce', schedule: scheduleSLG },
-  'RUA': { id: 'RUA', name: 'Ms. Renu Agarwal', department: 'Commerce', schedule: scheduleRUA },
-  'AMS': { id: 'AMS', name: 'Dr. Amit Sachdeva', department: 'Commerce', schedule: scheduleAMS },
-  'RAJ': { id: 'RAJ', name: 'Prof. Rachna Jawa', department: 'Commerce', schedule: scheduleRAJ },
-  'AAJ': { id: 'AAJ', name: 'Prof. Aruna Jha', department: 'Commerce', schedule: scheduleAAJ },
-  'SSS': { id: 'SSS', name: 'Ms. Santosh Sabharwal', department: 'Commerce', schedule: scheduleSSS },
-  'MAK': { id: 'MAK', name: 'Prof. Mallika Kumar', department: 'Commerce', schedule: scheduleMAK },
-  'SNK': { id: 'SNK', name: 'Dr. Santosh Kumar', department: 'Commerce', schedule: scheduleSNK },
-  'AYJ': { id: 'AYJ', name: 'Prof. Abhay Jain', department: 'Commerce', schedule: scheduleAYJ },
-  'SHK': { id: 'SHK', name: 'Prof. Santosh Kumari', department: 'Commerce', schedule: scheduleSHK },
-  'PRD': { id: 'PRD', name: 'Prof. Padmeshwar Doley', department: 'Commerce', schedule: schedulePRD },
-  'HNT': { id: 'HNT', name: 'Prof. Harendra Nath Tiwari', department: 'Commerce', schedule: scheduleHNT },
-  'TNM': { id: 'TNM', name: 'Prof. Tarun Manjhi', department: 'Commerce', schedule: scheduleTNM },
-  'SAP': { id: 'SAP', name: 'Prof. Surya Prakash', department: 'Commerce', schedule: scheduleSAP },
-  'NNM': { id: 'NNM', name: 'Prof. Naveen Mittal', department: 'Commerce', schedule: scheduleNNM },
-  'KIJ': { id: 'KIJ', name: 'Prof. Kinneri Jain', department: 'Commerce', schedule: scheduleKIJ },
-  'VAJ': { id: 'VAJ', name: 'Prof. Vandana Jain', department: 'Commerce', schedule: scheduleVAJ },
-  'KRA': { id: 'KRA', name: 'Ms. Karuna', department: 'Commerce', schedule: scheduleKRA },
-  'MAB': { id: 'MAB', name: 'Dr. Monika Bansal', department: 'Commerce', schedule: scheduleMAB },
-  'ANK': { id: 'ANK', name: 'Dr. Amanpreet Kaur', department: 'Commerce', schedule: scheduleANK },
-  'AOK': { id: 'AOK', name: 'Dr. Alok Kumar', department: 'Commerce', schedule: scheduleAOK },
-  'ASA': { id: 'ASA', name: 'Dr. Anisha', department: 'Commerce', schedule: scheduleASA },
-  'RKS': { id: 'RKS', name: 'Dr. Raj Kumar Sah', department: 'Commerce', schedule: scheduleRKS },
-  'SIA': { id: 'SIA', name: 'Dr. Shalini Aggarwal', department: 'Commerce', schedule: scheduleSIA },
-  'BLK': { id: 'BLK', name: 'Mr. Bal Kishan', department: 'Commerce', schedule: scheduleBLK },
-  'SUY': { id: 'SUY', name: 'Mr. Sudhanshu Yadav', department: 'Commerce', schedule: scheduleSUY },
-  'HHK': { id: 'HHK', name: 'Mr. Harish Kumar', department: 'Commerce', schedule: scheduleHHK },
-  'MTS': { id: 'MTS', name: 'Ms. Manpreet Sharma', department: 'Commerce', schedule: scheduleMTS },
-  'PNM': { id: 'PNM', name: 'Ms. Poonam', department: 'Commerce', schedule: schedulePNM },
-  'PAA': { id: 'PAA', name: 'Dr. Priyanka Aggarwal', department: 'Commerce', schedule: schedulePAA },
-  'MDH': { id: 'MDH', name: 'Mr. Mohd. Hassan', department: 'Commerce', schedule: scheduleMDH },
-  'VAK': { id: 'VAK', name: 'Ms. Vartika Khandelwal', department: 'Commerce', schedule: scheduleVAK },
-  'JDP': { id: 'JDP', name: 'Dr. Jaideep', department: 'Commerce', schedule: scheduleJDP },
-  'AAR': { id: 'AAR', name: 'Dr. Asha Rani', department: 'Commerce', schedule: scheduleAAR },
-  'JTW': { id: 'JTW', name: 'Dr. Jigmet Wangdus', department: 'Commerce', schedule: scheduleJTW },
-  'YAM': { id: 'YAM', name: 'Dr. Yusra Naseem', department: 'Commerce', schedule: scheduleYAM },
-  'AUV': { id: 'AUV', name: 'Ms. Anju Verma', department: 'Commerce', schedule: scheduleAUV },
-  'SVP': { id: 'SVP', name: 'Dr. Shashank Vikram Pratap Singh', department: 'Commerce', schedule: scheduleSVP },
-  'DAB': { id: 'DAB', name: 'Dr. Dipika Bansal', department: 'Commerce', schedule: scheduleDAB },
-  'PRA': { id: 'PRA', name: 'Dr. Prerana', department: 'Commerce', schedule: schedulePRA },
-  'SHG': { id: 'SHG', name: 'Dr. Saurabh Gupta', department: 'Commerce', schedule: scheduleSHG },
-  'SAA': { id: 'SAA', name: 'Dr. Saumya Aggarwal', department: 'Commerce', schedule: scheduleSAA },
-  'ATS': { id: 'ATS', name: 'Dr. Amarjeet Singh', department: 'Commerce', schedule: scheduleATS },
-  'STS': { id: 'STS', name: 'Mr. Satnam Singh', department: 'Commerce', schedule: scheduleSTS },
-  'SJJ': { id: 'SJJ', name: 'Dr. Saroj Joshi', department: 'Commerce', schedule: scheduleSJJ },
-  'AJJ': { id: 'AJJ', name: 'Dr. Anuj Jatav', department: 'Commerce', schedule: scheduleAJJ },
-  'DTY': { id: 'DTY', name: 'Dr. Dixit Yadav', department: 'Commerce', schedule: scheduleDTY },
-  'AAT': { id: 'AAT', name: 'Ms. Ankita Tomar', department: 'Commerce', schedule: scheduleAAT },
-  'VIC': { id: 'VIC', name: 'Ms. Vaishali Chhokar', department: 'Commerce', schedule: scheduleVIC },
-  'ATK': { id: 'ATK', name: 'Dr. Amit Kumar', department: 'Commerce', schedule: scheduleATK },
-  'SNS': { id: 'SNS', name: 'Dr. Suman Si', department: 'Commerce', schedule: scheduleSNS },
-  'GVR': { id: 'GVR', name: 'Mr. Gaurav Rana', department: 'Commerce', schedule: scheduleGVR },
-  'PKK': { id: 'PKK', name: 'Dr. Palak Kanojia', department: 'Commerce', schedule: schedulePKK },
-  'AAA': { id: 'AAA', name: 'Dr. Anuradha Aggarwal', department: 'Commerce', schedule: scheduleAAA },
-  'RAC': { id: 'RAC', name: 'Dr. Ruchika Choudhary', department: 'Commerce', schedule: scheduleRAC },
-  'RAS': { id: 'RAS', name: 'Dr. Rutika Saini', department: 'Commerce', schedule: scheduleRAS },
-  'KKS': { id: 'KKS', name: 'Dr. Kamaldeep Kaur Sarna', department: 'Commerce', schedule: scheduleKKS },
-  'PAC': { id: 'PAC', name: 'Dr. Priya Chaurasia', department: 'Commerce', schedule: schedulePAC },
-  'AVB': { id: 'AVB', name: 'Mr. Anuj Vijay Bhatia', department: 'Commerce', schedule: scheduleAVB },
-  'CUS': { id: 'CUS', name: 'Dr. Charu Shri', department: 'Commerce', schedule: scheduleCUS },
-  'NJA': { id: 'NJA', name: 'Dr. Nikunj Aggarwal', department: 'Commerce', schedule: scheduleNJA },
-  'AKY': { id: 'AKY', name: 'Mr. Abhishek Kumar Yadav', department: 'Commerce', schedule: scheduleAKY },
-  'ALK': { id: 'ALK', name: 'Mr. Anil Kumar', department: 'Commerce', schedule: scheduleALK },
-  'SIM': { id: 'SIM', name: 'Dr. Shruti Mallik', department: 'Commerce', schedule: scheduleSIM },
-  'SAG': { id: 'SAG', name: 'Dr. Shikha Gupta', department: 'Commerce', schedule: scheduleSAG },
-  'AAG': { id: 'AAG', name: 'Ms. Anubha Godara', department: 'Commerce', schedule: scheduleAAG },
-  'LKB': { id: 'LKB', name: 'Ms. Latika Bajetha', department: 'Commerce', schedule: scheduleLKB },
-  'SAR': { id: 'SAR', name: 'Dr. Shikha Rajput', department: 'Commerce', schedule: scheduleSAR },
-  'VIS': { id: 'VIS', name: 'Mr. Vikki Sharma', department: 'Commerce', schedule: scheduleVIS },
-  'NAD': { id: 'NAD', name: 'Dr. Nisha Devi', department: 'Commerce', schedule: scheduleNAD },
-  'KNK': { id: 'KNK', name: 'Mr. Krishan Kant', department: 'Commerce', schedule: scheduleKNK },
-  'SPB': { id: 'SPB', name: 'Dr. Sapna Bansal', department: 'Commerce', schedule: scheduleSPB },
-  'SVK': { id: 'SVK', name: 'Dr. Shivangi Kaushik', department: 'Commerce', schedule: scheduleSVK },
-  'RJ': { id: 'RJ', name: 'Dr. Rajiv Jha', department: 'Commerce', schedule: scheduleRJ },
-  'RUR': { id: 'RUR', name: 'Prof. Ritu Ranjan', department: 'Commerce', schedule: scheduleRUR },
-  'PB': { id: 'PB', name: 'Ms. Priyanka Bhatia', department: 'Commerce', schedule: schedulePB },
-  'ENN': { id: 'ENN', name: 'Dr. Esther Ngaihte', department: 'Commerce', schedule: scheduleENN },
-  'AKJ': { id: 'AKJ', name: 'Dr. Avinash Kumar Jha', department: 'Commerce', schedule: scheduleAKJ },
-  'RB': { id: 'RB', name: 'Dr. Renu Bansal', department: 'Commerce', schedule: scheduleRB },
-  'RAK': { id: 'RAK', name: 'Dr. Rakesh Ranjan', department: 'Commerce', schedule: scheduleRAK },
-  'NG': { id: 'NG', name: 'Ms. Nidhi Gupta', department: 'Commerce', schedule: scheduleNG },
-  'RK': { id: 'RK', name: 'Dr. Ravi Kant', department: 'Commerce', schedule: scheduleRK },
-  'RHT': { id: 'RHT', name: 'Mr. Rohit', department: 'Commerce', schedule: scheduleRHT },
-  'KD': { id: 'KD', name: 'Dr. Kapil Dev Yadav', department: 'Commerce', schedule: scheduleKD },
-  'YAA': { id: 'YAA', name: 'Ms. Yuthika Agarwal', department: 'Commerce', schedule: scheduleYAA },
-  'CG': { id: 'CG', name: 'Ms. Chhavi Gautam', department: 'Commerce', schedule: scheduleCG },
-  'JK': { id: 'JK', name: 'Mr. Jagadish Konthoujam', department: 'Commerce', schedule: scheduleJK },
-  'AK': { id: 'AK', name: 'Mr. Ashwani Kumar', department: 'Commerce', schedule: scheduleAK },
-  'AG': { id: 'AG', name: 'Dr. Amit Girdharwal', department: 'Commerce', schedule: scheduleAG },
-  'AGD': { id: 'AGD', name: 'Ms. Anuradha Gulati Dasgupta', department: 'Commerce', schedule: scheduleAGD },
-  'ABK': { id: 'ABK', name: 'Mr. Abhishek Khadgawat', department: 'Commerce', schedule: scheduleABK },
-  'HA': { id: 'HA', name: 'Ms. Himanshi Aggarwal', department: 'Commerce', schedule: scheduleHA },
-  'SHS': { id: 'SHS', name: 'Ms. Shreya Shreedhar', department: 'Commerce', schedule: scheduleSHS },
-  'KK': { id: 'KK', name: 'Dr. Kaushal Kishore', department: 'Commerce', schedule: scheduleKK },
-  'MG': { id: 'MG', name: 'Dr. Monika Gaur', department: 'Commerce', schedule: scheduleMG },
+  'ID_MSSMITASHARMA': { id: 'ID_MSSMITASHARMA', name: 'Ms. Smita Sharma', department: 'Commerce', schedule: scheduleID_MSSMITASHARMA },
+  'ID_PROFDEEPASHREE': { id: 'ID_PROFDEEPASHREE', name: 'Prof. Deepashree', department: 'Commerce', schedule: scheduleID_PROFDEEPASHREE },
+  'ID_DRREENACHADHA': { id: 'ID_DRREENACHADHA', name: 'Dr. Reena Chadha', department: 'Commerce', schedule: scheduleID_DRREENACHADHA },
+  'ID_DRSNEHLATAGUPTA': { id: 'ID_DRSNEHLATAGUPTA', name: 'Dr. Sneh Lata Gupta', department: 'Commerce', schedule: scheduleID_DRSNEHLATAGUPTA },
+  'ID_MSRENUAGARWAL': { id: 'ID_MSRENUAGARWAL', name: 'Ms. Renu Agarwal', department: 'Commerce', schedule: scheduleID_MSRENUAGARWAL },
+  'ID_DRAMITSACHDEVA': { id: 'ID_DRAMITSACHDEVA', name: 'Dr. Amit Sachdeva', department: 'Commerce', schedule: scheduleID_DRAMITSACHDEVA },
+  'ID_PROFRACHNAJAWA': { id: 'ID_PROFRACHNAJAWA', name: 'Prof. Rachna Jawa', department: 'Commerce', schedule: scheduleID_PROFRACHNAJAWA },
+  'ID_PROFARUNAJHA': { id: 'ID_PROFARUNAJHA', name: 'Prof. Aruna Jha', department: 'Commerce', schedule: scheduleID_PROFARUNAJHA },
+  'ID_MSSANTOSHSABHARWAL': { id: 'ID_MSSANTOSHSABHARWAL', name: 'Ms. Santosh Sabharwal', department: 'Commerce', schedule: scheduleID_MSSANTOSHSABHARWAL },
+  'ID_PROFMALLIKAKUMAR': { id: 'ID_PROFMALLIKAKUMAR', name: 'Prof. Mallika Kumar', department: 'Commerce', schedule: scheduleID_PROFMALLIKAKUMAR },
+  'ID_DRSANTOSHKUMAR': { id: 'ID_DRSANTOSHKUMAR', name: 'Dr. Santosh Kumar', department: 'Commerce', schedule: scheduleID_DRSANTOSHKUMAR },
+  'ID_PROFABHAYJAIN': { id: 'ID_PROFABHAYJAIN', name: 'Prof. Abhay Jain', department: 'Commerce', schedule: scheduleID_PROFABHAYJAIN },
+  'ID_PROFSANTOSHKUMARI': { id: 'ID_PROFSANTOSHKUMARI', name: 'Prof. Santosh Kumari', department: 'Commerce', schedule: scheduleID_PROFSANTOSHKUMARI },
+  'ID_PROFPADMESHWARDOLEY': { id: 'ID_PROFPADMESHWARDOLEY', name: 'Prof. Padmeshwar Doley', department: 'Commerce', schedule: scheduleID_PROFPADMESHWARDOLEY },
+  'ID_PROFHARENDRANATHTIWARI': { id: 'ID_PROFHARENDRANATHTIWARI', name: 'Prof. Harendra Nath Tiwari', department: 'Commerce', schedule: scheduleID_PROFHARENDRANATHTIWARI },
+  'ID_PROFTARUNMANJHI': { id: 'ID_PROFTARUNMANJHI', name: 'Prof. Tarun Manjhi', department: 'Commerce', schedule: scheduleID_PROFTARUNMANJHI },
+  'ID_PROFSURYAPRAKASH': { id: 'ID_PROFSURYAPRAKASH', name: 'Prof. Surya Prakash', department: 'Commerce', schedule: scheduleID_PROFSURYAPRAKASH },
+  'ID_PROFNAVEENMITTAL': { id: 'ID_PROFNAVEENMITTAL', name: 'Prof. Naveen Mittal', department: 'Commerce', schedule: scheduleID_PROFNAVEENMITTAL },
+  'ID_PROFKINNERIJAIN': { id: 'ID_PROFKINNERIJAIN', name: 'Prof. Kinneri Jain', department: 'Commerce', schedule: scheduleID_PROFKINNERIJAIN },
+  'ID_PROFVANDANAJAIN': { id: 'ID_PROFVANDANAJAIN', name: 'Prof. Vandana Jain', department: 'Commerce', schedule: scheduleID_PROFVANDANAJAIN },
+  'ID_MSKARUNA': { id: 'ID_MSKARUNA', name: 'Ms. Karuna', department: 'Commerce', schedule: scheduleID_MSKARUNA },
+  'ID_DRMONIKABANSAL': { id: 'ID_DRMONIKABANSAL', name: 'Dr. Monika Bansal', department: 'Commerce', schedule: scheduleID_DRMONIKABANSAL },
+  'ID_DRAMANPREETKAUR': { id: 'ID_DRAMANPREETKAUR', name: 'Dr. Amanpreet Kaur', department: 'Commerce', schedule: scheduleID_DRAMANPREETKAUR },
+  'ID_DRALOKKUMAR': { id: 'ID_DRALOKKUMAR', name: 'Dr. Alok Kumar', department: 'Commerce', schedule: scheduleID_DRALOKKUMAR },
+  'ID_DRANISHA': { id: 'ID_DRANISHA', name: 'Dr. Anisha', department: 'Commerce', schedule: scheduleID_DRANISHA },
+  'ID_DRRAJKUMARSAH': { id: 'ID_DRRAJKUMARSAH', name: 'Dr. Raj Kumar Sah', department: 'Commerce', schedule: scheduleID_DRRAJKUMARSAH },
+  'ID_DRSHALINIAGGARWAL': { id: 'ID_DRSHALINIAGGARWAL', name: 'Dr. Shalini Aggarwal', department: 'Commerce', schedule: scheduleID_DRSHALINIAGGARWAL },
+  'ID_MRBALKISHAN': { id: 'ID_MRBALKISHAN', name: 'Mr. Bal Kishan', department: 'Commerce', schedule: scheduleID_MRBALKISHAN },
+  'ID_MRSUDHANSHUYADAV': { id: 'ID_MRSUDHANSHUYADAV', name: 'Mr. Sudhanshu Yadav', department: 'Commerce', schedule: scheduleID_MRSUDHANSHUYADAV },
+  'ID_MRHARISHKUMAR': { id: 'ID_MRHARISHKUMAR', name: 'Mr. Harish Kumar', department: 'Commerce', schedule: scheduleID_MRHARISHKUMAR },
+  'ID_MSMANPREETSHARMA': { id: 'ID_MSMANPREETSHARMA', name: 'Ms. Manpreet Sharma', department: 'Commerce', schedule: scheduleID_MSMANPREETSHARMA },
+  'ID_MSPOONAM': { id: 'ID_MSPOONAM', name: 'Ms. Poonam', department: 'Commerce', schedule: scheduleID_MSPOONAM },
+  'ID_DRPRIYANKAAGGARWAL': { id: 'ID_DRPRIYANKAAGGARWAL', name: 'Dr. Priyanka Aggarwal', department: 'Commerce', schedule: scheduleID_DRPRIYANKAAGGARWAL },
+  'ID_MRMOHDHASSAN': { id: 'ID_MRMOHDHASSAN', name: 'Mr. Mohd. Hassan', department: 'Commerce', schedule: scheduleID_MRMOHDHASSAN },
+  'ID_MSVARTIKAKHANDELWAL': { id: 'ID_MSVARTIKAKHANDELWAL', name: 'Ms. Vartika Khandelwal', department: 'Commerce', schedule: scheduleID_MSVARTIKAKHANDELWAL },
+  'ID_DRJAIDEEP': { id: 'ID_DRJAIDEEP', name: 'Dr. Jaideep', department: 'Commerce', schedule: scheduleID_DRJAIDEEP },
+  'ID_DRASHARANI': { id: 'ID_DRASHARANI', name: 'Dr. Asha Rani', department: 'Commerce', schedule: scheduleID_DRASHARANI },
+  'ID_DRJIGMETWANGDUS': { id: 'ID_DRJIGMETWANGDUS', name: 'Dr. Jigmet Wangdus', department: 'Commerce', schedule: scheduleID_DRJIGMETWANGDUS },
+  'ID_DRYUSRANASEEM': { id: 'ID_DRYUSRANASEEM', name: 'Dr. Yusra Naseem', department: 'Commerce', schedule: scheduleID_DRYUSRANASEEM },
+  'ID_MSANJUVERMA': { id: 'ID_MSANJUVERMA', name: 'Ms. Anju Verma', department: 'Commerce', schedule: scheduleID_MSANJUVERMA },
+  'ID_DRSHASHANKVIKRAMPRATAPSINGH': { id: 'ID_DRSHASHANKVIKRAMPRATAPSINGH', name: 'Dr. Shashank Vikram Pratap Singh', department: 'Commerce', schedule: scheduleID_DRSHASHANKVIKRAMPRATAPSINGH },
+  'ID_DRDIPIKABANSAL': { id: 'ID_DRDIPIKABANSAL', name: 'Dr. Dipika Bansal', department: 'Commerce', schedule: scheduleID_DRDIPIKABANSAL },
+  'ID_DRPRERANA': { id: 'ID_DRPRERANA', name: 'Dr. Prerana', department: 'Commerce', schedule: scheduleID_DRPRERANA },
+  'ID_DRSAURABHGUPTA': { id: 'ID_DRSAURABHGUPTA', name: 'Dr. Saurabh Gupta', department: 'Commerce', schedule: scheduleID_DRSAURABHGUPTA },
+  'ID_DRSAUMYAAGGARWAL': { id: 'ID_DRSAUMYAAGGARWAL', name: 'Dr. Saumya Aggarwal', department: 'Commerce', schedule: scheduleID_DRSAUMYAAGGARWAL },
+  'ID_DRAMARJEETSINGH': { id: 'ID_DRAMARJEETSINGH', name: 'Dr. Amarjeet Singh', department: 'Commerce', schedule: scheduleID_DRAMARJEETSINGH },
+  'ID_MRSATNAMSINGH': { id: 'ID_MRSATNAMSINGH', name: 'Mr. Satnam Singh', department: 'Commerce', schedule: scheduleID_MRSATNAMSINGH },
+  'ID_DRSAROJJOSHI': { id: 'ID_DRSAROJJOSHI', name: 'Dr. Saroj Joshi', department: 'Commerce', schedule: scheduleID_DRSAROJJOSHI },
+  'ID_DRANUJJATAV': { id: 'ID_DRANUJJATAV', name: 'Dr. Anuj Jatav', department: 'Commerce', schedule: scheduleID_DRANUJJATAV },
+  'ID_DRDIXITYADAV': { id: 'ID_DRDIXITYADAV', name: 'Dr. Dixit Yadav', department: 'Commerce', schedule: scheduleID_DRDIXITYADAV },
+  'ID_MSANKITATOMAR': { id: 'ID_MSANKITATOMAR', name: 'Ms. Ankita Tomar', department: 'Commerce', schedule: scheduleID_MSANKITATOMAR },
+  'ID_MSVAISHALICHHOKAR': { id: 'ID_MSVAISHALICHHOKAR', name: 'Ms. Vaishali Chhokar', department: 'Commerce', schedule: scheduleID_MSVAISHALICHHOKAR },
+  'ID_DRAMITKUMAR': { id: 'ID_DRAMITKUMAR', name: 'Dr. Amit Kumar', department: 'Commerce', schedule: scheduleID_DRAMITKUMAR },
+  'ID_DRSUMANSI': { id: 'ID_DRSUMANSI', name: 'Dr. Suman Si', department: 'Commerce', schedule: scheduleID_DRSUMANSI },
+  'ID_MRGAURAVRANA': { id: 'ID_MRGAURAVRANA', name: 'Mr. Gaurav Rana', department: 'Commerce', schedule: scheduleID_MRGAURAVRANA },
+  'ID_DRPALAKKANOJIA': { id: 'ID_DRPALAKKANOJIA', name: 'Dr. Palak Kanojia', department: 'Commerce', schedule: scheduleID_DRPALAKKANOJIA },
+  'ID_DRANURADHAAGGARWAL': { id: 'ID_DRANURADHAAGGARWAL', name: 'Dr. Anuradha Aggarwal', department: 'Commerce', schedule: scheduleID_DRANURADHAAGGARWAL },
+  'ID_DRRUCHIKACHOUDHARY': { id: 'ID_DRRUCHIKACHOUDHARY', name: 'Dr. Ruchika Choudhary', department: 'Commerce', schedule: scheduleID_DRRUCHIKACHOUDHARY },
+  'ID_DRRUTIKASAINI': { id: 'ID_DRRUTIKASAINI', name: 'Dr. Rutika Saini', department: 'Commerce', schedule: scheduleID_DRRUTIKASAINI },
+  'ID_DRKAMALDEEPKAURSARNA': { id: 'ID_DRKAMALDEEPKAURSARNA', name: 'Dr. Kamaldeep Kaur Sarna', department: 'Commerce', schedule: scheduleID_DRKAMALDEEPKAURSARNA },
+  'ID_DRPRIYACHAURASIA': { id: 'ID_DRPRIYACHAURASIA', name: 'Dr. Priya Chaurasia', department: 'Commerce', schedule: scheduleID_DRPRIYACHAURASIA },
+  'ID_MRANUJVIJAYBHATIA': { id: 'ID_MRANUJVIJAYBHATIA', name: 'Mr. Anuj Vijay Bhatia', department: 'Commerce', schedule: scheduleID_MRANUJVIJAYBHATIA },
+  'ID_DRCHARUSHRI': { id: 'ID_DRCHARUSHRI', name: 'Dr. Charu Shri', department: 'Commerce', schedule: scheduleID_DRCHARUSHRI },
+  'ID_DRNIKUNJAGGARWAL': { id: 'ID_DRNIKUNJAGGARWAL', name: 'Dr. Nikunj Aggarwal', department: 'Commerce', schedule: scheduleID_DRNIKUNJAGGARWAL },
+  'ID_MRABHISHEKKUMARYADAV': { id: 'ID_MRABHISHEKKUMARYADAV', name: 'Mr. Abhishek Kumar Yadav', department: 'Commerce', schedule: scheduleID_MRABHISHEKKUMARYADAV },
+  'ID_MRANILKUMAR': { id: 'ID_MRANILKUMAR', name: 'Mr. Anil Kumar', department: 'Commerce', schedule: scheduleID_MRANILKUMAR },
+  'ID_DRSHRUTIMALLIK': { id: 'ID_DRSHRUTIMALLIK', name: 'Dr. Shruti Mallik', department: 'Commerce', schedule: scheduleID_DRSHRUTIMALLIK },
+  'ID_DRSHIKHAGUPTA': { id: 'ID_DRSHIKHAGUPTA', name: 'Dr. Shikha Gupta', department: 'Commerce', schedule: scheduleID_DRSHIKHAGUPTA },
+  'ID_MSANUBHAGODARA': { id: 'ID_MSANUBHAGODARA', name: 'Ms. Anubha Godara', department: 'Commerce', schedule: scheduleID_MSANUBHAGODARA },
+  'ID_MSLATIKABAJETHA': { id: 'ID_MSLATIKABAJETHA', name: 'Ms. Latika Bajetha', department: 'Commerce', schedule: scheduleID_MSLATIKABAJETHA },
+  'ID_DRSHIKHARAJPUT': { id: 'ID_DRSHIKHARAJPUT', name: 'Dr. Shikha Rajput', department: 'Commerce', schedule: scheduleID_DRSHIKHARAJPUT },
+  'ID_MRVIKKISHARMA': { id: 'ID_MRVIKKISHARMA', name: 'Mr. Vikki Sharma', department: 'Commerce', schedule: scheduleID_MRVIKKISHARMA },
+  'ID_DRNISHADEVI': { id: 'ID_DRNISHADEVI', name: 'Dr. Nisha Devi', department: 'Commerce', schedule: scheduleID_DRNISHADEVI },
+  'ID_MRKRISHANKANT': { id: 'ID_MRKRISHANKANT', name: 'Mr. Krishan Kant', department: 'Commerce', schedule: scheduleID_MRKRISHANKANT },
+  'ID_DRSAPNABANSAL': { id: 'ID_DRSAPNABANSAL', name: 'Dr. Sapna Bansal', department: 'Commerce', schedule: scheduleID_DRSAPNABANSAL },
+  'ID_DRSHIVANGIKAUSHIK': { id: 'ID_DRSHIVANGIKAUSHIK', name: 'Dr. Shivangi Kaushik', department: 'Commerce', schedule: scheduleID_DRSHIVANGIKAUSHIK },
+  'ID_DRRAJIVJHA': { id: 'ID_DRRAJIVJHA', name: 'Dr. Rajiv Jha', department: 'Commerce', schedule: scheduleID_DRRAJIVJHA },
+  'ID_PROFRITURANJAN': { id: 'ID_PROFRITURANJAN', name: 'Prof. Ritu Ranjan', department: 'Commerce', schedule: scheduleID_PROFRITURANJAN },
+  'ID_MSPRIYANKABHATIA': { id: 'ID_MSPRIYANKABHATIA', name: 'Ms. Priyanka Bhatia', department: 'Commerce', schedule: scheduleID_MSPRIYANKABHATIA },
+  'ID_DRESTHERNGAIHTE': { id: 'ID_DRESTHERNGAIHTE', name: 'Dr. Esther Ngaihte', department: 'Commerce', schedule: scheduleID_DRESTHERNGAIHTE },
+  'ID_DRAVINASHKUMARJHA': { id: 'ID_DRAVINASHKUMARJHA', name: 'Dr. Avinash Kumar Jha', department: 'Commerce', schedule: scheduleID_DRAVINASHKUMARJHA },
+  'ID_DRRENUBANSAL': { id: 'ID_DRRENUBANSAL', name: 'Dr. Renu Bansal', department: 'Commerce', schedule: scheduleID_DRRENUBANSAL },
+  'ID_DRRAKESHRANJAN': { id: 'ID_DRRAKESHRANJAN', name: 'Dr. Rakesh Ranjan', department: 'Commerce', schedule: scheduleID_DRRAKESHRANJAN },
+  'ID_MSNIDHIGUPTA': { id: 'ID_MSNIDHIGUPTA', name: 'Ms. Nidhi Gupta', department: 'Commerce', schedule: scheduleID_MSNIDHIGUPTA },
+  'ID_DRRAVIKANT': { id: 'ID_DRRAVIKANT', name: 'Dr. Ravi Kant', department: 'Commerce', schedule: scheduleID_DRRAVIKANT },
+  'ID_MRROHIT': { id: 'ID_MRROHIT', name: 'Mr. Rohit', department: 'Commerce', schedule: scheduleID_MRROHIT },
+  'ID_DRKAPILDEVYADAV': { id: 'ID_DRKAPILDEVYADAV', name: 'Dr. Kapil Dev Yadav', department: 'Commerce', schedule: scheduleID_DRKAPILDEVYADAV },
+  'ID_MSYUTHIKAAGARWAL': { id: 'ID_MSYUTHIKAAGARWAL', name: 'Ms. Yuthika Agarwal', department: 'Commerce', schedule: scheduleID_MSYUTHIKAAGARWAL },
+  'ID_MSCHHAVIGAUTAM': { id: 'ID_MSCHHAVIGAUTAM', name: 'Ms. Chhavi Gautam', department: 'Commerce', schedule: scheduleID_MSCHHAVIGAUTAM },
+  'ID_MRJAGADISHKONTHOUJAM': { id: 'ID_MRJAGADISHKONTHOUJAM', name: 'Mr. Jagadish Konthoujam', department: 'Commerce', schedule: scheduleID_MRJAGADISHKONTHOUJAM },
+  'ID_MRASHWANIKUMAR': { id: 'ID_MRASHWANIKUMAR', name: 'Mr. Ashwani Kumar', department: 'Commerce', schedule: scheduleID_MRASHWANIKUMAR },
+  'ID_DRAMITGIRDHARWAL': { id: 'ID_DRAMITGIRDHARWAL', name: 'Dr. Amit Girdharwal', department: 'Commerce', schedule: scheduleID_DRAMITGIRDHARWAL },
+  'ID_MSANURADHAGULATIDASGUPTA': { id: 'ID_MSANURADHAGULATIDASGUPTA', name: 'Ms. Anuradha Gulati Dasgupta', department: 'Commerce', schedule: scheduleID_MSANURADHAGULATIDASGUPTA },
+  'ID_MRABHISHEKKHADGAWAT': { id: 'ID_MRABHISHEKKHADGAWAT', name: 'Mr. Abhishek Khadgawat', department: 'Commerce', schedule: scheduleID_MRABHISHEKKHADGAWAT },
+  'ID_MSHIMANSHIAGGARWAL': { id: 'ID_MSHIMANSHIAGGARWAL', name: 'Ms. Himanshi Aggarwal', department: 'Commerce', schedule: scheduleID_MSHIMANSHIAGGARWAL },
+  'ID_MSSHREYASHREEDHAR': { id: 'ID_MSSHREYASHREEDHAR', name: 'Ms. Shreya Shreedhar', department: 'Commerce', schedule: scheduleID_MSSHREYASHREEDHAR },
+  'ID_DRKAUSHALKISHORE': { id: 'ID_DRKAUSHALKISHORE', name: 'Dr. Kaushal Kishore', department: 'Commerce', schedule: scheduleID_DRKAUSHALKISHORE },
+  'ID_DRMONIKAGAUR': { id: 'ID_DRMONIKAGAUR', name: 'Dr. Monika Gaur', department: 'Commerce', schedule: scheduleID_DRMONIKAGAUR },
   'ADMIN': { id: 'kroni', name: 'System Administrator', department: 'Office Control', schedule: EMPTY_SCHEDULE }
 };

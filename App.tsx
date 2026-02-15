@@ -9,7 +9,52 @@ import {
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
 import { TEACHER_SCHEDULES } from './teacherData';
-import { STUDENT_SCHEDULES } from './studentData';
+// Import the newly split semester files
+import { SEM2_STUDENT_SCHEDULES } from './Sem2';
+import { STUDENT_SCHEDULES as SEM4_STUDENT_SCHEDULES } from './Sem4';
+import { sem6StudentData } from './Sem6';
+
+// Helper function to dynamically fix Sem 6 formatting so it matches Sem 2 and Sem 4
+const convertSem6Data = (data: any) => {
+  const converted: Record<string, any> = {};
+  
+  const timeMap: Record<string, number> = {
+    "8:30 AM to 9:30 AM": 0, "9:30 AM to 10:30 AM": 1,
+    "10:30 AM to 11:30 AM": 2, "11:30 AM to 12:30 PM": 3,
+    "12:30 PM to 1:30 PM": 4, "2:00 PM to 3:00 PM": 5,
+    "3:00 PM to 4:00 PM": 6, "4:00 PM to 5:00 PM": 7,
+    "5:00 PM to 6:00 PM": 8
+  };
+
+  const typeMap: Record<string, string> = {
+    "L": "Lecture", "T": "Tutorial", "LAB": "Practical" // Maps 'LAB' to Practical to keep your color coding
+  };
+
+  for (const [rollNo, classes] of Object.entries(data)) {
+    converted[rollNo] = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [] };
+    
+    (classes as any[]).forEach((cls) => {
+      const periodIndex = timeMap[cls.time];
+      if (periodIndex !== undefined && converted[rollNo][cls.day]) {
+        converted[rollNo][cls.day].push({
+          periodIndex,
+          subject: cls.subject,
+          room: cls.room,
+          type: typeMap[cls.type] || cls.type,
+          teacher: cls.teacher
+        });
+      }
+    });
+  }
+  return converted;
+};
+
+// Combine all 3 semesters into one master database
+const ALL_STUDENT_SCHEDULES = {
+  ...SEM2_STUDENT_SCHEDULES,
+  ...SEM4_STUDENT_SCHEDULES,
+  ...convertSem6Data(sem6StudentData)
+};
 
 // --- SOCIETY EVENTS DATA ---
 const SOCIETY_EVENTS = [
@@ -159,8 +204,8 @@ function App() {
     const roll = timetableRollNo.trim().toUpperCase();
     if (!roll) return;
 
-    // Fetch the data straight from the injected studentData.ts
-    const studentData = STUDENT_SCHEDULES[roll];
+    // Fetch the data straight from the new combined database
+    const studentData = ALL_STUDENT_SCHEDULES[roll];
 
     if (studentData) {
       setActiveTimetable(studentData);
@@ -497,7 +542,7 @@ function App() {
                <div>
                  <h3 className="text-yellow-800 font-bold text-sm uppercase tracking-wide">Notice</h3>
                  <p className="text-yellow-700 text-sm mt-1">
-                   Currently, data for only <b>B.Com (Hons) Sem IV & Sem VI</b> has been updated. Students with AEC-cluster, kindly ignore Sectional-AEC from daily schedule. Errors can be expected as the timetable is complex and subject to change.
+                   Currently, data for only <b>B.Com (Hons) Sem II, IV & VI</b> has been updated. Students with AEC-cluster, kindly ignore Sectional-AEC from daily schedule. Errors can be expected as the timetable is complex and subject to change.
                  </p>
                </div>
             </div>

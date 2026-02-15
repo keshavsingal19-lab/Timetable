@@ -542,7 +542,7 @@ function App() {
                <div>
                  <h3 className="text-yellow-800 font-bold text-sm uppercase tracking-wide">Notice</h3>
                  <p className="text-yellow-700 text-sm mt-1">
-                   Currently, data for only <b>B.Com (Hons) Sem II, IV & VI</b> has been updated. Students with AEC-cluster, kindly ignore Sectional-AEC from daily schedule. Errors can be expected as the timetable is complex and subject to change.
+                   Only <b>B.Com (Hons) Sem II, IV & VI</b> has been updated. Students with AEC-cluster, kindly ignore Sectional-AEC from daily schedule. Errors can be expected (especially for SEM IV) as the timetables are complex and subject to changes. Corrections are ongoing!
                  </p>
                </div>
             </div>

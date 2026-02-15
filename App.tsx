@@ -836,11 +836,10 @@ function App() {
           <div className="bg-red-50/50 p-6 rounded-2xl border border-red-100 space-y-3">
             <h3 className="font-semibold text-gray-900">Disclaimer & Contact</h3>
             <p className="leading-relaxed">
-              <b>Corrections have been made in Rooms!</b>
               This website is for easing the process of finding empty rooms. It is made out of curiosity 
               and to help students. All the data used to make this website is freely publicly available 
               on the SRCC website. Please note that minor errors may be present and shifts in classes 
-              can happen with changes in timetables. Any money earned through this website will be used to keep it operational.
+              can happen with changes in timetables. There might be 5-10% data mismatch at max due to the complex structure of Timetables and accompanying changes. Any money earned through this website will be used to keep it operational.
             </p>
             <p className="pt-2 font-medium">
               If you want to reach out or give any suggestion, feedback, complaint, or anything else, kindly fill this{' '}

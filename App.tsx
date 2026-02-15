@@ -497,7 +497,7 @@ function App() {
                <div>
                  <h3 className="text-yellow-800 font-bold text-sm uppercase tracking-wide">Notice</h3>
                  <p className="text-yellow-700 text-sm mt-1">
-                   Currently, data for <b>B.Com (Hons) Sem IV</b> has been updated. Errors can be expected as the timetable is subject to change.
+                   Currently, data for only <b>B.Com (Hons) Sem IV & Sem VI</b> has been updated. Errors can be expected as the timetable is complex and subject to change.
                  </p>
                </div>
             </div>

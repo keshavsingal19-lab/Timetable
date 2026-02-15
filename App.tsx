@@ -11,7 +11,7 @@ import { ROOMS } from './data';
 import { TEACHER_SCHEDULES } from './teacherData';
 // Import the newly split semester files
 import { SEM2_STUDENT_SCHEDULES } from './Sem2';
-import { STUDENT_SCHEDULES as SEM4_STUDENT_SCHEDULES } from './Sem4';
+import { SEM4_STUDENT_SCHEDULES } from './Sem4';
 import { sem6StudentData } from './Sem6';
 
 // Helper function to dynamically fix Sem 6 formatting so it matches Sem 2 and Sem 4

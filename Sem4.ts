@@ -1,4 +1,4 @@
-export const SEM2_STUDENT_SCHEDULES: Record<string, any> = {  
+export const SEM4_STUDENT_SCHEDULES: Record<string, any> = {  
   "24BC008": {
     "Monday": [
       {

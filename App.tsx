@@ -195,7 +195,7 @@ function App() {
       });
       const data = await res.json();
       if (res.ok) {
-        setPortalMsg('Success! Your access code has been sent to your email.');
+        setPortalMsg('Success! Your access code has been sent to your email.(Please check your spam as well and mark not spam)');
         setTimeout(() => setPortalMode('login'), 3000);
       } else {
         setPortalError(data.error || 'Registration failed.');

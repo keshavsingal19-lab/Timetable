@@ -4,20 +4,18 @@ import {
   XCircle, LogOut, AlertTriangle, AlertCircle, UserMinus, 
   CalendarDays, Download, Share, Users, GraduationCap, 
   ArrowRight, MessageCircle, Star, Timer, Megaphone, Mail, Home,
-  BookOpen, User, UserPlus, Key, Settings
+  BookOpen, User, UserPlus, Key, Settings, Menu
 } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
 import { TEACHER_SCHEDULES } from './teacherData';
-// Import the newly split semester files
 import { SEM2_STUDENT_SCHEDULES } from './Sem2';
 import { SEM4_STUDENT_SCHEDULES } from './Sem4';
 import { sem6StudentData } from './Sem6';
 
-// Helper function to dynamically fix Sem 6 formatting so it matches Sem 2 and Sem 4
+// Helper function to dynamically fix Sem 6 formatting
 const convertSem6Data = (data: any) => {
   const converted: Record<string, any> = {};
-  
   const timeMap: Record<string, number> = {
     "8:30 AM to 9:30 AM": 0, "9:30 AM to 10:30 AM": 1,
     "10:30 AM to 11:30 AM": 2, "11:30 AM to 12:30 PM": 3,
@@ -25,23 +23,15 @@ const convertSem6Data = (data: any) => {
     "3:00 PM to 4:00 PM": 6, "4:00 PM to 5:00 PM": 7,
     "5:00 PM to 6:00 PM": 8
   };
-
-  const typeMap: Record<string, string> = {
-    "L": "Lecture", "T": "Tutorial", "LAB": "Practical" // Maps 'LAB' to Practical to keep your color coding
-  };
+  const typeMap: Record<string, string> = { "L": "Lecture", "T": "Tutorial", "LAB": "Practical" };
 
   for (const [rollNo, classes] of Object.entries(data)) {
     converted[rollNo] = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [] };
-    
     (classes as any[]).forEach((cls) => {
       const periodIndex = timeMap[cls.time];
       if (periodIndex !== undefined && converted[rollNo][cls.day]) {
         converted[rollNo][cls.day].push({
-          periodIndex,
-          subject: cls.subject,
-          room: cls.room,
-          type: typeMap[cls.type] || cls.type,
-          teacher: cls.teacher
+          periodIndex, subject: cls.subject, room: cls.room, type: typeMap[cls.type] || cls.type, teacher: cls.teacher
         });
       }
     });
@@ -75,8 +65,8 @@ const getDayName = (day: DayOfWeek): string => day;
 function App() {
   // --- STATE VARIABLES ---
   
-  // 1. Navigation & Global
-  const [activeTab, setActiveTab] = useState<'menu' | 'rooms' | 'teachers' | 'societies' | 'timetable' | 'leave' | 'student_portal'>('menu'); 
+  // 1. Navigation & Global (NEW: Default is student_portal)
+  const [activeTab, setActiveTab] = useState<'menu' | 'rooms' | 'teachers' | 'societies' | 'timetable' | 'leave' | 'student_portal'>('student_portal'); 
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(DayOfWeek.Monday);
   const [selectedTimeIndex, setSelectedTimeIndex] = useState<number>(0);
   
@@ -102,12 +92,12 @@ function App() {
   const [isSiteBlocked, setIsSiteBlocked] = useState(false);
   const [blockMessage, setBlockMessage] = useState('');
 
-  // 6. Timetable State
+  // 6. Global Search Timetable (Formerly the main timetable tab)
   const [timetableRollNo, setTimetableRollNo] = useState('');
-  const [activeTimetable, setActiveTimetable] = useState<any>(null);
-  const [timetableDay, setTimetableDay] = useState<DayOfWeek>(DayOfWeek.Monday);
+  const [activeSearchTimetable, setActiveSearchTimetable] = useState<any>(null);
+  const [searchTimetableDay, setSearchTimetableDay] = useState<DayOfWeek>(DayOfWeek.Monday);
 
-  // --- NEW: STUDENT PORTAL STATE ---
+  // 7. NEW: STUDENT PORTAL & DASHBOARD STATE
   const [isStudentLoggedIn, setIsStudentLoggedIn] = useState(false);
   const [studentUser, setStudentUser] = useState<any>(null);
   const [portalMode, setPortalMode] = useState<'login' | 'register' | 'settings'>('login');
@@ -121,6 +111,10 @@ function App() {
   const [portalMsg, setPortalMsg] = useState('');
   const [isPortalLoading, setIsPortalLoading] = useState(false);
 
+  // Dashbaord Timeline state
+  const [myTimetableData, setMyTimetableData] = useState<any>(null);
+  const [myScheduleDay, setMyScheduleDay] = useState<DayOfWeek>(DayOfWeek.Monday);
+
   // --- HELPER: Get Current Date Details ---
   const todayDateObj = new Date();
   const currentDayName = todayDateObj.toLocaleDateString('en-US', { weekday: 'long' });
@@ -132,7 +126,8 @@ function App() {
   useEffect(() => {
     if (Object.values(DayOfWeek).includes(currentDayName as DayOfWeek)) {
       setSelectedDay(currentDayName as DayOfWeek);
-      setTimetableDay(currentDayName as DayOfWeek);
+      setSearchTimetableDay(currentDayName as DayOfWeek);
+      setMyScheduleDay(currentDayName as DayOfWeek);
       
       const currentHour = todayDateObj.getHours();
       const currentMinutes = todayDateObj.getMinutes();
@@ -143,16 +138,15 @@ function App() {
       }
     }
 
-    // NEW: Auto-login Student from LocalStorage
+    // Auto-login Student from LocalStorage
     const savedUser = localStorage.getItem("studentUser");
     if (savedUser) {
       try {
         const parsedUser = JSON.parse(savedUser);
         setIsStudentLoggedIn(true);
         setStudentUser(parsedUser);
-        setTimetableRollNo(parsedUser.rollNo);
         const sData = ALL_STUDENT_SCHEDULES[parsedUser.rollNo.toUpperCase() as keyof typeof ALL_STUDENT_SCHEDULES];
-        if (sData) setActiveTimetable(sData);
+        if (sData) setMyTimetableData(sData);
       } catch (e) {
         console.error("Error parsing local user");
       }
@@ -186,7 +180,8 @@ function App() {
     setPortalError(''); setPortalMsg('');
     const email = studentEmail.trim().toLowerCase();
     
-    if (!email.endsWith('@srcc.edu')) {
+    // Master email bypass
+    if (!email.endsWith('@srcc.edu') && email !== 'keshavsingal19@gmail.com') {
       return setPortalError('You must use your official @srcc.edu email id.');
     }
     if (!studentRollNo || !studentSection) return setPortalError('All fields are required.');
@@ -200,7 +195,7 @@ function App() {
       });
       const data = await res.json();
       if (res.ok) {
-        setPortalMsg('Success! Your access code has been sent to your @srcc.edu email.');
+        setPortalMsg('Success! Your access code has been sent to your email.');
         setTimeout(() => setPortalMode('login'), 3000);
       } else {
         setPortalError(data.error || 'Registration failed.');
@@ -225,11 +220,10 @@ function App() {
       if (res.ok) {
         setIsStudentLoggedIn(true);
         setStudentUser(data.user);
-        setTimetableRollNo(data.user.rollNo);
         localStorage.setItem("studentUser", JSON.stringify(data.user));
         
         const sData = ALL_STUDENT_SCHEDULES[data.user.rollNo.toUpperCase() as keyof typeof ALL_STUDENT_SCHEDULES];
-        if (sData) setActiveTimetable(sData);
+        if (sData) setMyTimetableData(sData);
         
         setStudentPasscode('');
       } else {
@@ -242,8 +236,7 @@ function App() {
   const handleStudentLogout = () => {
     setIsStudentLoggedIn(false);
     setStudentUser(null);
-    setTimetableRollNo('');
-    setActiveTimetable(null);
+    setMyTimetableData(null);
     localStorage.removeItem("studentUser");
     setPortalMode('login');
   };
@@ -320,18 +313,17 @@ function App() {
     }
   };
 
-  // --- 3. TIMETABLE LOGIC (REAL DATA IMPORT) ---
-  const handleSearchTimetable = (e: React.FormEvent) => {
+  // --- 3. GLOBAL SEARCH TIMETABLE LOGIC ---
+  const handleGlobalSearchTimetable = (e: React.FormEvent) => {
     e.preventDefault();
     const roll = timetableRollNo.trim().toUpperCase();
     if (!roll) return;
 
-    // Fetch the data straight from the new combined database
     const studentData = ALL_STUDENT_SCHEDULES[roll as keyof typeof ALL_STUDENT_SCHEDULES];
 
     if (studentData) {
-      setActiveTimetable(studentData);
-      setTimetableDay(Object.values(DayOfWeek).includes(currentDayName as DayOfWeek) ? (currentDayName as DayOfWeek) : DayOfWeek.Monday);
+      setActiveSearchTimetable(studentData);
+      setSearchTimetableDay(Object.values(DayOfWeek).includes(currentDayName as DayOfWeek) ? (currentDayName as DayOfWeek) : DayOfWeek.Monday);
     } else {
       alert("Roll Number not found! Please check for typos and try again.");
     }
@@ -471,7 +463,7 @@ function App() {
     return teachers.sort((a, b) => a.name.localeCompare(b.name));
   }, [finderSearchQuery]);
 
-  // --- COMPONENT: Teachers On Leave Dashboard (Reused) ---
+  // --- HELPER COMPONENT: Teachers On Leave Dashboard ---
   const TeachersOnLeaveDashboard = () => (
     <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl shadow-sm border border-red-100 p-6 mb-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
@@ -517,6 +509,71 @@ function App() {
     </div>
   );
 
+  // --- HELPER COMPONENT: Render Timetable Slots (For both Dashboard & Search) ---
+  const renderTimetableSlots = (timetableData: any, day: DayOfWeek) => {
+    if (!timetableData || !timetableData[day] || timetableData[day].length === 0) {
+       return (
+         <div className="text-center py-12">
+           <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
+           <p className="font-bold text-lg text-gray-900">No Classes Scheduled!</p>
+           <p className="text-gray-500 text-sm mt-1">Enjoy your day off.</p>
+         </div>
+       );
+    }
+    
+    return TIME_SLOTS.map((timeLabel, index) => {
+        const classData = timetableData[day].find((c: any) => c.periodIndex === index);
+        const hasClass = !!classData;
+        
+        // Hide trailing empty slots
+        const lastClassIndex = Math.max(...timetableData[day].map((c: any) => c.periodIndex));
+        if (index > lastClassIndex) return null;
+        
+        // Highlight logic for active class
+        const isCurrentlyActive = (day === currentDayName) && (index === selectedTimeIndex);
+
+        return (
+          <div key={index} className={`relative flex gap-4 p-3 rounded-xl border transition-all ${
+             hasClass ? 'bg-white shadow-sm' : 'bg-gray-50 border-gray-100 border-dashed opacity-60'
+          } ${isCurrentlyActive && hasClass ? 'border-indigo-400 ring-1 ring-indigo-400 scale-[1.01]' : hasClass ? 'border-gray-200' : ''}`}>
+             
+             {isCurrentlyActive && hasClass && (
+                <div className="absolute top-1 right-2 flex items-center gap-1 text-[10px] font-bold text-indigo-600 uppercase tracking-widest">
+                   <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>Live
+                </div>
+             )}
+
+             <div className="w-20 shrink-0 flex flex-col justify-center items-center border-r border-gray-100 pr-3">
+                <span className={`text-sm font-bold ${hasClass ? 'text-gray-900' : 'text-gray-500'}`}>{timeLabel.split(' ')[0]}</span>
+                <span className="text-[10px] text-gray-400 uppercase">{timeLabel.split(' ')[1]}</span>
+             </div>
+
+             <div className="flex-1 flex flex-col justify-center">
+                {hasClass ? (
+                  <>
+                     <div className="flex justify-between items-start mb-1">
+                       <h4 className="font-bold text-gray-900 text-base leading-tight pr-10">{classData.subject}</h4>
+                       <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md ${
+                          classData.type === 'Lecture' ? 'bg-blue-50 text-blue-700' :
+                          classData.type === 'Tutorial' ? 'bg-purple-50 text-purple-700' : 'bg-green-50 text-green-700'
+                       }`}>{classData.type}</span>
+                     </div>
+                     <div className="flex items-center gap-3 text-sm mt-1">
+                        <span className="flex items-center gap-1 text-gray-600 font-medium"><MapPin className="w-3.5 h-3.5 text-indigo-500" /> Room {classData.room}</span>
+                        <span className="flex items-center gap-1 text-gray-500"><Users className="w-3.5 h-3.5" /> {classData.teacher}</span>
+                     </div>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2 text-gray-500">
+                     <Timer className="w-4 h-4" />
+                     <span className="font-medium text-sm">Free Slot / Break</span>
+                  </div>
+                )}
+             </div>
+          </div>
+        );
+    });
+  };
 
   // --- 7. RENDER ---
 
@@ -533,29 +590,36 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 pb-20 font-sans selection:bg-red-100">
+    <div className="min-h-screen bg-gray-50 text-gray-900 pb-20 font-sans selection:bg-indigo-100">
       
       {/* HEADER */}
       <header className="bg-red-800 text-white sticky top-0 z-50 shadow-lg backdrop-blur-sm bg-opacity-95">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('student_portal')}>
               <div className="bg-white/10 p-2 rounded-xl border border-white/10">
                 <MapPin className="w-6 h-6 text-yellow-400" />
               </div>
               <div>
                 <h1 className="text-xl font-bold leading-none tracking-tight">SRCC Finder</h1>
-                <p className="text-red-200 text-xs mt-1 font-medium tracking-wide">ACADEMIC SESSION 2025-26</p>
+                <p className="text-red-200 text-xs mt-1 font-medium tracking-wide">SESSION 2025-26</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
-               {activeTab !== 'menu' && (
+            <div className="flex items-center">
+               {activeTab !== 'menu' ? (
                  <button 
                    onClick={() => setActiveTab('menu')}
-                   className="bg-white text-red-900 px-5 py-2.5 rounded-xl hover:bg-gray-100 transition-all active:scale-95 flex items-center gap-2 font-bold shadow-md"
+                   className="bg-white/10 border border-white/20 text-white px-4 py-2 rounded-xl hover:bg-white/20 transition-all active:scale-95 flex items-center gap-2 font-bold shadow-sm"
                  >
-                   <Home className="w-5 h-5" /> Menu
+                   <Menu className="w-5 h-5" /> Menu
+                 </button>
+               ) : (
+                 <button 
+                   onClick={() => setActiveTab('student_portal')}
+                   className="bg-white text-red-900 px-4 py-2 rounded-xl hover:bg-gray-100 transition-all active:scale-95 flex items-center gap-2 font-bold shadow-md"
+                 >
+                   <Home className="w-5 h-5" /> Home
                  </button>
                )}
             </div>
@@ -565,20 +629,19 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
-        {/* --- MAIN MENU TAB (MOBILE OPTIMIZED) --- */}
+        {/* --- MAIN MENU TAB --- */}
         {activeTab === 'menu' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4 md:mb-6 text-center md:text-left">What do you want to do?</h2>
+            <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4 md:mb-6 text-center md:text-left">Explore Tools</h2>
             
-            {/* Grid structure updated to grid-cols-2 for mobile to save space */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
               
               <button onClick={() => setActiveTab('student_portal')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white">
-                  <User className="w-6 h-6 md:w-8 md:h-8" />
+                  <Home className="w-6 h-6 md:w-8 md:h-8" />
                 </div>
-                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Student Portal</h3>
-                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Your custom schedule.</p>
+                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">My Dashboard</h3>
+                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Your homepage.</p>
               </button>
 
               <button onClick={() => setActiveTab('rooms')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
@@ -599,10 +662,10 @@ function App() {
 
               <button onClick={() => setActiveTab('timetable')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white">
-                  <CalendarDays className="w-6 h-6 md:w-8 md:h-8" />
+                  <Search className="w-6 h-6 md:w-8 md:h-8" />
                 </div>
-                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Timetable</h3>
-                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">View personal schedule.</p>
+                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Search Others</h3>
+                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Look up schedules.</p>
               </button>
 
               <button onClick={() => setActiveTab('leave')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
@@ -629,7 +692,6 @@ function App() {
                 <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Install on your phone.</p>
               </button>
 
-              {/* Admin button stretches across 2 columns on mobile so it doesn't look like an odd one out */}
               <button onClick={() => { setIsAdminOpen(true); setLoginError(''); }} className="col-span-2 sm:col-span-1 bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-gray-100 text-gray-700 group-hover:bg-gray-800 group-hover:text-white">
                   <Lock className="w-6 h-6 md:w-8 md:h-8" />
@@ -642,84 +704,151 @@ function App() {
           </div>
         )}
 
-        {/* --- STUDENT PORTAL TAB --- */}
+        {/* --- STUDENT PORTAL / DASHBOARD (THE NEW LANDING PAGE) --- */}
         {activeTab === 'student_portal' && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-md mx-auto mt-6">
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
-               
-               <div className="text-center mb-8">
-                  <div className="w-16 h-16 bg-indigo-50 rounded-2xl mx-auto flex items-center justify-center mb-4 border border-indigo-100 shadow-inner">
-                     <User className="w-8 h-8 text-indigo-600" />
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+             
+             {/* Logged In Dashboard */}
+             {isStudentLoggedIn && portalMode !== 'settings' && (
+                <div className="max-w-3xl mx-auto space-y-6">
+                   
+                   {/* Profile Header Card */}
+                   <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 text-white rounded-2xl p-6 shadow-lg flex justify-between items-center relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -mr-20 -mt-20"></div>
+                      <div className="relative z-10">
+                        <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest flex items-center gap-2"><User className="w-4 h-4" /> My Dashboard</p>
+                        <h2 className="text-3xl sm:text-4xl font-black mt-1 tracking-tight">{studentUser?.rollNo}</h2>
+                        <p className="text-indigo-100 font-medium mt-1">{studentUser?.semester} • Section {studentUser?.section}</p>
+                      </div>
+                      <div className="relative z-10 flex gap-2">
+                         <button onClick={() => setPortalMode('settings')} className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all shadow-sm active:scale-95">
+                            <Settings className="w-5 h-5 text-white" />
+                         </button>
+                         <button onClick={handleStudentLogout} className="p-3 bg-red-500/80 hover:bg-red-500 rounded-xl transition-all shadow-sm active:scale-95">
+                            <LogOut className="w-5 h-5 text-white" />
+                         </button>
+                      </div>
+                   </div>
+
+                   {/* Timetable View embedded directly in dashboard */}
+                   <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+                       <div className="bg-gray-50 p-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <span className="font-bold text-gray-800 text-lg flex items-center gap-2">
+                            <CalendarDays className="w-5 h-5 text-indigo-600" /> Weekly Schedule
+                          </span>
+                          <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">{formattedDate}</span>
+                       </div>
+                       
+                       {/* Day Picker */}
+                       <div className="flex overflow-x-auto gap-2 p-4 border-b border-gray-100 scrollbar-hide bg-white">
+                          {Object.values(DayOfWeek).map(day => (
+                             <button 
+                               key={day} 
+                               onClick={() => setMyScheduleDay(day)} 
+                               className={`px-5 py-2.5 rounded-xl font-bold whitespace-nowrap transition-all flex-shrink-0 ${
+                                 myScheduleDay === day 
+                                 ? 'bg-indigo-600 text-white shadow-md scale-105' 
+                                 : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
+                               }`}
+                             >
+                               {day}
+                             </button>
+                          ))}
+                       </div>
+                       
+                       {/* Timeline */}
+                       <div className="p-4 space-y-3 bg-gray-50/30">
+                          {myTimetableData ? renderTimetableSlots(myTimetableData, myScheduleDay) : (
+                             <div className="text-center py-12 text-gray-500">
+                               No schedule data found for this roll number.
+                             </div>
+                          )}
+                       </div>
+                   </div>
+                </div>
+             )}
+
+             {/* Settings Mode */}
+             {isStudentLoggedIn && portalMode === 'settings' && (
+                <div className="max-w-md mx-auto mt-6 bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
+                   <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                     <Settings className="w-6 h-6 text-indigo-600" /> Settings
+                   </h2>
+                   
+                   {portalError && <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm font-medium rounded-lg flex items-center gap-2"><AlertCircle className="w-4 h-4" />{portalError}</div>}
+                   {portalMsg && <div className="mb-4 p-3 bg-green-50 text-green-700 text-sm font-medium rounded-lg flex items-center gap-2"><CheckCircle className="w-4 h-4" />{portalMsg}</div>}
+                   
+                   <form onSubmit={handleChangePasscode} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Current Passcode</label>
+                        <input type="password" value={studentPasscode} onChange={e => setStudentPasscode(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Enter current code" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2">New Passcode</label>
+                        <input type="password" value={newPasscode} onChange={e => setNewPasscode(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Enter new code" />
+                      </div>
+                      <button type="submit" disabled={isPortalLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-md transition-all mt-2">
+                        {isPortalLoading ? 'Updating...' : 'Update Passcode'}
+                      </button>
+                      <button type="button" onClick={() => { setPortalMode('login'); setPortalError(''); setPortalMsg(''); }} className="w-full text-gray-500 py-2 font-semibold hover:text-gray-800 transition-colors">
+                        Cancel
+                      </button>
+                   </form>
+                </div>
+             )}
+
+             {/* Login Mode (Landing Page unauthenticated) */}
+             {!isStudentLoggedIn && portalMode === 'login' && (
+                <div className="max-w-md mx-auto mt-6 bg-white rounded-2xl shadow-xl border border-gray-200 p-8 text-center">
+                  <div className="w-16 h-16 bg-indigo-50 rounded-2xl mx-auto flex items-center justify-center mb-4 border border-indigo-100">
+                    <User className="w-8 h-8 text-indigo-600" />
                   </div>
                   <h2 className="text-2xl font-bold text-gray-900">Student Portal</h2>
-                  <p className="text-gray-500 text-sm mt-1">
-                     {isStudentLoggedIn ? "Welcome back!" : portalMode === 'register' ? "Create your account" : portalMode === 'settings' ? "Settings" : "Login to view your schedule"}
-                  </p>
-               </div>
-
-               {portalError && <div className="mb-6 p-3 bg-red-50 text-red-700 text-sm font-medium rounded-lg border border-red-200 flex items-center gap-2"><AlertCircle className="w-4 h-4" />{portalError}</div>}
-               {portalMsg && <div className="mb-6 p-3 bg-green-50 text-green-700 text-sm font-medium rounded-lg border border-green-200 flex items-center gap-2"><CheckCircle className="w-4 h-4" />{portalMsg}</div>}
-
-               {/* Logged In Dashboard */}
-               {isStudentLoggedIn && portalMode !== 'settings' && (
-                  <div className="space-y-4">
-                     <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 text-center mb-6">
-                        <p className="text-sm text-gray-500 uppercase tracking-widest font-bold mb-1">Logged In As</p>
-                        <p className="text-2xl font-black text-indigo-900">{studentUser?.rollNo}</p>
-                        <p className="text-sm text-gray-600 mt-1">{studentUser?.semester} • {studentUser?.section}</p>
-                     </div>
-
-                     <button onClick={() => setActiveTab('timetable')} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-md transition-all flex justify-center items-center gap-2">
-                        <CalendarDays className="w-5 h-5" /> View My Timetable
-                     </button>
-                     <button onClick={() => setPortalMode('settings')} className="w-full bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 py-3.5 rounded-xl font-bold transition-all flex justify-center items-center gap-2">
-                        <Settings className="w-5 h-5" /> Change Passcode
-                     </button>
-                     <button onClick={handleStudentLogout} className="w-full bg-red-50 hover:bg-red-100 text-red-600 py-3.5 rounded-xl font-bold transition-all flex justify-center items-center gap-2 mt-4">
-                        <LogOut className="w-5 h-5" /> Logout
-                     </button>
-                  </div>
-               )}
-
-               {/* Settings Mode */}
-               {isStudentLoggedIn && portalMode === 'settings' && (
-                 <form onSubmit={handleChangePasscode} className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Current Passcode</label>
-                      <input type="password" value={studentPasscode} onChange={e => setStudentPasscode(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Enter current code" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase mb-2">New Passcode</label>
-                      <input type="password" value={newPasscode} onChange={e => setNewPasscode(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Enter new code" />
-                    </div>
-                    <button type="submit" disabled={isPortalLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-md transition-all mt-2">{isPortalLoading ? 'Updating...' : 'Update Passcode'}</button>
-                    <button type="button" onClick={() => { setPortalMode('login'); setPortalError(''); setPortalMsg(''); }} className="w-full text-gray-500 py-2 font-semibold hover:text-gray-800 transition-colors">Cancel</button>
-                 </form>
-               )}
-
-               {/* Login Mode */}
-               {!isStudentLoggedIn && portalMode === 'login' && (
+                  <p className="text-gray-500 text-sm mt-1 mb-8">Login to view your personalized schedule</p>
+                  
+                  {portalError && <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm font-medium rounded-lg text-left flex items-center gap-2"><AlertCircle className="w-4 h-4" />{portalError}</div>}
+                  {portalMsg && <div className="mb-4 p-3 bg-green-50 text-green-700 text-sm font-medium rounded-lg text-left flex items-center gap-2"><CheckCircle className="w-4 h-4" />{portalMsg}</div>}
+                  
                   <form onSubmit={handleStudentLogin} className="space-y-4">
-                    <div>
-                      <input type="text" value={studentRollNo} onChange={e => setStudentRollNo(e.target.value.toUpperCase())} placeholder="Roll Number (e.g. 24BC008)" className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl text-center font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none uppercase placeholder:normal-case" />
-                    </div>
-                    <div>
-                      <input type="password" value={studentPasscode} onChange={e => setStudentPasscode(e.target.value)} placeholder="Passcode" className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl text-center text-lg tracking-widest focus:ring-2 focus:ring-indigo-500 outline-none" />
-                    </div>
-                    <button type="submit" disabled={isPortalLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-md transition-all mt-2 flex justify-center items-center gap-2">
+                    <input 
+                      type="text" 
+                      value={studentRollNo} 
+                      onChange={e => setStudentRollNo(e.target.value.toUpperCase())} 
+                      placeholder="Roll Number (e.g. 24BC008)" 
+                      className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl text-center font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none uppercase placeholder:normal-case" 
+                    />
+                    <input 
+                      type="password" 
+                      value={studentPasscode} 
+                      onChange={e => setStudentPasscode(e.target.value)} 
+                      placeholder="Passcode" 
+                      className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl text-center text-lg tracking-widest focus:ring-2 focus:ring-indigo-500 outline-none" 
+                    />
+                    <button type="submit" disabled={isPortalLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-md transition-all flex justify-center items-center gap-2">
                       {isPortalLoading ? 'Verifying...' : <><Key className="w-5 h-5" /> Login</>}
                     </button>
-                    <div className="text-center mt-6 pt-6 border-t border-gray-100">
-                      <p className="text-sm text-gray-500 mb-3">Don't have an access code?</p>
-                      <button type="button" onClick={() => { setPortalMode('register'); setPortalError(''); setPortalMsg(''); }} className="w-full bg-white border border-gray-200 text-gray-800 py-3.5 rounded-xl font-bold hover:bg-gray-50 transition-all flex justify-center items-center gap-2">
-                        <UserPlus className="w-5 h-5" /> Register Account
-                      </button>
-                    </div>
                   </form>
-               )}
+                  
+                  <div className="text-center mt-6 pt-6 border-t border-gray-100">
+                    <p className="text-sm text-gray-500 mb-3">Don't have an access code?</p>
+                    <button type="button" onClick={() => { setPortalMode('register'); setPortalError(''); setPortalMsg(''); }} className="w-full bg-white border border-gray-200 text-gray-800 py-3.5 rounded-xl font-bold hover:bg-gray-50 transition-all flex justify-center items-center gap-2">
+                      <UserPlus className="w-5 h-5" /> Register Account
+                    </button>
+                  </div>
+                </div>
+             )}
 
-               {/* Register Mode */}
-               {!isStudentLoggedIn && portalMode === 'register' && (
+             {/* Register Mode */}
+             {!isStudentLoggedIn && portalMode === 'register' && (
+                <div className="max-w-md mx-auto mt-6 bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
+                  <div className="text-center mb-6">
+                    <h2 className="text-2xl font-bold text-gray-900">Create Account</h2>
+                    <p className="text-gray-500 text-sm mt-1">Get your secure access code</p>
+                  </div>
+                  
+                  {portalError && <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm font-medium rounded-lg flex items-center gap-2"><AlertCircle className="w-4 h-4" />{portalError}</div>}
+                  {portalMsg && <div className="mb-4 p-3 bg-green-50 text-green-700 text-sm font-medium rounded-lg flex items-center gap-2"><CheckCircle className="w-4 h-4" />{portalMsg}</div>}
+                  
                   <form onSubmit={handleStudentRegister} className="space-y-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">College Roll No</label>
@@ -743,17 +872,21 @@ function App() {
                          <input type="text" value={studentSection} onChange={e => setStudentSection(e.target.value.toUpperCase())} placeholder="e.g. A" className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none uppercase" />
                        </div>
                     </div>
-                    <button type="submit" disabled={isPortalLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-md transition-all mt-4">{isPortalLoading ? 'Sending...' : 'Get Access Code via Email'}</button>
-                    <button type="button" onClick={() => { setPortalMode('login'); setPortalError(''); setPortalMsg(''); }} className="w-full text-gray-500 py-2 font-semibold hover:text-gray-800 transition-colors mt-2">Back to Login</button>
+                    <button type="submit" disabled={isPortalLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-md transition-all mt-4">
+                      {isPortalLoading ? 'Sending...' : 'Get Access Code'}
+                    </button>
+                    <button type="button" onClick={() => { setPortalMode('login'); setPortalError(''); setPortalMsg(''); }} className="w-full text-gray-500 py-2 font-semibold hover:text-gray-800 transition-colors mt-2">
+                      Back to Login
+                    </button>
                   </form>
-               )}
-            </div>
+                </div>
+             )}
           </div>
         )}
 
-        {/* TIME CONTROLS */}
+        {/* TIME CONTROLS (Only visible on Utility Tabs) */}
         {(activeTab === 'rooms' || activeTab === 'teachers') && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-6 animate-in fade-in slide-in-from-bottom-4">
              <div className="flex items-center gap-2 mb-4 text-gray-500 text-xs font-bold uppercase tracking-widest">
                 <Clock className="w-4 h-4 text-red-600" /> Global Time Settings
              </div>
@@ -772,41 +905,37 @@ function App() {
           </div>
         )}
 
-        {/* --- TIMETABLE TAB --- */}
+        {/* --- GLOBAL TIMETABLE SEARCH TAB --- */}
         {activeTab === 'timetable' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-r-xl shadow-sm flex items-start gap-3">
                <AlertCircle className="w-6 h-6 text-yellow-500 shrink-0 mt-0.5" />
                <div>
                  <h3 className="text-yellow-800 font-bold text-sm uppercase tracking-wide">Notice</h3>
-                 <p className="text-yellow-700 text-sm mt-1">
-                   Only <b>B.Com (Hons) Sem II, IV & VI</b> has been updated. SEC, VAC & AEC are not yet added prop. Errors can be expected as the timetables are complex and subject to changes. Corrections are ongoing!
-                 </p>
+                 <p className="text-yellow-700 text-sm mt-1">Only <b>B.Com (Hons) Sem II, IV & VI</b> has been updated. SEC, VAC & AEC are not yet added prop.</p>
                </div>
             </div>
 
-            {!activeTimetable ? (
+            {!activeSearchTimetable ? (
                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center max-w-md mx-auto mt-10">
-                  <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <BookOpen className="w-10 h-10 text-red-600" />
+                  <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Search className="w-10 h-10 text-purple-600" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">My Timetable</h2>
-                  <p className="text-gray-500 text-sm mb-8">Enter your College Roll Number to view your personalized daily class schedule.</p>
-                  
-                  <form onSubmit={handleSearchTimetable} className="space-y-4">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Search Any Timetable</h2>
+                  <p className="text-gray-500 text-sm mb-8">Enter a College Roll Number to view a specific class schedule.</p>
+                  <form onSubmit={handleGlobalSearchTimetable} className="space-y-4">
                      <div className="relative">
                        <Search className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
                        <input 
                          type="text" 
                          placeholder="e.g. 24BC008" 
-                         value={timetableRollNo}
-                         onChange={(e) => setTimetableRollNo(e.target.value.toUpperCase())}
-                         className="w-full text-center text-lg p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-red-500 outline-none transition-all uppercase placeholder:normal-case font-bold text-gray-800"
+                         value={timetableRollNo} 
+                         onChange={(e) => setTimetableRollNo(e.target.value.toUpperCase())} 
+                         className="w-full text-center text-lg p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none transition-all uppercase placeholder:normal-case font-bold text-gray-800" 
                        />
                      </div>
-                     <button type="submit" className="w-full bg-red-800 text-white font-bold py-3.5 rounded-xl hover:bg-red-900 transition-colors shadow-md active:scale-95">
-                       View Schedule
+                     <button type="submit" className="w-full bg-purple-600 text-white font-bold py-3.5 rounded-xl hover:bg-purple-700 transition-colors shadow-md active:scale-95">
+                       Look Up Schedule
                      </button>
                   </form>
                </div>
@@ -815,100 +944,31 @@ function App() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
                      <div>
                        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                         <CalendarDays className="w-6 h-6 text-red-600" /> My Schedule
+                         <CalendarDays className="w-6 h-6 text-purple-600" /> Viewing Schedule
                        </h2>
                        <p className="text-gray-500 font-medium mt-1">Roll No: <span className="text-gray-900 font-bold bg-gray-100 px-2 py-0.5 rounded">{timetableRollNo}</span></p>
                      </div>
-                     <button 
-                       onClick={() => { setActiveTimetable(null); setTimetableRollNo(''); }} 
-                       className="text-sm font-bold text-gray-600 bg-gray-100 px-4 py-2.5 rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
-                     >
-                       <Search className="w-4 h-4" /> Change Roll No
+                     <button onClick={() => { setActiveSearchTimetable(null); setTimetableRollNo(''); }} className="text-sm font-bold text-gray-600 bg-gray-100 px-4 py-2.5 rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2">
+                       <Search className="w-4 h-4" /> Search Another
                      </button>
                   </div>
-
                   <div className="flex overflow-x-auto gap-2 pb-4 mb-2 scrollbar-hide">
                     {Object.values(DayOfWeek).map(day => (
                       <button 
-                        key={day}
-                        onClick={() => setTimetableDay(day)}
-                        className={`px-5 py-2.5 rounded-xl font-bold whitespace-nowrap transition-all flex-shrink-0 ${
-                          timetableDay === day 
-                          ? 'bg-red-800 text-white shadow-md scale-105' 
-                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                        }`}
+                        key={day} 
+                        onClick={() => setSearchTimetableDay(day)} 
+                        className={`px-5 py-2.5 rounded-xl font-bold whitespace-nowrap transition-all flex-shrink-0 ${searchTimetableDay === day ? 'bg-purple-600 text-white shadow-md scale-105' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
                       >
                         {day}
                       </button>
                     ))}
                   </div>
-
                   <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
                      <div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">
-                        <span className="font-bold text-gray-800">{timetableDay}'s Classes</span>
-                        <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">{formattedDate}</span>
+                       <span className="font-bold text-gray-800">{searchTimetableDay}'s Classes</span>
                      </div>
-
-                     <div className="p-4 space-y-3">
-                        {activeTimetable[timetableDay] && activeTimetable[timetableDay].length > 0 ? (
-                           TIME_SLOTS.map((timeLabel, index) => {
-                              const classData = activeTimetable[timetableDay].find((c: any) => c.periodIndex === index);
-                              const hasClass = !!classData;
-                              
-                              const lastClassIndex = Math.max(...activeTimetable[timetableDay].map((c: any) => c.periodIndex));
-                              if (index > lastClassIndex) return null;
-
-                              return (
-                                <div key={index} className={`relative flex gap-4 p-3 rounded-xl border transition-all ${
-                                   hasClass ? 'bg-white border-red-100 shadow-sm' : 'bg-gray-50 border-gray-100 border-dashed opacity-60'
-                                }`}>
-                                   
-                                   <div className="w-20 shrink-0 flex flex-col justify-center items-center border-r border-gray-100 pr-3">
-                                      <span className={`text-sm font-bold ${hasClass ? 'text-red-700' : 'text-gray-500'}`}>{timeLabel.split(' ')[0]}</span>
-                                      <span className="text-[10px] text-gray-400 uppercase">{timeLabel.split(' ')[1]}</span>
-                                   </div>
-
-                                   <div className="flex-1 flex flex-col justify-center">
-                                      {hasClass ? (
-                                        <>
-                                           <div className="flex justify-between items-start mb-1">
-                                             <h4 className="font-bold text-gray-900 text-base leading-tight">
-                                               {classData.subject}
-                                             </h4>
-                                             <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md ${
-                                                classData.type === 'Lecture' ? 'bg-blue-50 text-blue-700' :
-                                                classData.type === 'Tutorial' ? 'bg-purple-50 text-purple-700' :
-                                                'bg-green-50 text-green-700'
-                                             }`}>
-                                                {classData.type}
-                                             </span>
-                                           </div>
-                                           <div className="flex items-center gap-3 text-sm mt-1">
-                                              <span className="flex items-center gap-1 text-gray-600 font-medium">
-                                                <MapPin className="w-3.5 h-3.5 text-red-500" /> Room {classData.room}
-                                              </span>
-                                              <span className="flex items-center gap-1 text-gray-500">
-                                                <Users className="w-3.5 h-3.5" /> {classData.teacher}
-                                              </span>
-                                           </div>
-                                        </>
-                                      ) : (
-                                        <div className="flex items-center gap-2 text-gray-500">
-                                           <Timer className="w-4 h-4" />
-                                           <span className="font-medium text-sm">Free Slot / Break</span>
-                                        </div>
-                                      )}
-                                   </div>
-                                </div>
-                              );
-                           })
-                        ) : (
-                           <div className="text-center py-12">
-                             <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
-                             <p className="font-bold text-lg text-gray-900">No Classes Scheduled!</p>
-                             <p className="text-gray-500 text-sm mt-1">Enjoy your day off.</p>
-                           </div>
-                        )}
+                     <div className="p-4 space-y-3 bg-gray-50/30">
+                        {renderTimetableSlots(activeSearchTimetable, searchTimetableDay)}
                      </div>
                   </div>
                </div>
@@ -919,17 +979,18 @@ function App() {
         {/* --- ROOM FINDER TAB --- */}
         {activeTab === 'rooms' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-             
              <TeachersOnLeaveDashboard />
-
+             
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl text-white p-5 shadow-lg flex items-center justify-between relative overflow-hidden group">
                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
                    <div className="relative z-10">
                      <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Available Rooms</p>
-                     <p className="text-4xl font-extrabold mt-1 tracking-tight">{roomStats.available}</p>
+                     <p className="text-4xl font-extrabold mt-1 tracking-tight">{availableRooms.length}</p>
                    </div>
-                   <div className="bg-white/10 p-3 rounded-xl relative z-10"><CheckCircle className="w-6 h-6 text-green-400" /></div>
+                   <div className="bg-white/10 p-3 rounded-xl relative z-10">
+                     <CheckCircle className="w-6 h-6 text-green-400" />
+                   </div>
                 </div>
 
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
@@ -954,42 +1015,26 @@ function App() {
              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {availableRooms.map((room) => {
                   const duration = calculateFreeDuration(room, selectedTimeIndex);
-                  const isLongDuration = duration >= 3; 
-
                   return (
-                    <button 
-                      key={room.id}
-                      onClick={() => setSelectedRoomId(room.id)}
-                      className={`relative bg-white rounded-xl border p-5 flex flex-col items-center justify-center text-center transition-all hover:shadow-lg hover:-translate-y-1 active:scale-95 group
-                        ${(room as any).tags ? 'border-green-400 ring-2 ring-green-50' : 'border-gray-200 hover:border-red-200'}
-                      `}
-                    >
-                      {isLongDuration && !(room as any).tags && (
-                         <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-400 text-yellow-900 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1">
-                            <Star className="w-2.5 h-2.5 fill-current" /> Best Pick
-                         </div>
+                    <button key={room.id} onClick={() => setSelectedRoomId(room.id)} className={`relative bg-white rounded-xl border p-5 flex flex-col items-center justify-center text-center transition-all hover:shadow-lg hover:-translate-y-1 active:scale-95 group ${(room as any).tags ? 'border-green-400 ring-2 ring-green-50' : 'border-gray-200 hover:border-red-200'}`}>
+                      {duration >= 3 && !(room as any).tags && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-400 text-yellow-900 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1">
+                          <Star className="w-2.5 h-2.5 fill-current" /> Best Pick
+                        </div>
                       )}
-
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 text-xl font-bold shadow-sm transition-colors
-                        ${(room as any).tags ? 'bg-green-100 text-green-700' : 'bg-gray-50 text-gray-600 group-hover:bg-red-50 group-hover:text-red-600'}
-                      `}>
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 text-xl font-bold shadow-sm transition-colors ${(room as any).tags ? 'bg-green-100 text-green-700' : 'bg-gray-50 text-gray-600 group-hover:bg-red-50 group-hover:text-red-600'}`}>
                         {room.name.replace(/[^0-9]/g, '') || room.name.charAt(0)}
                       </div>
                       <h3 className="font-bold text-gray-900 text-lg">{room.name}</h3>
                       
                       {(room as any).tags ? (
-                        <span className="text-[10px] uppercase tracking-wider px-2 py-1 rounded-full mt-2 font-bold bg-green-100 text-green-700">
-                          FREED UP
-                        </span>
+                        <span className="text-[10px] uppercase tracking-wider px-2 py-1 rounded-full mt-2 font-bold bg-green-100 text-green-700">FREED UP</span>
                       ) : (
                         <div className="flex items-center gap-1 mt-2 bg-gray-100 px-2 py-1 rounded-full">
                           <Timer className="w-3 h-3 text-gray-500" />
-                          <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wide">
-                            {duration > 5 ? 'All Day' : `${duration} Hours`}
-                          </span>
+                          <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wide">{duration > 5 ? 'All Day' : `${duration} Hours`}</span>
                         </div>
                       )}
-
                       <span className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <ArrowRight className="w-4 h-4 text-gray-300" />
                       </span>
@@ -1008,14 +1053,14 @@ function App() {
                  <Search className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
                  <input 
                    type="text" 
-                   placeholder="Search teacher..."
-                   value={finderSearchQuery}
-                   onChange={(e) => setFinderSearchQuery(e.target.value)}
-                   className="w-full text-lg pl-12 pr-4 py-3 bg-gray-50 rounded-xl outline-none border border-transparent focus:bg-white focus:border-red-300 transition-all placeholder:text-gray-400"
+                   placeholder="Search teacher..." 
+                   value={finderSearchQuery} 
+                   onChange={(e) => setFinderSearchQuery(e.target.value)} 
+                   className="w-full text-lg pl-12 pr-4 py-3 bg-gray-50 rounded-xl outline-none border border-transparent focus:bg-white focus:border-red-300 transition-all placeholder:text-gray-400" 
                  />
                </div>
             </div>
-
+            
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                {visibleEntities.map((entity: any) => {
                  const statusInfo = getEntityStatus(entity);
@@ -1025,11 +1070,8 @@ function App() {
                          <div className="bg-gray-100 p-2.5 rounded-xl text-gray-500 group-hover:bg-red-50 group-hover:text-red-600 transition-colors">
                            <GraduationCap className="w-6 h-6" />
                          </div>
-                         <div className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5
-                            ${statusInfo.color === 'red' ? 'bg-red-50 text-red-700' : 
-                              statusInfo.color === 'blue' ? 'bg-blue-50 text-blue-700' : 
-                              'bg-green-50 text-green-700'}`}>
-                             <statusInfo.icon className="w-3 h-3" /> {statusInfo.status}
+                         <div className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 ${statusInfo.color === 'red' ? 'bg-red-50 text-red-700' : statusInfo.color === 'blue' ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'}`}>
+                           <statusInfo.icon className="w-3 h-3" /> {statusInfo.status}
                          </div>
                       </div>
                       <h3 className="font-bold text-gray-900 text-lg leading-tight">{entity.name}</h3>
@@ -1043,21 +1085,26 @@ function App() {
                  );
                })}
             </div>
-            {visibleEntities.length === 0 && <div className="text-center py-12 text-gray-500">No matching results found.</div>}
+            
+            {visibleEntities.length === 0 && (
+              <div className="text-center py-12 text-gray-500">
+                No matching results found.
+              </div>
+            )}
           </div>
         )}
 
-        {/* --- TEACHERS ON LEAVE TAB --- */}
+        {/* --- LEAVE TAB --- */}
         {activeTab === 'leave' && (
-           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                <UserMinus className="w-6 h-6 text-orange-500" /> Absent Faculty List
-              </h2>
-              <TeachersOnLeaveDashboard />
-           </div>
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+             <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+               <UserMinus className="w-6 h-6 text-orange-500" /> Absent Faculty List
+             </h2>
+             <TeachersOnLeaveDashboard />
+          </div>
         )}
 
-        {/* --- SOCIETY ANNOUNCEMENTS TAB --- */}
+        {/* --- SOCIETIES TAB --- */}
         {activeTab === 'societies' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
              

@@ -33,7 +33,7 @@ export async function onRequestPost(context) {
       body: JSON.stringify({ email: email, password: accessCode })
     });
 
-    return new Response(JSON.stringify({ success: true, message: "Access code sent to your email!" }), { status: 200 });
+    return new Response(JSON.stringify({ success: true, message: "Access code sent to your email! (Please check your spam as well and mark not spam.)" }), { status: 200 });
 
   } catch (error) {
     return new Response(JSON.stringify({ error: "Server error during registration." }), { status: 500 });

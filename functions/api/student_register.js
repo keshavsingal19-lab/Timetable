@@ -4,8 +4,8 @@ export async function onRequestPost(context) {
     const body = await request.json();
     const { rollNo, email, semester, section } = body;
 
-    // 1. Constraint: Must end with @srcc.edu
-    if (!email.endsWith('@srcc.edu')) {
+    // 1. Constraint: Must end with @srcc.edu OR be the master admin email
+    if (!email.endsWith('@srcc.edu') && email !== 'keshavsingal19@gmail.com') {
       return new Response(JSON.stringify({ error: "Only @srcc.edu emails are allowed." }), { status: 400 });
     }
 

@@ -4,7 +4,7 @@ import {
   XCircle, LogOut, AlertTriangle, AlertCircle, UserMinus, 
   CalendarDays, Download, Share, Users, GraduationCap, 
   ArrowRight, MessageCircle, Star, Timer, Megaphone, Mail, Home,
-  BookOpen
+  BookOpen, User, UserPlus, Key, Settings
 } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
@@ -76,7 +76,7 @@ function App() {
   // --- STATE VARIABLES ---
   
   // 1. Navigation & Global
-  const [activeTab, setActiveTab] = useState<'menu' | 'rooms' | 'teachers' | 'societies' | 'timetable' | 'leave'>('menu'); 
+  const [activeTab, setActiveTab] = useState<'menu' | 'rooms' | 'teachers' | 'societies' | 'timetable' | 'leave' | 'student_portal'>('menu'); 
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(DayOfWeek.Monday);
   const [selectedTimeIndex, setSelectedTimeIndex] = useState<number>(0);
   
@@ -107,6 +107,20 @@ function App() {
   const [activeTimetable, setActiveTimetable] = useState<any>(null);
   const [timetableDay, setTimetableDay] = useState<DayOfWeek>(DayOfWeek.Monday);
 
+  // --- NEW: STUDENT PORTAL STATE ---
+  const [isStudentLoggedIn, setIsStudentLoggedIn] = useState(false);
+  const [studentUser, setStudentUser] = useState<any>(null);
+  const [portalMode, setPortalMode] = useState<'login' | 'register' | 'settings'>('login');
+  const [studentRollNo, setStudentRollNo] = useState('');
+  const [studentEmail, setStudentEmail] = useState('');
+  const [studentSemester, setStudentSemester] = useState('Sem 2');
+  const [studentSection, setStudentSection] = useState('');
+  const [studentPasscode, setStudentPasscode] = useState('');
+  const [newPasscode, setNewPasscode] = useState('');
+  const [portalError, setPortalError] = useState('');
+  const [portalMsg, setPortalMsg] = useState('');
+  const [isPortalLoading, setIsPortalLoading] = useState(false);
+
   // --- HELPER: Get Current Date Details ---
   const todayDateObj = new Date();
   const currentDayName = todayDateObj.toLocaleDateString('en-US', { weekday: 'long' });
@@ -126,6 +140,21 @@ function App() {
       if (currentMinutes < 30) estimatedSlot -= 1;
       if (estimatedSlot >= 0 && estimatedSlot < TIME_SLOTS.length) {
          setSelectedTimeIndex(estimatedSlot);
+      }
+    }
+
+    // NEW: Auto-login Student from LocalStorage
+    const savedUser = localStorage.getItem("studentUser");
+    if (savedUser) {
+      try {
+        const parsedUser = JSON.parse(savedUser);
+        setIsStudentLoggedIn(true);
+        setStudentUser(parsedUser);
+        setTimetableRollNo(parsedUser.rollNo);
+        const sData = ALL_STUDENT_SCHEDULES[parsedUser.rollNo.toUpperCase() as keyof typeof ALL_STUDENT_SCHEDULES];
+        if (sData) setActiveTimetable(sData);
+      } catch (e) {
+        console.error("Error parsing local user");
       }
     }
     
@@ -150,6 +179,99 @@ function App() {
         setLoading(false);
       });
   }, []); 
+
+  // --- NEW: STUDENT PORTAL ACTIONS ---
+  const handleStudentRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPortalError(''); setPortalMsg('');
+    const email = studentEmail.trim().toLowerCase();
+    
+    if (!email.endsWith('@srcc.edu')) {
+      return setPortalError('You must use your official @srcc.edu email id.');
+    }
+    if (!studentRollNo || !studentSection) return setPortalError('All fields are required.');
+
+    setIsPortalLoading(true);
+    try {
+      const res = await fetch('/api/student_register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rollNo: studentRollNo.toUpperCase(), email, semester: studentSemester, section: studentSection })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPortalMsg('Success! Your access code has been sent to your @srcc.edu email.');
+        setTimeout(() => setPortalMode('login'), 3000);
+      } else {
+        setPortalError(data.error || 'Registration failed.');
+      }
+    } catch (err) { setPortalError('Connection error.'); }
+    finally { setIsPortalLoading(false); }
+  };
+
+  const handleStudentLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPortalError(''); setPortalMsg('');
+    if (!studentRollNo || !studentPasscode) return setPortalError('Enter Roll No and Passcode.');
+
+    setIsPortalLoading(true);
+    try {
+      const res = await fetch('/api/student_login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rollNo: studentRollNo.toUpperCase(), password: studentPasscode })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setIsStudentLoggedIn(true);
+        setStudentUser(data.user);
+        setTimetableRollNo(data.user.rollNo);
+        localStorage.setItem("studentUser", JSON.stringify(data.user));
+        
+        const sData = ALL_STUDENT_SCHEDULES[data.user.rollNo.toUpperCase() as keyof typeof ALL_STUDENT_SCHEDULES];
+        if (sData) setActiveTimetable(sData);
+        
+        setStudentPasscode('');
+      } else {
+        setPortalError(data.error || 'Invalid credentials.');
+      }
+    } catch (err) { setPortalError('Connection error.'); }
+    finally { setIsPortalLoading(false); }
+  };
+
+  const handleStudentLogout = () => {
+    setIsStudentLoggedIn(false);
+    setStudentUser(null);
+    setTimetableRollNo('');
+    setActiveTimetable(null);
+    localStorage.removeItem("studentUser");
+    setPortalMode('login');
+  };
+
+  const handleChangePasscode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPortalError(''); setPortalMsg('');
+    if (!studentPasscode || !newPasscode) return setPortalError('Please fill both fields.');
+
+    setIsPortalLoading(true);
+    try {
+      const res = await fetch('/api/student_change_password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rollNo: studentUser.rollNo, oldPassword: studentPasscode, newPassword: newPasscode })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPortalMsg(data.message);
+        setStudentPasscode(''); setNewPasscode('');
+        setTimeout(() => setPortalMode('login'), 2000);
+      } else {
+        setPortalError(data.error || 'Failed to change passcode.');
+      }
+    } catch (err) { setPortalError('Connection error.'); }
+    finally { setIsPortalLoading(false); }
+  };
+
 
   // --- 2. ADMIN ACTIONS ---
   
@@ -205,7 +327,7 @@ function App() {
     if (!roll) return;
 
     // Fetch the data straight from the new combined database
-    const studentData = ALL_STUDENT_SCHEDULES[roll];
+    const studentData = ALL_STUDENT_SCHEDULES[roll as keyof typeof ALL_STUDENT_SCHEDULES];
 
     if (studentData) {
       setActiveTimetable(studentData);
@@ -451,6 +573,14 @@ function App() {
             {/* Grid structure updated to grid-cols-2 for mobile to save space */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
               
+              <button onClick={() => setActiveTab('student_portal')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white">
+                  <User className="w-6 h-6 md:w-8 md:h-8" />
+                </div>
+                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Student Portal</h3>
+                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Your custom schedule.</p>
+              </button>
+
               <button onClick={() => setActiveTab('rooms')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-red-50 text-red-600 group-hover:bg-red-600 group-hover:text-white">
                   <MapPin className="w-6 h-6 md:w-8 md:h-8" />
@@ -508,6 +638,115 @@ function App() {
                 <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Authorized access only.</p>
               </button>
 
+            </div>
+          </div>
+        )}
+
+        {/* --- STUDENT PORTAL TAB --- */}
+        {activeTab === 'student_portal' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-md mx-auto mt-6">
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
+               
+               <div className="text-center mb-8">
+                  <div className="w-16 h-16 bg-indigo-50 rounded-2xl mx-auto flex items-center justify-center mb-4 border border-indigo-100 shadow-inner">
+                     <User className="w-8 h-8 text-indigo-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900">Student Portal</h2>
+                  <p className="text-gray-500 text-sm mt-1">
+                     {isStudentLoggedIn ? "Welcome back!" : portalMode === 'register' ? "Create your account" : portalMode === 'settings' ? "Settings" : "Login to view your schedule"}
+                  </p>
+               </div>
+
+               {portalError && <div className="mb-6 p-3 bg-red-50 text-red-700 text-sm font-medium rounded-lg border border-red-200 flex items-center gap-2"><AlertCircle className="w-4 h-4" />{portalError}</div>}
+               {portalMsg && <div className="mb-6 p-3 bg-green-50 text-green-700 text-sm font-medium rounded-lg border border-green-200 flex items-center gap-2"><CheckCircle className="w-4 h-4" />{portalMsg}</div>}
+
+               {/* Logged In Dashboard */}
+               {isStudentLoggedIn && portalMode !== 'settings' && (
+                  <div className="space-y-4">
+                     <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 text-center mb-6">
+                        <p className="text-sm text-gray-500 uppercase tracking-widest font-bold mb-1">Logged In As</p>
+                        <p className="text-2xl font-black text-indigo-900">{studentUser?.rollNo}</p>
+                        <p className="text-sm text-gray-600 mt-1">{studentUser?.semester} • {studentUser?.section}</p>
+                     </div>
+
+                     <button onClick={() => setActiveTab('timetable')} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-md transition-all flex justify-center items-center gap-2">
+                        <CalendarDays className="w-5 h-5" /> View My Timetable
+                     </button>
+                     <button onClick={() => setPortalMode('settings')} className="w-full bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 py-3.5 rounded-xl font-bold transition-all flex justify-center items-center gap-2">
+                        <Settings className="w-5 h-5" /> Change Passcode
+                     </button>
+                     <button onClick={handleStudentLogout} className="w-full bg-red-50 hover:bg-red-100 text-red-600 py-3.5 rounded-xl font-bold transition-all flex justify-center items-center gap-2 mt-4">
+                        <LogOut className="w-5 h-5" /> Logout
+                     </button>
+                  </div>
+               )}
+
+               {/* Settings Mode */}
+               {isStudentLoggedIn && portalMode === 'settings' && (
+                 <form onSubmit={handleChangePasscode} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Current Passcode</label>
+                      <input type="password" value={studentPasscode} onChange={e => setStudentPasscode(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Enter current code" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-2">New Passcode</label>
+                      <input type="password" value={newPasscode} onChange={e => setNewPasscode(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Enter new code" />
+                    </div>
+                    <button type="submit" disabled={isPortalLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-md transition-all mt-2">{isPortalLoading ? 'Updating...' : 'Update Passcode'}</button>
+                    <button type="button" onClick={() => { setPortalMode('login'); setPortalError(''); setPortalMsg(''); }} className="w-full text-gray-500 py-2 font-semibold hover:text-gray-800 transition-colors">Cancel</button>
+                 </form>
+               )}
+
+               {/* Login Mode */}
+               {!isStudentLoggedIn && portalMode === 'login' && (
+                  <form onSubmit={handleStudentLogin} className="space-y-4">
+                    <div>
+                      <input type="text" value={studentRollNo} onChange={e => setStudentRollNo(e.target.value.toUpperCase())} placeholder="Roll Number (e.g. 24BC008)" className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl text-center font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none uppercase placeholder:normal-case" />
+                    </div>
+                    <div>
+                      <input type="password" value={studentPasscode} onChange={e => setStudentPasscode(e.target.value)} placeholder="Passcode" className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl text-center text-lg tracking-widest focus:ring-2 focus:ring-indigo-500 outline-none" />
+                    </div>
+                    <button type="submit" disabled={isPortalLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-md transition-all mt-2 flex justify-center items-center gap-2">
+                      {isPortalLoading ? 'Verifying...' : <><Key className="w-5 h-5" /> Login</>}
+                    </button>
+                    <div className="text-center mt-6 pt-6 border-t border-gray-100">
+                      <p className="text-sm text-gray-500 mb-3">Don't have an access code?</p>
+                      <button type="button" onClick={() => { setPortalMode('register'); setPortalError(''); setPortalMsg(''); }} className="w-full bg-white border border-gray-200 text-gray-800 py-3.5 rounded-xl font-bold hover:bg-gray-50 transition-all flex justify-center items-center gap-2">
+                        <UserPlus className="w-5 h-5" /> Register Account
+                      </button>
+                    </div>
+                  </form>
+               )}
+
+               {/* Register Mode */}
+               {!isStudentLoggedIn && portalMode === 'register' && (
+                  <form onSubmit={handleStudentRegister} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">College Roll No</label>
+                      <input type="text" value={studentRollNo} onChange={e => setStudentRollNo(e.target.value.toUpperCase())} placeholder="e.g. 24BC008" className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none uppercase" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">Official Email</label>
+                      <input type="email" value={studentEmail} onChange={e => setStudentEmail(e.target.value)} placeholder="name@srcc.edu" className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                       <div>
+                         <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">Semester</label>
+                         <select value={studentSemester} onChange={e => setStudentSemester(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <option value="Sem 2">Sem 2</option>
+                            <option value="Sem 4">Sem 4</option>
+                            <option value="Sem 6">Sem 6</option>
+                         </select>
+                       </div>
+                       <div>
+                         <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">Section</label>
+                         <input type="text" value={studentSection} onChange={e => setStudentSection(e.target.value.toUpperCase())} placeholder="e.g. A" className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none uppercase" />
+                       </div>
+                    </div>
+                    <button type="submit" disabled={isPortalLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-md transition-all mt-4">{isPortalLoading ? 'Sending...' : 'Get Access Code via Email'}</button>
+                    <button type="button" onClick={() => { setPortalMode('login'); setPortalError(''); setPortalMsg(''); }} className="w-full text-gray-500 py-2 font-semibold hover:text-gray-800 transition-colors mt-2">Back to Login</button>
+                  </form>
+               )}
             </div>
           </div>
         )}

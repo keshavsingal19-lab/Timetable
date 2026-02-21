@@ -26,7 +26,7 @@ export async function onRequestPost(context) {
 
     // 4. Send Email via Google Apps Script
     // PASTE YOUR GOOGLE SCRIPT WEB APP URL HERE:
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyD9fIZxbgVLaJxm5Fn-Ak_QoKs5g7LkwFSNujqjmFYyM6ytlVGdBaVLYvPTRavXCep/exec";
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwxVbj0nbwJfoL1ZohD5Pi_mzKGy0ixRPedeuqNWKP-kJNoBUcgB7_Tzho7fZT1kl_6/exec";
     
     await fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",

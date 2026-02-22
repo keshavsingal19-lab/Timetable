@@ -805,7 +805,7 @@ function App() {
                        Continue with Google
                     </button>
                     <button onClick={handleMicrosoftLogin} className="w-full bg-white border border-gray-300 text-gray-700 font-bold py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-50 transition-all shadow-sm">
-                       <img src="https://www.svgrepo.com/show/448234/microsoft.svg" className="w-5 h-5" alt="Microsoft" />
+                       <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" className="w-5 h-5" alt="Microsoft" />
                        Continue with Microsoft
                     </button>
                   </div>

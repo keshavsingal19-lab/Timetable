@@ -178,8 +178,26 @@ function App() {
       }
     }
     
-    fetch('/api/check_status').then(res => res.json()).then(data => { if (data.blocked) { setIsSiteBlocked(true); setBlockMessage(data.message); } }).catch(() => {});
-    fetch('/api/attendance').then(res => res.json()).then(ids => { setAbsentTeachers(Array.isArray(ids) ? ids : []); setLoading(false); }).catch(() => setLoading(false));
+    fetch('/api/check_status')
+      .then(res => res.json())
+      .then(data => {
+        if (data.blocked) {
+          setIsSiteBlocked(true);
+          setBlockMessage(data.message);
+        }
+      })
+      .catch(err => console.error("Block check failed", err));
+
+    fetch('/api/attendance')
+      .then(res => res.json())
+      .then(ids => {
+        setAbsentTeachers(Array.isArray(ids) ? ids : []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Attendance fetch error:", err);
+        setLoading(false);
+      });
   }, []); 
 
   const completeLogin = (user: any) => {
@@ -193,6 +211,10 @@ function App() {
   // --- AUTH HANDLERS ---
   const handleGoogleLogin = () => {
     window.location.href = "/api/auth/google";
+  };
+
+  const handleMicrosoftLogin = () => {
+    window.location.href = "/api/auth/microsoft";
   };
 
   const handleManualLogin = async (e: React.FormEvent) => {
@@ -314,6 +336,7 @@ function App() {
         }
       }
     } catch (error) {
+      console.error("Login failed:", error);
       setLoginError("Connection error. Please try again.");
     }
   };
@@ -330,6 +353,7 @@ function App() {
       });
       if (!response.ok) throw new Error("Unauthorized or Failed");
     } catch (e) {
+      console.error("Save failed", e);
       alert("Failed to save. Session may have expired.");
       setAbsentTeachers(prev => isAbsent ? prev.filter(id => id !== tid) : [...prev, tid]);
     }
@@ -356,7 +380,11 @@ function App() {
     let freeSlots = 0;
     for (let i = startSlotIndex; i < TIME_SLOTS.length; i++) {
        const isStaticallyFree = room.emptySlots[selectedDay]?.includes(i);
-       if (isStaticallyFree) { freeSlots++; } else { break; }
+       if (isStaticallyFree) {
+         freeSlots++;
+       } else {
+         break;
+       }
     }
     return freeSlots;
   };
@@ -373,6 +401,7 @@ function App() {
       if (!schedule) return;
 
       const classAtSlot = schedule.find((c: any) => c.periods.includes(selectedTimeIndex));
+
       if (classAtSlot && classAtSlot.room) {
         freed.push({
           id: classAtSlot.room,
@@ -389,7 +418,10 @@ function App() {
   const availableRooms = useMemo(() => {
     const staticRooms = ROOMS.filter(room => room.emptySlots[selectedDay]?.includes(selectedTimeIndex));
     const allRooms = [...staticRooms];
-    freedRooms.forEach(freed => { if (!allRooms.find(r => r.id === freed.id)) allRooms.push(freed); });
+    
+    freedRooms.forEach(freed => {
+      if (!allRooms.find(r => r.id === freed.id)) allRooms.push(freed);
+    });
 
     const filtered = allRooms.filter(room => {
       const matchesSearch = room.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -398,10 +430,14 @@ function App() {
     });
 
     return filtered.sort((a, b) => {
-       return calculateFreeDuration(b, selectedTimeIndex) - calculateFreeDuration(a, selectedTimeIndex);
+       const durA = calculateFreeDuration(a, selectedTimeIndex);
+       const durB = calculateFreeDuration(b, selectedTimeIndex);
+       return durB - durA;
     });
+
   }, [selectedDay, selectedTimeIndex, searchQuery, filterType, freedRooms]);
 
+  // --- TIMELINE & TEACHER LOGIC ---
   const getRoomTimeline = (roomId: string) => {
     const timeline = new Array(TIME_SLOTS.length).fill(null);
     const dayName = getDayName(selectedDay);
@@ -435,7 +471,6 @@ function App() {
     return getRoomTimeline(selectedRoomId);
   }, [selectedRoomId, selectedDay, absentTeachers]);
 
-  // --- TEACHER FINDER LOGIC ---
   const getEntityStatus = (teacher: any) => {
     if (absentTeachers.includes(teacher.id) && selectedDay === currentDayName) {
       return { status: 'On Leave', color: 'red', icon: UserMinus, detail: 'Marked Absent' };
@@ -445,17 +480,24 @@ function App() {
     
     const currentClass = daySchedule.find((c: any) => c.periods.includes(selectedTimeIndex));
     if (currentClass) {
-      return { status: `In ${currentClass.room}`, color: 'blue', icon: MapPin, detail: currentClass.subject || 'Class' };
+      return { 
+        status: `In ${currentClass.room}`, 
+        color: 'blue', 
+        icon: MapPin, 
+        detail: currentClass.subject || 'Class' 
+      };
     }
     return { status: 'Free', color: 'green', icon: CheckCircle, detail: 'Staff Room / Free' };
   };
 
   const visibleEntities = useMemo(() => {
     const query = finderSearchQuery.toLowerCase();
+    
     const teachers = Object.values(TEACHER_SCHEDULES)
       .filter(t => t.id !== 'ADMIN')
       .filter(t => t.name.toLowerCase().includes(query))
       .map(t => ({ ...t, type: 'teacher' }));
+
     return teachers.sort((a, b) => a.name.localeCompare(b.name));
   }, [finderSearchQuery]);
 
@@ -481,6 +523,7 @@ function App() {
             </span>
           )}
       </div>
+      
       <div className="bg-white/60 rounded-lg p-4 border border-red-100/50">
         {absentTeachers.length > 0 ? (
           <div className="flex flex-wrap gap-2">
@@ -498,7 +541,9 @@ function App() {
           </p>
         )}
       </div>
-      <p className="text-xs text-gray-400 mt-2 text-right">*List resets automatically at end of day</p>
+      <p className="text-xs text-gray-400 mt-2 text-right">
+        *List resets automatically at end of day
+      </p>
     </div>
   );
 
@@ -518,9 +563,11 @@ function App() {
         const classData = timetableData[day].find((c: any) => c.periodIndex === index);
         const hasClass = !!classData;
         
+        // Hide trailing empty slots
         const lastClassIndex = Math.max(...timetableData[day].map((c: any) => c.periodIndex));
         if (index > lastClassIndex) return null;
         
+        // Highlight logic for active class
         const isCurrentlyActive = (day === currentDayName) && (index === selectedTimeIndex);
 
         return (
@@ -752,10 +799,16 @@ function App() {
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">Student Portal</h2>
                   <p className="text-gray-500 text-sm mb-8">Sign in with your college email to manage access.</p>
 
-                  <button onClick={handleGoogleLogin} className="w-full bg-white border border-gray-300 text-gray-700 font-bold py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-50 transition-all shadow-sm mb-4">
-                     <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="Google" />
-                     Continue with Google
-                  </button>
+                  <div className="space-y-3">
+                    <button onClick={handleGoogleLogin} className="w-full bg-white border border-gray-300 text-gray-700 font-bold py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-50 transition-all shadow-sm">
+                       <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="Google" />
+                       Continue with Google
+                    </button>
+                    <button onClick={handleMicrosoftLogin} className="w-full bg-white border border-gray-300 text-gray-700 font-bold py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-50 transition-all shadow-sm">
+                       <img src="https://www.svgrepo.com/show/448234/microsoft.svg" className="w-5 h-5" alt="Microsoft" />
+                       Continue with Microsoft
+                    </button>
+                  </div>
                   
                   <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>

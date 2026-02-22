@@ -8,11 +8,12 @@ export async function onRequest(context) {
     const isAdmin = url.searchParams.get('admin') === 'true';
 
     try {
+      // ORDER BY e.is_pinned DESC ensures the pinned event is always first
       let query = `
         SELECT e.*, a.views, a.clicks 
         FROM society_events e 
         LEFT JOIN event_analytics a ON e.id = a.event_id 
-        WHERE e.is_active = 1 ORDER BY e.id DESC
+        WHERE e.is_active = 1 ORDER BY e.is_pinned DESC, e.id DESC
       `;
       
       if (isAdmin) {
@@ -20,7 +21,7 @@ export async function onRequest(context) {
           SELECT e.*, a.views, a.clicks 
           FROM society_events e 
           LEFT JOIN event_analytics a ON e.id = a.event_id 
-          ORDER BY e.id DESC
+          ORDER BY e.is_pinned DESC, e.id DESC
         `;
       }
       
@@ -36,10 +37,9 @@ export async function onRequest(context) {
     try {
       const body = await request.json();
 
-      // --- NEW: PUBLIC TRACKING (No password needed) ---
+      // --- PUBLIC TRACKING (No password needed) ---
       if (body.action === 'track') {
         const field = body.type === 'click' ? 'clicks' : 'views';
-        // Secure way to update the specific counter
         if (field === 'clicks' || field === 'views') {
             await env.DB.prepare(`UPDATE event_analytics SET ${field} = ${field} + 1 WHERE event_id = ?`)
               .bind(body.eventId)
@@ -53,13 +53,43 @@ export async function onRequest(context) {
         return Response.json({ error: "Unauthorized. Incorrect password." }, { status: 403 });
       }
 
-      if (body.action === 'toggle') {
+      // Action: Pin Event (Make Featured)
+      if (body.action === 'pin') {
+        // First, unpin all events
+        await env.DB.prepare("UPDATE society_events SET is_pinned = 0").run(); 
+        // Then, pin only the selected one
+        await env.DB.prepare("UPDATE society_events SET is_pinned = 1 WHERE id = ?").bind(body.eventId).run(); 
+        return Response.json({ success: true, message: "Event Pinned Successfully!" });
+      }
+
+      // Action: Toggle Active Status
+      else if (body.action === 'toggle') {
         await env.DB.prepare("UPDATE society_events SET is_active = ? WHERE id = ?")
           .bind(body.isActive ? 1 : 0, body.eventId)
           .run();
         return Response.json({ success: true, message: "Status updated" });
       } 
       
+      // Action: Delete Event
+      else if (body.action === 'delete') {
+        // Deleting from society_events will automatically delete from event_analytics due to ON DELETE CASCADE
+        await env.DB.prepare("DELETE FROM society_events WHERE id = ?").bind(body.eventId).run();
+        return Response.json({ success: true, message: "Event permanently deleted" });
+      }
+
+      // Action: Edit Event
+      else if (body.action === 'edit') {
+        await env.DB.prepare(`
+          UPDATE society_events 
+          SET society_name = ?, event_name = ?, event_date = ?, event_time = ?, location = ?, event_type = ?, description = ?, registration_link = ?
+          WHERE id = ?
+        `).bind(
+          body.society, body.eventName, body.date, body.time, body.location, body.type, body.description, body.link, body.eventId
+        ).run();
+        return Response.json({ success: true, message: "Event Updated Successfully!" });
+      }
+      
+      // Action: Create New Event
       else if (body.action === 'create') {
         const insertRes = await env.DB.prepare(`
           INSERT INTO society_events 

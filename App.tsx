@@ -32,7 +32,11 @@ const convertSem6Data = (data: any) => {
       const periodIndex = timeMap[cls.time];
       if (periodIndex !== undefined && converted[rollNo][cls.day]) {
         converted[rollNo][cls.day].push({
-          periodIndex, subject: cls.subject, room: cls.room, type: typeMap[cls.type] || cls.type, teacher: cls.teacher
+          periodIndex, 
+          subject: cls.subject, 
+          room: cls.room, 
+          type: typeMap[cls.type] || cls.type, 
+          teacher: cls.teacher
         });
       }
     });
@@ -40,7 +44,7 @@ const convertSem6Data = (data: any) => {
   return converted;
 };
 
-// Combine all 3 semesters into one master database
+// Combine all semesters
 const ALL_STUDENT_SCHEDULES = {
   ...SEM2_STUDENT_SCHEDULES,
   ...SEM4_STUDENT_SCHEDULES,
@@ -50,22 +54,18 @@ const ALL_STUDENT_SCHEDULES = {
 const getDayName = (day: DayOfWeek): string => day;
 
 function App() {
-  // --- STATE VARIABLES ---
-  
-  // Navigation & Global
+  // --- NAVIGATION & GLOBAL STATES ---
   const [activeTab, setActiveTab] = useState<'menu' | 'rooms' | 'teachers' | 'societies' | 'timetable' | 'leave' | 'student_portal'>('student_portal'); 
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(DayOfWeek.Monday);
   const [selectedTimeIndex, setSelectedTimeIndex] = useState<number>(0);
   
-  // Room Finder
+  // --- ROOM & TEACHER FINDER STATES ---
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterType, setFilterType] = useState<string>('All');
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
-
-  // Teacher Finder
   const [finderSearchQuery, setFinderSearchQuery] = useState('');
 
-  // Admin & Security
+  // --- ADMIN STATES ---
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [adminPass, setAdminPass] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -73,21 +73,20 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [loginError, setLoginError] = useState(''); 
   const [adminSearchQuery, setAdminSearchQuery] = useState('');
+  const [adminTab, setAdminTab] = useState<'attendance' | 'events'>('attendance');
 
-  // Modals & Blocking
+  // --- MODAL & PWA STATES ---
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [isSiteBlocked, setIsSiteBlocked] = useState(false);
   const [blockMessage, setBlockMessage] = useState('');
-  
-  // PWA Install Prompt State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
-  // Global Search Timetable
+  // --- SEARCH TIMETABLE STATES ---
   const [timetableRollNo, setTimetableRollNo] = useState('');
   const [activeSearchTimetable, setActiveSearchTimetable] = useState<any>(null);
   const [searchTimetableDay, setSearchTimetableDay] = useState<DayOfWeek>(DayOfWeek.Monday);
 
-  // --- AUTH STATES ---
+  // --- STUDENT AUTH STATES ---
   const [isStudentLoggedIn, setIsStudentLoggedIn] = useState(false);
   const [studentUser, setStudentUser] = useState<any>(null);
   const [portalMode, setPortalMode] = useState<'login' | 'setup_access' | 'change_access' | 'settings'>('login');
@@ -104,13 +103,11 @@ function App() {
   const [manualPasscode, setManualPasscode] = useState(''); 
   const [manualRollNo, setManualRollNo] = useState('');
 
-  // Dashboard Data
   const [myTimetableData, setMyTimetableData] = useState<any>(null);
   const [myScheduleDay, setMyScheduleDay] = useState<DayOfWeek>(DayOfWeek.Monday);
 
-  // --- DYNAMIC SOCIETY EVENTS STATE ---
+  // --- SOCIETY EVENTS STATES ---
   const [societyEvents, setSocietyEvents] = useState<any[]>([]);
-  const [adminTab, setAdminTab] = useState<'attendance' | 'events'>('attendance');
   const [eventForm, setEventForm] = useState({
     type: 'Featured', society: '', eventName: '', date: '', time: '', location: '', description: '', link: ''
   });
@@ -121,7 +118,6 @@ function App() {
   const [dismissedAds, setDismissedAds] = useState<number[]>([]);
   const [trackedViews, setTrackedViews] = useState<number[]>([]);
 
-  // --- HELPER: Get Current Date Details ---
   const todayDateObj = new Date();
   const currentDayName = todayDateObj.toLocaleDateString('en-US', { weekday: 'long' });
   const formattedDate = todayDateObj.toLocaleDateString('en-GB', { 
@@ -130,6 +126,7 @@ function App() {
 
   // --- 1. INITIAL CHECKS (Run on Load) ---
   useEffect(() => {
+    // Sync UI to current time
     if (Object.values(DayOfWeek).includes(currentDayName as DayOfWeek)) {
       setSelectedDay(currentDayName as DayOfWeek);
       setSearchTimetableDay(currentDayName as DayOfWeek);
@@ -144,18 +141,20 @@ function App() {
       }
     }
 
+    // PWA Prompt
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault(); 
       setDeferredPrompt(e); 
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // Load dismissed ads from local storage
+    // Load dismissed ads
     const savedDismissed = localStorage.getItem('dismissedAds');
     if (savedDismissed) {
       try { setDismissedAds(JSON.parse(savedDismissed)); } catch (e) {}
     }
 
+    // Check Auth Token
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('auth_token');
     
@@ -182,7 +181,7 @@ function App() {
       }
     }
     
-    // Fetch Dynamic Events for students
+    // Fetch Dynamic Events
     fetch('/api/events')
       .then(res => res.json())
       .then(data => { if (Array.isArray(data)) setSocietyEvents(data); })
@@ -214,45 +213,70 @@ function App() {
     setPortalMode('login'); 
   };
 
-  // Find the newest ad that the user hasn't dismissed yet
+  // --- AD TRACKING LOGIC ---
   const featuredAd = useMemo(() => {
     return societyEvents.find(event => !dismissedAds.includes(event.id) && event.is_active);
   }, [societyEvents, dismissedAds]);
 
-  // --- ANALYTICS: VIEW TRACKING ---
   useEffect(() => {
-    // If there is an ad showing on screen, and we haven't tracked it yet this session
     if (featuredAd && !trackedViews.includes(featuredAd.id)) {
-      // 1. Ping Backend invisibly
       fetch('/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'track', type: 'view', eventId: featuredAd.id })
-      }).catch(() => {}); // silent fail if network error
+      }).catch(() => {});
       
-      // 2. Mark as tracked locally to stop spam
       setTrackedViews(prev => [...prev, featuredAd.id]);
     }
   }, [featuredAd, trackedViews]);
 
-  // --- ANALYTICS: CLICK TRACKING ---
   const handleTrackClick = (eventId: number, link: string) => {
-    // 1. Ping the backend to record the click
     fetch('/api/events', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'track', type: 'click', eventId })
     }).catch(() => {});
-
-    // 2. Open the registration link instantly for the user
     window.open(link, '_blank');
   };
 
-  // Handle when a user clicks the "X" on the ad
   const handleDismissAd = (id: number) => {
     const newDismissed = [...dismissedAds, id];
     setDismissedAds(newDismissed);
     localStorage.setItem('dismissedAds', JSON.stringify(newDismissed));
+  };
+
+  const renderFeaturedAd = () => {
+    if (!featuredAd) return null;
+    return (
+       <div className="relative bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in slide-in-from-top-4 fade-in duration-500 mb-6 mx-auto max-w-3xl">
+          <button 
+            onClick={() => handleDismissAd(featuredAd.id)} 
+            className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 hover:bg-white/50 rounded-full transition-colors z-10"
+          >
+            <XCircle className="w-5 h-5" />
+          </button>
+          
+          <div className="flex items-start gap-3">
+            <div className="bg-gradient-to-br from-yellow-100 to-orange-100 p-2.5 rounded-xl border border-yellow-200 text-yellow-600 shrink-0">
+              <Megaphone className="w-6 h-6" />
+            </div>
+            <div className="pr-6">
+              <span className="bg-yellow-200 text-yellow-800 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md mb-1 inline-block shadow-sm">
+                Featured • {featuredAd.event_type}
+              </span>
+              <h3 className="font-bold text-gray-900 leading-tight">{featuredAd.event_name}</h3>
+              <p className="text-xs font-semibold text-gray-600 mt-0.5">{featuredAd.society_name} • {featuredAd.event_date}</p>
+            </div>
+          </div>
+          
+          <button 
+            onClick={() => handleTrackClick(featuredAd.id, featuredAd.registration_link)}
+            className="w-full sm:w-auto text-center bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-orange-950 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-md hover:shadow-lg active:scale-95 whitespace-nowrap"
+          >
+            View Details
+          </button>
+       </div>
+    );
   };
 
   // --- AUTH HANDLERS ---
@@ -295,8 +319,11 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          token: authToken, accessCode: newAccessCode,
-          rollNo: setupRollNo.toUpperCase(), semester: setupSemester, section: setupSection
+          token: authToken, 
+          accessCode: newAccessCode,
+          rollNo: setupRollNo.toUpperCase(), 
+          semester: setupSemester, 
+          section: setupSection
         })
       });
       const data = await res.json();
@@ -338,8 +365,11 @@ function App() {
   };
 
   const handleStudentLogout = () => {
-    setIsStudentLoggedIn(false); setStudentUser(null); setMyTimetableData(null);
-    localStorage.removeItem("studentUser"); setPortalMode('login');
+    setIsStudentLoggedIn(false); 
+    setStudentUser(null); 
+    setMyTimetableData(null);
+    localStorage.removeItem("studentUser"); 
+    setPortalMode('login');
   };
 
   const handleInstallAppClick = async () => {
@@ -352,7 +382,7 @@ function App() {
     }
   };
 
-  // --- ADMIN ACTIONS (ATTENDANCE & EVENTS) ---
+  // --- ADMIN ACTIONS ---
   const fetchAdminEvents = async () => {
     try {
       const res = await fetch('/api/events?admin=true');
@@ -433,7 +463,17 @@ function App() {
     } catch(e) { console.error(e); }
   };
 
-  // --- GLOBAL SEARCH TIMETABLE LOGIC ---
+  const handlePinEvent = async (id: number) => {
+    try {
+      await fetch('/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'pin', password: adminPass, eventId: id })
+      });
+      fetchAdminEvents();
+    } catch(e) { console.error(e); }
+  };
+
   const handleGlobalSearchTimetable = (e: React.FormEvent) => {
     e.preventDefault();
     const roll = timetableRollNo.trim().toUpperCase();
@@ -446,7 +486,7 @@ function App() {
     } else { alert("Roll Number not found! Please check for typos."); }
   };
 
-  // --- ROOM FINDER LOGIC ---
+  // --- LOGIC FUNCTIONS ---
   const calculateFreeDuration = (room: any, startSlotIndex: number) => {
     let freeSlots = 0;
     for (let i = startSlotIndex; i < TIME_SLOTS.length; i++) {
@@ -470,7 +510,9 @@ function App() {
       const classAtSlot = schedule.find((c: any) => c.periods.includes(selectedTimeIndex));
       if (classAtSlot && classAtSlot.room) {
         freed.push({
-          id: classAtSlot.room, name: classAtSlot.room, type: 'Lecture Hall', 
+          id: classAtSlot.room, 
+          name: classAtSlot.room, 
+          type: 'Lecture Hall', 
           emptySlots: { [selectedDay]: [selectedTimeIndex] } as any,
           tags: [`Freed: ${teacher.name}`]
         } as any);
@@ -482,7 +524,10 @@ function App() {
   const availableRooms = useMemo(() => {
     const staticRooms = ROOMS.filter(room => room.emptySlots[selectedDay]?.includes(selectedTimeIndex));
     const allRooms = [...staticRooms];
-    freedRooms.forEach(freed => { if (!allRooms.find(r => r.id === freed.id)) allRooms.push(freed); });
+    
+    freedRooms.forEach(freed => { 
+      if (!allRooms.find(r => r.id === freed.id)) allRooms.push(freed); 
+    });
 
     const filtered = allRooms.filter(room => {
       const matchesSearch = room.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -506,8 +551,11 @@ function App() {
              cls.periods.forEach((period: number) => {
                 if (period < timeline.length) {
                   timeline[period] = {
-                    status: 'Occupied', teacher: teacher.name, teacherId: teacher.id,
-                    subject: cls.subject, isAbsent: absentTeachers.includes(teacher.id) && selectedDay === currentDayName
+                    status: 'Occupied', 
+                    teacher: teacher.name, 
+                    teacherId: teacher.id,
+                    subject: cls.subject, 
+                    isAbsent: absentTeachers.includes(teacher.id) && selectedDay === currentDayName
                   };
                 }
              });
@@ -532,6 +580,7 @@ function App() {
     
     const currentClass = daySchedule.find((c: any) => c.periods.includes(selectedTimeIndex));
     if (currentClass) return { status: `In ${currentClass.room}`, color: 'blue', icon: MapPin, detail: currentClass.subject || 'Class' };
+    
     return { status: 'Free', color: 'green', icon: CheckCircle, detail: 'Staff Room / Free' };
   };
 
@@ -544,18 +593,25 @@ function App() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [finderSearchQuery]);
 
+  // --- REUSABLE COMPONENTS ---
   const TeachersOnLeaveDashboard = () => (
     <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl shadow-sm border border-red-100 p-6 mb-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
-            <div className="bg-white p-2 rounded-lg shadow-sm text-red-600"><UserMinus className="w-6 h-6" /></div>
+            <div className="bg-white p-2 rounded-lg shadow-sm text-red-600">
+              <UserMinus className="w-6 h-6" />
+            </div>
             <div>
               <h2 className="text-lg font-bold text-gray-900">Teachers on Leave</h2>
-              <div className="flex items-center gap-2 text-red-600 text-sm font-medium"><CalendarDays className="w-4 h-4" />{formattedDate}</div>
+              <div className="flex items-center gap-2 text-red-600 text-sm font-medium">
+                <CalendarDays className="w-4 h-4" />{formattedDate}
+              </div>
             </div>
           </div>
           {absentTeachers.length > 0 && (
-            <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-bold border border-red-200">{absentTeachers.length} Absent Today</span>
+            <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-bold border border-red-200">
+              {absentTeachers.length} Absent Today
+            </span>
           )}
       </div>
       
@@ -569,7 +625,9 @@ function App() {
             ))}
           </div>
         ) : (
-          <p className="text-gray-500 text-sm italic flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" />No teachers marked absent today.</p>
+          <p className="text-gray-500 text-sm italic flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-green-500" />No teachers marked absent today.
+          </p>
         )}
       </div>
     </div>
@@ -590,22 +648,27 @@ function App() {
         const classData = timetableData[day].find((c: any) => c.periodIndex === index);
         const hasClass = !!classData;
         const lastClassIndex = Math.max(...timetableData[day].map((c: any) => c.periodIndex));
+        
         if (index > lastClassIndex) return null;
+        
         const isCurrentlyActive = (day === currentDayName) && (index === selectedTimeIndex);
 
         return (
           <div key={index} className={`relative flex gap-4 p-3 rounded-xl border transition-all ${
              hasClass ? 'bg-white shadow-sm' : 'bg-gray-50 border-gray-100 border-dashed opacity-60'
           } ${isCurrentlyActive && hasClass ? 'border-indigo-400 ring-1 ring-indigo-400 scale-[1.01]' : hasClass ? 'border-gray-200' : ''}`}>
+             
              {isCurrentlyActive && hasClass && (
                 <div className="absolute top-1 right-2 flex items-center gap-1 text-[10px] font-bold text-indigo-600 uppercase tracking-widest">
                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>Live
                 </div>
              )}
+             
              <div className="w-20 shrink-0 flex flex-col justify-center items-center border-r border-gray-100 pr-3">
                 <span className={`text-sm font-bold ${hasClass ? 'text-gray-900' : 'text-gray-500'}`}>{timeLabel.split(' ')[0]}</span>
                 <span className="text-[10px] text-gray-400 uppercase">{timeLabel.split(' ')[1]}</span>
              </div>
+             
              <div className="flex-1 flex flex-col justify-center">
                 {hasClass ? (
                   <>
@@ -617,12 +680,19 @@ function App() {
                        }`}>{classData.type}</span>
                      </div>
                      <div className="flex items-center gap-3 text-sm mt-1">
-                        <span className="flex items-center gap-1 text-gray-600 font-medium"><MapPin className="w-3.5 h-3.5 text-indigo-500" /> Room {classData.room}</span>
-                        <span className="flex items-center gap-1 text-gray-500"><Users className="w-3.5 h-3.5" /> {classData.teacher}</span>
+                        <span className="flex items-center gap-1 text-gray-600 font-medium">
+                          <MapPin className="w-3.5 h-3.5 text-indigo-500" /> Room {classData.room}
+                        </span>
+                        <span className="flex items-center gap-1 text-gray-500">
+                          <Users className="w-3.5 h-3.5" /> {classData.teacher}
+                        </span>
                      </div>
                   </>
                 ) : (
-                  <div className="flex items-center gap-2 text-gray-500"><Timer className="w-4 h-4" /><span className="font-medium text-sm">Free Slot / Break</span></div>
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <Timer className="w-4 h-4" />
+                    <span className="font-medium text-sm">Free Slot / Break</span>
+                  </div>
                 )}
              </div>
           </div>
@@ -630,6 +700,7 @@ function App() {
     });
   };
 
+  // --- RENDER BLOCK ---
   if (isSiteBlocked) {
     return (
       <div className="min-h-screen bg-red-900 flex flex-col items-center justify-center p-4 text-center">
@@ -649,8 +720,11 @@ function App() {
       <header className="bg-red-800 text-white sticky top-0 z-50 shadow-lg backdrop-blur-sm bg-opacity-95">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex justify-between items-center">
+            
             <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('student_portal')}>
-              <div className="bg-white/10 p-2 rounded-xl border border-white/10"><MapPin className="w-6 h-6 text-yellow-400" /></div>
+              <div className="bg-white/10 p-2 rounded-xl border border-white/10">
+                <MapPin className="w-6 h-6 text-yellow-400" />
+              </div>
               <div>
                 <h1 className="text-xl font-bold leading-none tracking-tight">SRCC Finder</h1>
                 <p className="text-red-200 text-xs mt-1 font-medium tracking-wide">SESSION 2025-26</p>
@@ -659,79 +733,103 @@ function App() {
             
             <div className="flex items-center">
                {activeTab !== 'menu' ? (
-                 <button onClick={() => setActiveTab('menu')} className="bg-white/10 border border-white/20 text-white px-4 py-2 rounded-xl hover:bg-white/20 transition-all active:scale-95 flex items-center gap-2 font-bold shadow-sm">
+                 <button 
+                   onClick={() => setActiveTab('menu')} 
+                   className="bg-white/10 border border-white/20 text-white px-4 py-2 rounded-xl hover:bg-white/20 transition-all active:scale-95 flex items-center gap-2 font-bold shadow-sm"
+                 >
                    <Menu className="w-5 h-5" /> Menu
                  </button>
                ) : (
-                 <button onClick={() => setActiveTab('student_portal')} className="bg-white text-red-900 px-4 py-2 rounded-xl hover:bg-gray-100 transition-all active:scale-95 flex items-center gap-2 font-bold shadow-md">
+                 <button 
+                   onClick={() => setActiveTab('student_portal')} 
+                   className="bg-white text-red-900 px-4 py-2 rounded-xl hover:bg-gray-100 transition-all active:scale-95 flex items-center gap-2 font-bold shadow-md"
+                 >
                    <Home className="w-5 h-5" /> Home
                  </button>
                )}
             </div>
+
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
-        {/* --- MAIN MENU TAB --- */}
+        {/* --- MENU TAB --- */}
         {activeTab === 'menu' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4 md:mb-6 text-center md:text-left">Explore Tools</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
               
-              <button onClick={() => setActiveTab('student_portal')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white"><Home className="w-6 h-6 md:w-8 md:h-8" /></div>
+              <button onClick={() => setActiveTab('student_portal')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white">
+                  <Home className="w-6 h-6 md:w-8 md:h-8" />
+                </div>
                 <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">My Dashboard</h3>
                 <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Your homepage.</p>
               </button>
 
-              <button onClick={() => setActiveTab('rooms')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-red-50 text-red-600 group-hover:bg-red-600 group-hover:text-white"><MapPin className="w-6 h-6 md:w-8 md:h-8" /></div>
+              <button onClick={() => setActiveTab('rooms')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-red-50 text-red-600 group-hover:bg-red-600 group-hover:text-white">
+                  <MapPin className="w-6 h-6 md:w-8 md:h-8" />
+                </div>
                 <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Room Finder</h3>
                 <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Find empty classrooms.</p>
               </button>
 
-              <button onClick={() => setActiveTab('teachers')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white"><Users className="w-6 h-6 md:w-8 md:h-8" /></div>
+              <button onClick={() => setActiveTab('teachers')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
+                  <Users className="w-6 h-6 md:w-8 md:h-8" />
+                </div>
                 <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Teacher Finder</h3>
                 <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Locate staff status.</p>
               </button>
 
-              <button onClick={() => setActiveTab('timetable')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white"><Search className="w-6 h-6 md:w-8 md:h-8" /></div>
+              <button onClick={() => setActiveTab('timetable')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white">
+                  <Search className="w-6 h-6 md:w-8 md:h-8" />
+                </div>
                 <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Search Others</h3>
                 <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Look up schedules.</p>
               </button>
 
-              <button onClick={() => setActiveTab('leave')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white"><UserMinus className="w-6 h-6 md:w-8 md:h-8" /></div>
+              <button onClick={() => setActiveTab('leave')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white">
+                  <UserMinus className="w-6 h-6 md:w-8 md:h-8" />
+                </div>
                 <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">On Leave</h3>
                 <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Today's absent faculty.</p>
               </button>
 
-              <button onClick={() => setActiveTab('societies')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-green-50 text-green-600 group-hover:bg-green-600 group-hover:text-white"><Megaphone className="w-6 h-6 md:w-8 md:h-8" /></div>
+              <button onClick={() => setActiveTab('societies')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-green-50 text-green-600 group-hover:bg-green-600 group-hover:text-white">
+                  <Megaphone className="w-6 h-6 md:w-8 md:h-8" />
+                </div>
                 <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Societies</h3>
                 <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Campus events.</p>
               </button>
 
-              <button onClick={handleInstallAppClick} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-pink-50 text-pink-600 group-hover:bg-pink-600 group-hover:text-white"><Download className="w-6 h-6 md:w-8 md:h-8" /></div>
+              <button onClick={handleInstallAppClick} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-pink-50 text-pink-600 group-hover:bg-pink-600 group-hover:text-white">
+                  <Download className="w-6 h-6 md:w-8 md:h-8" />
+                </div>
                 <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Get App</h3>
                 <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Install on your phone.</p>
               </button>
 
-              <button onClick={() => { setIsAdminOpen(true); setLoginError(''); }} className="col-span-2 sm:col-span-1 bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-gray-100 text-gray-700 group-hover:bg-gray-800 group-hover:text-white"><Lock className="w-6 h-6 md:w-8 md:h-8" /></div>
+              <button onClick={() => { setIsAdminOpen(true); setLoginError(''); }} className="col-span-2 sm:col-span-1 bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all flex flex-col items-center text-center group active:scale-95">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-gray-100 text-gray-700 group-hover:bg-gray-800 group-hover:text-white">
+                  <Lock className="w-6 h-6 md:w-8 md:h-8" />
+                </div>
                 <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Admin Login</h3>
                 <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Authorized access only.</p>
               </button>
+
             </div>
           </div>
         )}
 
-        {/* --- STUDENT PORTAL --- */}
+        {/* --- STUDENT PORTAL TAB --- */}
         {activeTab === 'student_portal' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
              
@@ -739,24 +837,63 @@ function App() {
              {!isStudentLoggedIn && portalMode === 'setup_access' && (
                <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
                   <div className="text-center mb-6">
-                    <div className="w-16 h-16 bg-green-50 rounded-full mx-auto flex items-center justify-center mb-4"><ShieldCheck className="w-8 h-8 text-green-600" /></div>
+                    <div className="w-16 h-16 bg-green-50 rounded-full mx-auto flex items-center justify-center mb-4">
+                      <ShieldCheck className="w-8 h-8 text-green-600" />
+                    </div>
                     <h2 className="text-2xl font-bold text-gray-900">One-Time Setup</h2>
                     <p className="text-gray-500 text-sm">Verification Successful! Please set up your profile.</p>
                   </div>
-                  {portalError && <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg flex items-center gap-2"><AlertCircle className="w-4 h-4" />{portalError}</div>}
+                  
+                  {portalError && (
+                    <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" />{portalError}
+                    </div>
+                  )}
+                  
                   <form onSubmit={handleSetAccessCode} className="space-y-4">
-                    <input type="text" value={setupRollNo} onChange={e => setSetupRollNo(e.target.value.toUpperCase())} placeholder="College Roll No (e.g. 24BC008)" className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-center uppercase" required />
+                    <input 
+                      type="text" 
+                      value={setupRollNo} 
+                      onChange={e => setSetupRollNo(e.target.value.toUpperCase())} 
+                      placeholder="College Roll No (e.g. 24BC008)" 
+                      className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-center uppercase" 
+                      required 
+                    />
                     <div className="grid grid-cols-2 gap-3">
-                       <select value={setupSemester} onChange={e => setSetupSemester(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl">
-                          <option value="Sem 2">Sem 2</option><option value="Sem 4">Sem 4</option><option value="Sem 6">Sem 6</option>
+                       <select 
+                         value={setupSemester} 
+                         onChange={e => setSetupSemester(e.target.value)} 
+                         className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl"
+                       >
+                          <option value="Sem 2">Sem 2</option>
+                          <option value="Sem 4">Sem 4</option>
+                          <option value="Sem 6">Sem 6</option>
                        </select>
-                       <input type="text" value={setupSection} onChange={e => setSetupSection(e.target.value.toUpperCase())} placeholder="Section (e.g. A)" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl uppercase text-center" required />
+                       <input 
+                         type="text" 
+                         value={setupSection} 
+                         onChange={e => setSetupSection(e.target.value.toUpperCase())} 
+                         placeholder="Section (e.g. A)" 
+                         className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl uppercase text-center" 
+                         required 
+                       />
                     </div>
                     <div className="pt-4 border-t border-gray-100">
                       <label className="block text-xs font-bold text-gray-500 uppercase mb-2 text-center">Set Your Access Code</label>
-                      <input type="password" value={newAccessCode} onChange={e => setNewAccessCode(e.target.value)} placeholder="Enter a secret code" className="w-full p-3.5 bg-indigo-50 border border-indigo-200 rounded-xl text-center text-lg tracking-widest font-bold text-indigo-900 outline-none" required />
+                      <input 
+                        type="password" 
+                        value={newAccessCode} 
+                        onChange={e => setNewAccessCode(e.target.value)} 
+                        placeholder="Enter a secret code" 
+                        className="w-full p-3.5 bg-indigo-50 border border-indigo-200 rounded-xl text-center text-lg tracking-widest font-bold text-indigo-900 outline-none" 
+                        required 
+                      />
                     </div>
-                    <button type="submit" disabled={isPortalLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold shadow-lg mt-2 transition-all">
+                    <button 
+                      type="submit" 
+                      disabled={isPortalLoading} 
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold shadow-lg mt-2 transition-all"
+                    >
                       {isPortalLoading ? 'Saving...' : 'Save & Login'}
                     </button>
                   </form>
@@ -766,40 +903,107 @@ function App() {
              {/* 2. CHANGE ACCESS MODE */}
              {!isStudentLoggedIn && portalMode === 'change_access' && (
                <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl p-8 border border-gray-200 text-center">
-                  <div className="w-16 h-16 bg-blue-50 rounded-full mx-auto flex items-center justify-center mb-4"><Key className="w-8 h-8 text-blue-600" /></div>
+                  <div className="w-16 h-16 bg-blue-50 rounded-full mx-auto flex items-center justify-center mb-4">
+                    <Key className="w-8 h-8 text-blue-600" />
+                  </div>
                   <h2 className="text-xl font-bold text-gray-900">Welcome Back!</h2>
                   <p className="text-gray-500 text-sm mb-6">Do you want to change your existing Access Code?</p>
+                  
                   <div className="mb-6">
-                    <input type="password" value={newAccessCode} onChange={e => setNewAccessCode(e.target.value)} placeholder="Enter new code" className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-center text-lg tracking-widest outline-none" />
+                    <input 
+                      type="password" 
+                      value={newAccessCode} 
+                      onChange={e => setNewAccessCode(e.target.value)} 
+                      placeholder="Enter new code" 
+                      className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-center text-lg tracking-widest outline-none" 
+                    />
                   </div>
                   <div className="space-y-3">
-                    <button onClick={handleSetAccessCode} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-md">Update Code</button>
-                    <button onClick={handleSkipChange} className="w-full bg-white text-gray-500 py-3 rounded-xl font-bold border hover:bg-gray-50">Skip</button>
+                    <button 
+                      onClick={handleSetAccessCode} 
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-md"
+                    >
+                      Update Code
+                    </button>
+                    <button 
+                      onClick={handleSkipChange} 
+                      className="w-full bg-white text-gray-500 py-3 rounded-xl font-bold border hover:bg-gray-50"
+                    >
+                      Skip
+                    </button>
                   </div>
                </div>
              )}
 
              {/* 3. LOGIN MODE */}
              {!isStudentLoggedIn && portalMode === 'login' && (
-                <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl border border-gray-200 p-8 text-center">
-                  <div className="w-16 h-16 bg-red-50 rounded-2xl mx-auto flex items-center justify-center mb-6"><User className="w-8 h-8 text-red-600" /></div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Student Portal</h2>
-                  <p className="text-gray-500 text-sm mb-8">Sign in with your college email to manage access.</p>
-                  <div className="space-y-3">
-                    <button onClick={handleGoogleLogin} className="w-full bg-white border border-gray-300 text-gray-700 font-bold py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-50 transition-all shadow-sm">
-                       <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="Google" />Continue with Google
-                    </button>
-                    <button onClick={handleMicrosoftLogin} className="w-full bg-white border border-gray-300 text-gray-700 font-bold py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-50 transition-all shadow-sm">
-                       <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" className="w-5 h-5" alt="Microsoft" />Continue with Microsoft
-                    </button>
+                <div className="max-w-md mx-auto">
+                  
+                  {/* FEATURED AD SHOWN TO NON-LOGGED IN USERS AS WELL */}
+                  {renderFeaturedAd()}
+
+                  <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 text-center">
+                    <div className="w-16 h-16 bg-red-50 rounded-2xl mx-auto flex items-center justify-center mb-6">
+                      <User className="w-8 h-8 text-red-600" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Student Portal</h2>
+                    <p className="text-gray-500 text-sm mb-8">Sign in with your college email to manage access.</p>
+                    
+                    <div className="space-y-3">
+                      <button 
+                        onClick={handleGoogleLogin} 
+                        className="w-full bg-white border border-gray-300 text-gray-700 font-bold py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-50 transition-all shadow-sm"
+                      >
+                         <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="Google" />
+                         Continue with Google
+                      </button>
+                      <button 
+                        onClick={handleMicrosoftLogin} 
+                        className="w-full bg-white border border-gray-300 text-gray-700 font-bold py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-50 transition-all shadow-sm"
+                      >
+                         <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" className="w-5 h-5" alt="Microsoft" />
+                         Continue with Microsoft
+                      </button>
+                    </div>
+
+                    <div className="relative my-6">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-200"></div>
+                      </div>
+                      <div className="relative flex justify-center text-sm">
+                        <span className="px-2 bg-white text-gray-500">OR</span>
+                      </div>
+                    </div>
+
+                    <form onSubmit={handleManualLogin} className="space-y-3">
+                       {portalError && (
+                         <div className="text-red-600 text-sm font-bold flex items-center justify-center gap-1">
+                           <AlertCircle className="w-4 h-4" />{portalError}
+                         </div>
+                       )}
+                       <input 
+                         type="text" 
+                         value={manualRollNo} 
+                         onChange={e => setManualRollNo(e.target.value.toUpperCase())} 
+                         placeholder="Roll No (e.g. 24BC008)" 
+                         className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-center font-bold uppercase placeholder:normal-case outline-none" 
+                       />
+                       <input 
+                         type="password" 
+                         value={manualPasscode} 
+                         onChange={e => setManualPasscode(e.target.value)} 
+                         placeholder="Access Code" 
+                         className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-center tracking-widest outline-none" 
+                       />
+                       <button 
+                         type="submit" 
+                         disabled={isPortalLoading} 
+                         className="w-full bg-gray-900 hover:bg-gray-800 text-white py-3.5 rounded-xl font-bold transition-all shadow-md"
+                       >
+                         {isPortalLoading ? 'Logging in...' : 'Login with Code'}
+                       </button>
+                    </form>
                   </div>
-                  <div className="relative my-6"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div><div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-gray-500">OR</span></div></div>
-                  <form onSubmit={handleManualLogin} className="space-y-3">
-                     {portalError && <div className="text-red-600 text-sm font-bold flex items-center justify-center gap-1"><AlertCircle className="w-4 h-4" />{portalError}</div>}
-                     <input type="text" value={manualRollNo} onChange={e => setManualRollNo(e.target.value.toUpperCase())} placeholder="Roll No (e.g. 24BC008)" className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-center font-bold uppercase placeholder:normal-case outline-none" />
-                     <input type="password" value={manualPasscode} onChange={e => setManualPasscode(e.target.value)} placeholder="Access Code" className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-center tracking-widest outline-none" />
-                     <button type="submit" disabled={isPortalLoading} className="w-full bg-gray-900 hover:bg-gray-800 text-white py-3.5 rounded-xl font-bold transition-all shadow-md">{isPortalLoading ? 'Logging in...' : 'Login with Code'}</button>
-                  </form>
                 </div>
              )}
 
@@ -809,51 +1013,59 @@ function App() {
                    <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 text-white rounded-2xl p-6 shadow-lg flex justify-between items-center relative overflow-hidden">
                       <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -mr-20 -mt-20"></div>
                       <div className="relative z-10">
-                        <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest flex items-center gap-2"><User className="w-4 h-4" /> My Dashboard</p>
+                        <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                          <User className="w-4 h-4" /> My Dashboard
+                        </p>
                         <h2 className="text-3xl sm:text-4xl font-black mt-1 tracking-tight">{studentUser?.rollNo}</h2>
                         <p className="text-indigo-100 font-medium mt-1">{studentUser?.semester} • Section {studentUser?.section}</p>
                       </div>
                       <div className="relative z-10 flex gap-2">
-                         <button onClick={() => setPortalMode('settings')} className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all shadow-sm active:scale-95"><Settings className="w-5 h-5 text-white" /></button>
-                         <button onClick={handleStudentLogout} className="p-3 bg-red-500/80 hover:bg-red-500 rounded-xl transition-all shadow-sm active:scale-95"><LogOut className="w-5 h-5 text-white" /></button>
+                         <button 
+                           onClick={() => setPortalMode('settings')} 
+                           className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all shadow-sm active:scale-95"
+                         >
+                           <Settings className="w-5 h-5 text-white" />
+                         </button>
+                         <button 
+                           onClick={handleStudentLogout} 
+                           className="p-3 bg-red-500/80 hover:bg-red-500 rounded-xl transition-all shadow-sm active:scale-95"
+                         >
+                           <LogOut className="w-5 h-5 text-white" />
+                         </button>
                       </div>
                    </div>
 
-                   {/* --- FEATURED AD BANNER --- */}
-                   {featuredAd && (
-                     <div className="relative bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in slide-in-from-top-4 fade-in duration-500">
-                        <button onClick={() => handleDismissAd(featuredAd.id)} className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 hover:bg-white/50 rounded-full transition-colors z-10"><XCircle className="w-5 h-5" /></button>
-                        
-                        <div className="flex items-start gap-3">
-                          <div className="bg-gradient-to-br from-yellow-100 to-orange-100 p-2.5 rounded-xl border border-yellow-200 text-yellow-600 shrink-0"><Megaphone className="w-6 h-6" /></div>
-                          <div className="pr-6">
-                            <span className="bg-yellow-200 text-yellow-800 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md mb-1 inline-block shadow-sm">Featured • {featuredAd.event_type}</span>
-                            <h3 className="font-bold text-gray-900 leading-tight">{featuredAd.event_name}</h3>
-                            <p className="text-xs font-semibold text-gray-600 mt-0.5">{featuredAd.society_name} • {featuredAd.event_date}</p>
-                          </div>
-                        </div>
-                        
-                        <button 
-                          onClick={() => handleTrackClick(featuredAd.id, featuredAd.registration_link)}
-                          className="w-full sm:w-auto text-center bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-orange-950 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-md hover:shadow-lg active:scale-95 whitespace-nowrap"
-                        >
-                          View Details
-                        </button>
-                     </div>
-                   )}
+                   {/* FEATURED AD BANNER LOGGED IN */}
+                   {renderFeaturedAd()}
 
                    <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
                        <div className="bg-gray-50 p-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <span className="font-bold text-gray-800 text-lg flex items-center gap-2"><CalendarDays className="w-5 h-5 text-indigo-600" /> Weekly Schedule</span>
+                          <span className="font-bold text-gray-800 text-lg flex items-center gap-2">
+                            <CalendarDays className="w-5 h-5 text-indigo-600" /> Weekly Schedule
+                          </span>
                           <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">{formattedDate}</span>
                        </div>
+                       
                        <div className="flex overflow-x-auto gap-2 p-4 border-b border-gray-100 scrollbar-hide bg-white">
                           {Object.values(DayOfWeek).map(day => (
-                             <button key={day} onClick={() => setMyScheduleDay(day)} className={`px-5 py-2.5 rounded-xl font-bold whitespace-nowrap transition-all flex-shrink-0 ${myScheduleDay === day ? 'bg-indigo-600 text-white shadow-md scale-105' : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'}`}>{day}</button>
+                             <button 
+                               key={day} 
+                               onClick={() => setMyScheduleDay(day)} 
+                               className={`px-5 py-2.5 rounded-xl font-bold whitespace-nowrap transition-all flex-shrink-0 ${
+                                 myScheduleDay === day 
+                                   ? 'bg-indigo-600 text-white shadow-md scale-105' 
+                                   : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
+                               }`}
+                             >
+                               {day}
+                             </button>
                           ))}
                        </div>
+                       
                        <div className="p-4 space-y-3 bg-gray-50/30">
-                          {myTimetableData ? renderTimetableSlots(myTimetableData, myScheduleDay) : (<div className="text-center py-12 text-gray-500">No schedule data found.</div>)}
+                          {myTimetableData ? renderTimetableSlots(myTimetableData, myScheduleDay) : (
+                            <div className="text-center py-12 text-gray-500">No schedule data found.</div>
+                          )}
                        </div>
                    </div>
                 </div>
@@ -862,22 +1074,57 @@ function App() {
              {/* 5. SETTINGS MODE */}
              {isStudentLoggedIn && portalMode === 'settings' && (
                 <div className="max-w-md mx-auto mt-6 bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
-                   <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2"><Settings className="w-6 h-6 text-indigo-600" /> Settings</h2>
-                   {portalError && <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm font-medium rounded-lg flex items-center gap-2"><AlertCircle className="w-4 h-4" />{portalError}</div>}
-                   {portalMsg && <div className="mb-4 p-3 bg-green-50 text-green-700 text-sm font-medium rounded-lg flex items-center gap-2"><CheckCircle className="w-4 h-4" />{portalMsg}</div>}
+                   <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                     <Settings className="w-6 h-6 text-indigo-600" /> Settings
+                   </h2>
+                   
+                   {portalError && (
+                     <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm font-medium rounded-lg flex items-center gap-2">
+                       <AlertCircle className="w-4 h-4" />{portalError}
+                     </div>
+                   )}
+                   
+                   {portalMsg && (
+                     <div className="mb-4 p-3 bg-green-50 text-green-700 text-sm font-medium rounded-lg flex items-center gap-2">
+                       <CheckCircle className="w-4 h-4" />{portalMsg}
+                     </div>
+                   )}
+                   
                    <form onSubmit={handleChangeSettingsPasscode} className="space-y-4">
                       <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Current Passcode</label>
-                        <input type="password" value={studentPasscode} onChange={e => setStudentPasscode(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl outline-none" placeholder="Enter current code" />
+                        <input 
+                          type="password" 
+                          value={studentPasscode} 
+                          onChange={e => setStudentPasscode(e.target.value)} 
+                          className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl outline-none" 
+                          placeholder="Enter current code" 
+                        />
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-2">New Passcode</label>
-                        <input type="password" value={newAccessCode} onChange={e => setNewAccessCode(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl outline-none" placeholder="Enter new code" />
+                        <input 
+                          type="password" 
+                          value={newAccessCode} 
+                          onChange={e => setNewAccessCode(e.target.value)} 
+                          className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl outline-none" 
+                          placeholder="Enter new code" 
+                        />
                       </div>
-                      <button type="submit" disabled={isPortalLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-md transition-all mt-2">
+                      <button 
+                        type="submit" 
+                        disabled={isPortalLoading} 
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-md transition-all mt-2"
+                      >
                         {isPortalLoading ? 'Updating...' : 'Update Passcode'}
                       </button>
-                      <button type="button" onClick={() => { setPortalMode('login'); setPortalError(''); setPortalMsg(''); }} className="w-full text-gray-500 py-2 font-semibold hover:text-gray-800 transition-colors">Cancel</button>
+                      <button 
+                        type="button" 
+                        onClick={() => { setPortalMode('login'); setPortalError(''); setPortalMsg(''); }} 
+                        className="w-full text-gray-500 py-2 font-semibold hover:text-gray-800 transition-colors"
+                      >
+                        Cancel
+                      </button>
                    </form>
                 </div>
              )}
@@ -885,13 +1132,27 @@ function App() {
           </div>
         )}
 
-        {/* TIME CONTROLS */}
+        {/* TIME CONTROLS FOR ROOMS & TEACHERS */}
         {(activeTab === 'rooms' || activeTab === 'teachers') && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-6 animate-in fade-in slide-in-from-bottom-4">
-             <div className="flex items-center gap-2 mb-4 text-gray-500 text-xs font-bold uppercase tracking-widest"><Clock className="w-4 h-4 text-red-600" /> Global Time Settings</div>
+             <div className="flex items-center gap-2 mb-4 text-gray-500 text-xs font-bold uppercase tracking-widest">
+               <Clock className="w-4 h-4 text-red-600" /> Global Time Settings
+             </div>
              <div className="grid grid-cols-2 gap-4">
-                <select value={selectedDay} onChange={(e) => setSelectedDay(e.target.value as DayOfWeek)} className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm font-semibold rounded-xl p-3 outline-none">{Object.values(DayOfWeek).map(day => <option key={day} value={day}>{day}</option>)}</select>
-                <select value={selectedTimeIndex} onChange={(e) => setSelectedTimeIndex(Number(e.target.value))} className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm font-semibold rounded-xl p-3 outline-none">{TIME_SLOTS.map((slot, index) => <option key={index} value={index}>{slot}</option>)}</select>
+                <select 
+                  value={selectedDay} 
+                  onChange={(e) => setSelectedDay(e.target.value as DayOfWeek)} 
+                  className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm font-semibold rounded-xl p-3 outline-none"
+                >
+                  {Object.values(DayOfWeek).map(day => <option key={day} value={day}>{day}</option>)}
+                </select>
+                <select 
+                  value={selectedTimeIndex} 
+                  onChange={(e) => setSelectedTimeIndex(Number(e.target.value))} 
+                  className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm font-semibold rounded-xl p-3 outline-none"
+                >
+                  {TIME_SLOTS.map((slot, index) => <option key={index} value={index}>{slot}</option>)}
+                </select>
              </div>
           </div>
         )}
@@ -901,24 +1162,48 @@ function App() {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             {!activeSearchTimetable ? (
                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center max-w-md mx-auto mt-10">
-                  <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-6"><Search className="w-10 h-10 text-purple-600" /></div>
+                  <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Search className="w-10 h-10 text-purple-600" />
+                  </div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">Search Any Timetable</h2>
                   <form onSubmit={handleGlobalSearchTimetable} className="space-y-4">
-                     <input type="text" placeholder="e.g. 24BC008" value={timetableRollNo} onChange={(e) => setTimetableRollNo(e.target.value.toUpperCase())} className="w-full text-center text-lg p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none uppercase font-bold" />
-                     <button type="submit" className="w-full bg-purple-600 text-white font-bold py-3.5 rounded-xl shadow-md active:scale-95">Look Up Schedule</button>
+                     <input 
+                       type="text" 
+                       placeholder="e.g. 24BC008" 
+                       value={timetableRollNo} 
+                       onChange={(e) => setTimetableRollNo(e.target.value.toUpperCase())} 
+                       className="w-full text-center text-lg p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none uppercase font-bold" 
+                     />
+                     <button 
+                       type="submit" 
+                       className="w-full bg-purple-600 text-white font-bold py-3.5 rounded-xl shadow-md active:scale-95"
+                     >
+                       Look Up Schedule
+                     </button>
                   </form>
                </div>
             ) : (
                <div className="max-w-3xl mx-auto">
                   <div className="flex justify-between gap-4 mb-6 bg-white p-5 rounded-2xl border shadow-sm">
                      <div>
-                       <h2 className="text-2xl font-bold flex items-center gap-2"><CalendarDays className="w-6 h-6 text-purple-600" /> Viewing Schedule</h2>
-                       <p className="text-gray-500 font-medium mt-1">Roll No: <span className="text-gray-900 font-bold bg-gray-100 px-2 py-0.5 rounded">{timetableRollNo}</span></p>
+                       <h2 className="text-2xl font-bold flex items-center gap-2">
+                         <CalendarDays className="w-6 h-6 text-purple-600" /> Viewing Schedule
+                       </h2>
+                       <p className="text-gray-500 font-medium mt-1">
+                         Roll No: <span className="text-gray-900 font-bold bg-gray-100 px-2 py-0.5 rounded">{timetableRollNo}</span>
+                       </p>
                      </div>
-                     <button onClick={() => { setActiveSearchTimetable(null); setTimetableRollNo(''); }} className="text-sm font-bold text-gray-600 bg-gray-100 px-4 py-2.5 rounded-xl hover:bg-gray-200 flex items-center gap-2"><Search className="w-4 h-4" /> Back</button>
+                     <button 
+                       onClick={() => { setActiveSearchTimetable(null); setTimetableRollNo(''); }} 
+                       className="text-sm font-bold text-gray-600 bg-gray-100 px-4 py-2.5 rounded-xl hover:bg-gray-200 flex items-center gap-2"
+                     >
+                       <Search className="w-4 h-4" /> Back
+                     </button>
                   </div>
                   <div className="bg-white border rounded-2xl overflow-hidden shadow-sm">
-                     <div className="p-4 space-y-3 bg-gray-50/30">{renderTimetableSlots(activeSearchTimetable, searchTimetableDay)}</div>
+                     <div className="p-4 space-y-3 bg-gray-50/30">
+                       {renderTimetableSlots(activeSearchTimetable, searchTimetableDay)}
+                     </div>
                   </div>
                </div>
             )}
@@ -929,14 +1214,30 @@ function App() {
         {activeTab === 'rooms' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
              <TeachersOnLeaveDashboard />
+             
              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {availableRooms.map((room) => {
                   const duration = calculateFreeDuration(room, selectedTimeIndex);
                   return (
-                    <button key={room.id} onClick={() => setSelectedRoomId(room.id)} className={`relative bg-white rounded-xl border p-5 flex flex-col items-center justify-center text-center transition-all hover:shadow-lg hover:-translate-y-1 active:scale-95 group ${(room as any).tags ? 'border-green-400 ring-2 ring-green-50' : 'border-gray-200'}`}>
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 text-xl font-bold shadow-sm ${(room as any).tags ? 'bg-green-100 text-green-700' : 'bg-gray-50 text-gray-600 group-hover:bg-red-50 group-hover:text-red-600'}`}>{room.name.replace(/[^0-9]/g, '') || room.name.charAt(0)}</div>
+                    <button 
+                      key={room.id} 
+                      onClick={() => setSelectedRoomId(room.id)} 
+                      className={`relative bg-white rounded-xl border p-5 flex flex-col items-center justify-center text-center transition-all hover:shadow-lg hover:-translate-y-1 active:scale-95 group ${(room as any).tags ? 'border-green-400 ring-2 ring-green-50' : 'border-gray-200'}`}
+                    >
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 text-xl font-bold shadow-sm ${(room as any).tags ? 'bg-green-100 text-green-700' : 'bg-gray-50 text-gray-600 group-hover:bg-red-50 group-hover:text-red-600'}`}>
+                        {room.name.replace(/[^0-9]/g, '') || room.name.charAt(0)}
+                      </div>
                       <h3 className="font-bold text-gray-900 text-lg">{room.name}</h3>
-                      {(room as any).tags ? <span className="text-[10px] uppercase px-2 py-1 rounded-full mt-2 font-bold bg-green-100 text-green-700">FREED UP</span> : <div className="flex items-center gap-1 mt-2 bg-gray-100 px-2 py-1 rounded-full"><span className="text-[10px] font-bold text-gray-600 uppercase tracking-wide">{duration > 5 ? 'All Day' : `${duration} Hours`}</span></div>}
+                      
+                      {(room as any).tags ? (
+                        <span className="text-[10px] uppercase px-2 py-1 rounded-full mt-2 font-bold bg-green-100 text-green-700">FREED UP</span>
+                      ) : (
+                        <div className="flex items-center gap-1 mt-2 bg-gray-100 px-2 py-1 rounded-full">
+                          <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wide">
+                            {duration > 5 ? 'All Day' : `${duration} Hours`}
+                          </span>
+                        </div>
+                      )}
                     </button>
                   );
                 })}
@@ -948,20 +1249,35 @@ function App() {
         {activeTab === 'teachers' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="bg-white rounded-2xl shadow-sm border p-4 mb-6 sticky top-24 z-30">
-               <input type="text" placeholder="Search teacher..." value={finderSearchQuery} onChange={(e) => setFinderSearchQuery(e.target.value)} className="w-full text-lg pl-4 pr-4 py-3 bg-gray-50 rounded-xl outline-none" />
+               <input 
+                 type="text" 
+                 placeholder="Search teacher..." 
+                 value={finderSearchQuery} 
+                 onChange={(e) => setFinderSearchQuery(e.target.value)} 
+                 className="w-full text-lg pl-4 pr-4 py-3 bg-gray-50 rounded-xl outline-none" 
+               />
             </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                {visibleEntities.map((entity: any) => {
                  const statusInfo = getEntityStatus(entity);
                  return (
                    <div key={entity.id} className="bg-white border rounded-xl p-5 hover:shadow-md transition-all">
                       <div className="flex justify-between items-start mb-3">
-                         <div className="bg-gray-100 p-2.5 rounded-xl text-gray-500"><GraduationCap className="w-6 h-6" /></div>
-                         <div className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 ${statusInfo.color === 'red' ? 'bg-red-50 text-red-700' : statusInfo.color === 'blue' ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'}`}><statusInfo.icon className="w-3 h-3" /> {statusInfo.status}</div>
+                         <div className="bg-gray-100 p-2.5 rounded-xl text-gray-500">
+                           <GraduationCap className="w-6 h-6" />
+                         </div>
+                         <div className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 ${statusInfo.color === 'red' ? 'bg-red-50 text-red-700' : statusInfo.color === 'blue' ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'}`}>
+                           <statusInfo.icon className="w-3 h-3" /> {statusInfo.status}
+                         </div>
                       </div>
                       <h3 className="font-bold text-gray-900 text-lg leading-tight">{entity.name}</h3>
                       <p className="text-xs text-gray-500 font-bold uppercase tracking-wide mt-1">{entity.department}</p>
-                      <div className="mt-4 pt-4 border-t border-gray-100"><p className="text-sm text-gray-600 flex items-center gap-2"><Clock className="w-3.5 h-3.5 text-gray-400" /> {statusInfo.detail}</p></div>
+                      <div className="mt-4 pt-4 border-t border-gray-100">
+                        <p className="text-sm text-gray-600 flex items-center gap-2">
+                          <Clock className="w-3.5 h-3.5 text-gray-400" /> {statusInfo.detail}
+                        </p>
+                      </div>
                    </div>
                  );
                })}
@@ -971,60 +1287,74 @@ function App() {
 
         {/* --- LEAVE TAB --- */}
         {activeTab === 'leave' && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500"><TeachersOnLeaveDashboard /></div>
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <TeachersOnLeaveDashboard />
+          </div>
         )}
 
-        {/* --- SOCIETIES TAB (DYNAMIC DB RENDER) --- */}
+        {/* --- SOCIETIES TAB --- */}
         {activeTab === 'societies' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-             <div className="bg-gradient-to-r from-red-600 to-red-800 rounded-2xl text-white p-6 shadow-lg mb-8 flex flex-col md:flex-row items-center justify-between gap-6">
-                <div>
-                   <h2 className="text-2xl font-bold flex items-center gap-2"><Megaphone className="w-6 h-6 text-yellow-300" /> Upcoming Society Events</h2>
-                   <p className="text-red-100 mt-2">Discover what's happening around campus this week.</p>
-                </div>
-                <div className="text-center md:text-right">
-                   <a href="mailto:abcddcba121202@gmail.com" className="bg-white text-red-900 px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md hover:bg-gray-100 transition-all"><Mail className="w-5 h-5" /> List Your Event</a>
-                   <p className="text-xs text-red-200 mt-2 font-medium opacity-80">Listing starts @ ₹5/day</p>
-                </div>
-             </div>
-
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+             
+             {/* 1. EVENTS GRID ON TOP */}
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                {societyEvents.map((event) => (
                  <div key={event.id} className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-xl transition-all group relative overflow-hidden flex flex-col justify-between">
                     <div>
                       <div className="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-150"></div>
                       <div className="relative z-10">
-                         <span className="inline-block bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md mb-3">{event.event_type}</span>
+                         <span className="inline-block bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md mb-3">
+                           {event.event_type}
+                         </span>
                          <h3 className="text-xl font-bold text-gray-900 leading-tight mb-1">{event.event_name}</h3>
                          <p className="text-sm font-semibold text-gray-500 mb-4">{event.society_name}</p>
+                         
                          <div className="space-y-2 text-sm text-gray-600">
                             <div className="flex items-center gap-2"><CalendarDays className="w-4 h-4 text-red-500" /> {event.event_date}</div>
                             <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-red-500" /> {event.event_time}</div>
                             <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-red-500" /> {event.location}</div>
                          </div>
+                         
                          <div className="mt-4 pt-4 border-t border-gray-100 mb-6">
-                            <p className="text-sm text-gray-600 leading-relaxed italic">"{event.description}"</p>
+                            {/* whitespace-pre-wrap ensures paragraph formatting works */}
+                            <p className="text-sm text-gray-600 leading-relaxed italic whitespace-pre-wrap">{event.description}</p>
                          </div>
                       </div>
                     </div>
-                    {/* AD TRACKING INTEGRATED HERE */}
+                    
+                    {/* Event Tracking Button */}
                     <button 
-                      onClick={() => handleTrackClick(event.id, event.registration_link)}
+                      onClick={() => handleTrackClick(event.id, event.registration_link)} 
                       className="relative z-10 w-full text-center bg-red-50 text-red-700 hover:bg-red-600 hover:text-white py-3 rounded-xl font-bold transition-colors"
                     >
                        View / Register Now
                     </button>
                  </div>
                ))}
+               
                {societyEvents.length === 0 && (
                  <div className="col-span-full text-center py-12 text-gray-500 bg-white rounded-2xl border border-gray-200">
                    No upcoming events listed at the moment.
                  </div>
                )}
              </div>
+
+             {/* 2. PROMO BANNER AT BOTTOM */}
+             <div className="bg-gradient-to-r from-red-600 to-red-800 rounded-2xl text-white p-6 shadow-lg flex flex-col md:flex-row items-center justify-between gap-6">
+                <div>
+                   <h2 className="text-2xl font-bold flex items-center gap-2"><Megaphone className="w-6 h-6 text-yellow-300" /> Upcoming Society Events</h2>
+                   <p className="text-red-100 mt-2">Discover what's happening around campus this week.</p>
+                </div>
+                <div className="text-center md:text-right">
+                   <a href="mailto:abcddcba121202@gmail.com" className="bg-white text-red-900 px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md hover:bg-gray-100 transition-all">
+                     <Mail className="w-5 h-5" /> List Your Event
+                   </a>
+                   <p className="text-xs text-red-200 mt-2 font-medium opacity-80">Listing starts @ ₹5/day</p>
+                </div>
+             </div>
+
           </div>
         )}
-
       </main>
 
       {/* --- MODAL: ROOM TIMELINE --- */}
@@ -1057,19 +1387,16 @@ function App() {
 
                  <div className="p-4 space-y-3">
                    {selectedRoomTimeline.map((slot, index) => {
-                     const isCurrentSlot = index === selectedTimeIndex;
+                     const isCurrentSlot = index === selectedTimeIndex; 
                      const timeLabel = TIME_SLOTS[index];
+                     
                      return (
-                       <div key={index} className={`relative flex gap-4 p-3 rounded-xl border transition-all 
-                          ${slot ? 
-                             (slot.isAbsent ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-200 opacity-70') 
-                             : 'bg-green-50 border-green-200'}
-                          ${isCurrentSlot ? 'ring-2 ring-offset-2 ring-red-500 shadow-lg scale-[1.02] z-10 opacity-100' : ''}
-                       `}>
+                       <div key={index} className={`relative flex gap-4 p-3 rounded-xl border transition-all ${slot ? (slot.isAbsent ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-200 opacity-70') : 'bg-green-50 border-green-200'} ${isCurrentSlot ? 'ring-2 ring-offset-2 ring-red-500 shadow-lg scale-[1.02] z-10 opacity-100' : ''}`}>
                           <div className="w-16 shrink-0 flex flex-col justify-center items-center border-r border-gray-100 pr-3">
-                             <span className="text-sm font-bold text-gray-900">{timeLabel.split(' ')[0]}</span>
-                             <span className="text-[10px] text-gray-400 uppercase">{timeLabel.split(' ')[1]}</span>
+                            <span className="text-sm font-bold text-gray-900">{timeLabel.split(' ')[0]}</span>
+                            <span className="text-[10px] text-gray-400 uppercase">{timeLabel.split(' ')[1]}</span>
                           </div>
+                          
                           <div className="flex-1 flex flex-col justify-center">
                              {slot ? (
                                <>
@@ -1097,14 +1424,16 @@ function App() {
         </div>
       )}
 
-      {/* INSTALL MODAL (Fallback for iOS/Desktop) */}
+      {/* INSTALL MODAL */}
       {isInstallModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
+            
             <div className="p-4 bg-red-800 text-white flex justify-between items-center">
               <h2 className="font-bold text-lg flex items-center gap-2"><Download className="w-5 h-5" /> Install App</h2>
               <button onClick={() => setIsInstallModalOpen(false)} className="hover:bg-red-700 p-1 rounded">✕</button>
             </div>
+            
             <div className="p-6 space-y-6 overflow-y-auto text-gray-700">
                <div>
                  <h3 className="font-bold text-lg text-gray-900 mb-2 flex items-center gap-2">📱 Android (Chrome)</h3>
@@ -1125,17 +1454,20 @@ function App() {
                  </ol>
                </div>
             </div>
+            
             <div className="p-4 bg-gray-50 border-t text-center">
               <button onClick={() => setIsInstallModalOpen(false)} className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-semibold text-gray-700 transition-colors">Close Instructions</button>
             </div>
+          
           </div>
         </div>
       )}
 
-      {/* ADMIN MODAL (UPDATED WITH EVENT MANAGEMENT) */}
+      {/* ADMIN MODAL */}
       {isAdminOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
+            
             <div className="p-4 bg-red-800 text-white flex justify-between items-center">
               <h2 className="font-bold text-lg flex items-center gap-2"><Lock className="w-5 h-5" /> Admin Portal</h2>
               <button onClick={() => setIsAdminOpen(false)} className="hover:bg-red-700 p-1 rounded">✕</button>
@@ -1145,15 +1477,34 @@ function App() {
               {!isLoggedIn ? (
                 <div className="space-y-4">
                   <p className="text-gray-600 text-center">Enter Access Code</p>
-                  {loginError && (<div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg border text-sm font-medium"><AlertCircle className="w-4 h-4" />{loginError}</div>)}
-                  <input type="password" value={adminPass} onChange={e => setAdminPass(e.target.value)} className="w-full p-3 border rounded-xl text-center text-lg tracking-widest outline-none" placeholder="••••••••" />
-                  <button onClick={handleAdminLogin} className="w-full bg-red-800 text-white py-3 rounded-xl font-bold hover:bg-red-900 transition-colors">Unlock Dashboard</button>
+                  
+                  {loginError && (
+                    <div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg border text-sm font-medium">
+                      <AlertCircle className="w-4 h-4" />{loginError}
+                    </div>
+                  )}
+                  
+                  <input 
+                    type="password" 
+                    value={adminPass} 
+                    onChange={e => setAdminPass(e.target.value)} 
+                    className="w-full p-3 border rounded-xl text-center text-lg tracking-widest outline-none" 
+                    placeholder="••••••••" 
+                  />
+                  <button 
+                    onClick={handleAdminLogin} 
+                    className="w-full bg-red-800 text-white py-3 rounded-xl font-bold hover:bg-red-900 transition-colors"
+                  >
+                    Unlock Dashboard
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center mb-2">
                     <p className="text-sm font-bold text-gray-800">Welcome, Admin</p>
-                    <button onClick={() => setIsLoggedIn(false)} className="text-xs text-red-600 font-bold flex items-center gap-1"><LogOut className="w-3 h-3" /> Logout</button>
+                    <button onClick={() => setIsLoggedIn(false)} className="text-xs text-red-600 font-bold flex items-center gap-1">
+                      <LogOut className="w-3 h-3" /> Logout
+                    </button>
                   </div>
                   
                   {/* ADMIN TABS */}
@@ -1165,13 +1516,25 @@ function App() {
                   {/* ATTENDANCE TAB */}
                   {adminTab === 'attendance' && (
                     <>
-                      <input type="text" className="block w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-sm mb-4 outline-none" placeholder="Search for a teacher..." value={adminSearchQuery} onChange={(e) => setAdminSearchQuery(e.target.value)} />
+                      <input 
+                        type="text" 
+                        className="block w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-sm mb-4 outline-none" 
+                        placeholder="Search for a teacher..." 
+                        value={adminSearchQuery} 
+                        onChange={(e) => setAdminSearchQuery(e.target.value)} 
+                      />
                       <div className="space-y-2">
-                        {Object.values(TEACHER_SCHEDULES).filter(t => t.id !== 'ADMIN').filter(t => t.name.toLowerCase().includes(adminSearchQuery.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name)).map((t: any) => (
-                          <div key={t.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-                            <div><p className="font-bold text-gray-800 text-sm">{t.name}</p></div>
-                            <button onClick={() => toggleAbsence(t.id)} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${absentTeachers.includes(t.id) ? 'bg-red-500 text-white shadow-md' : 'bg-white border text-gray-600'}`}>{absentTeachers.includes(t.id) ? 'ABSENT' : 'Present'}</button>
-                          </div>
+                        {Object.values(TEACHER_SCHEDULES)
+                          .filter(t => t.id !== 'ADMIN')
+                          .filter(t => t.name.toLowerCase().includes(adminSearchQuery.toLowerCase()))
+                          .sort((a, b) => a.name.localeCompare(b.name))
+                          .map((t: any) => (
+                            <div key={t.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                              <div><p className="font-bold text-gray-800 text-sm">{t.name}</p></div>
+                              <button onClick={() => toggleAbsence(t.id)} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${absentTeachers.includes(t.id) ? 'bg-red-500 text-white shadow-md' : 'bg-white border text-gray-600'}`}>
+                                {absentTeachers.includes(t.id) ? 'ABSENT' : 'Present'}
+                              </button>
+                            </div>
                         ))}
                       </div>
                     </>
@@ -1180,10 +1543,12 @@ function App() {
                   {/* EVENTS / ADS TAB */}
                   {adminTab === 'events' && (
                     <div className="space-y-6">
-                      {/* CREATE FORM */}
+                      
                       <form onSubmit={handleCreateEvent} className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-3">
                          <h3 className="font-bold text-gray-800 text-sm flex items-center gap-2"><Megaphone className="w-4 h-4 text-indigo-500" /> Create New Listing</h3>
+                         
                          {eventMsg && <div className="text-xs font-bold text-indigo-600 bg-indigo-50 p-2 rounded">{eventMsg}</div>}
+                         
                          <div className="grid grid-cols-2 gap-2">
                            <input type="text" placeholder="Society Name" value={eventForm.society} onChange={e => setEventForm({...eventForm, society: e.target.value})} className="p-2.5 border border-gray-200 rounded-lg text-xs w-full outline-none" required />
                            <input type="text" placeholder="Event Name" value={eventForm.eventName} onChange={e => setEventForm({...eventForm, eventName: e.target.value})} className="p-2.5 border border-gray-200 rounded-lg text-xs w-full outline-none" required />
@@ -1191,32 +1556,41 @@ function App() {
                            <input type="text" placeholder="Time (e.g. 10 AM)" value={eventForm.time} onChange={e => setEventForm({...eventForm, time: e.target.value})} className="p-2.5 border border-gray-200 rounded-lg text-xs w-full outline-none" required />
                            <input type="text" placeholder="Venue / Location" value={eventForm.location} onChange={e => setEventForm({...eventForm, location: e.target.value})} className="p-2.5 border border-gray-200 rounded-lg text-xs w-full outline-none" required />
                            <select value={eventForm.type} onChange={e => setEventForm({...eventForm, type: e.target.value})} className="p-2.5 border border-gray-200 rounded-lg text-xs w-full outline-none font-bold text-gray-600">
-                              <option>Featured</option><option>Competition</option><option>Workshop</option><option>Speaker Session</option>
+                              <option>Featured</option>
+                              <option>Competition</option>
+                              <option>Workshop</option>
+                              <option>Speaker Session</option>
                            </select>
                          </div>
+                         
                          <input type="url" placeholder="Registration Link URL" value={eventForm.link} onChange={e => setEventForm({...eventForm, link: e.target.value})} className="p-2.5 border border-gray-200 rounded-lg text-xs w-full outline-none" required />
                          <textarea placeholder="Write a short description..." value={eventForm.description} onChange={e => setEventForm({...eventForm, description: e.target.value})} className="p-2.5 border border-gray-200 rounded-lg text-xs w-full h-16 outline-none" required></textarea>
+                         
                          <button type="submit" disabled={isEventSubmitting} className="w-full bg-indigo-600 text-white font-bold py-2.5 rounded-lg shadow-md hover:bg-indigo-700 active:scale-95 transition-all text-sm">
                            {isEventSubmitting ? 'Saving to Database...' : 'Launch Ad'}
                          </button>
                       </form>
 
-                      {/* LIST OF ADS & ANALYTICS */}
                       <div className="space-y-3">
                          <h3 className="font-bold text-gray-800 text-sm border-b pb-2">Live & Past Listings Tracker</h3>
                          {societyEvents.map(event => (
                            <div key={event.id} className={`p-3 border rounded-xl flex flex-col gap-3 transition-all ${event.is_active ? 'bg-white border-green-200 shadow-sm' : 'bg-gray-100 border-gray-200 opacity-60'}`}>
+                             
                              <div className="flex justify-between items-start">
                                <div>
                                  <p className="font-bold text-sm text-gray-900 leading-tight">{event.event_name}</p>
                                  <p className="text-[10px] font-bold text-gray-500 uppercase">{event.society_name}</p>
                                </div>
-                               <button onClick={() => handleToggleEvent(event.id, event.is_active)} className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded shadow-sm ${event.is_active ? 'bg-green-100 text-green-700 hover:bg-red-100 hover:text-red-700' : 'bg-gray-200 text-gray-600 hover:bg-green-100 hover:text-green-700'}`}>
-                                 {event.is_active ? 'Live (Turn Off)' : 'Off (Turn On)'}
-                               </button>
+                               <div className="flex flex-col gap-1 items-end">
+                                 <button onClick={() => handleToggleEvent(event.id, event.is_active)} className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded shadow-sm ${event.is_active ? 'bg-green-100 text-green-700 hover:bg-red-100 hover:text-red-700' : 'bg-gray-200 text-gray-600 hover:bg-green-100 hover:text-green-700'}`}>
+                                   {event.is_active ? 'Live (Turn Off)' : 'Off (Turn On)'}
+                                 </button>
+                                 <button onClick={() => handlePinEvent(event.id)} className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded shadow-sm ${event.is_pinned ? 'bg-yellow-100 text-yellow-700 border border-yellow-300' : 'bg-gray-100 text-gray-500 hover:bg-yellow-50'}`}>
+                                   {event.is_pinned ? '★ Featured' : 'Make Featured'}
+                                 </button>
+                               </div>
                              </div>
                              
-                             {/* Mini Analytics Board */}
                              <div className="flex gap-2">
                                <div className="flex-1 bg-gray-50 rounded border border-gray-100 p-2 flex items-center justify-between">
                                  <span className="text-[10px] text-gray-500 font-bold flex items-center gap-1"><Eye className="w-3 h-3 text-blue-500"/> Views</span>
@@ -1227,8 +1601,10 @@ function App() {
                                  <span className="font-black text-gray-800">{event.clicks || 0}</span>
                                </div>
                              </div>
+
                            </div>
                          ))}
+                         
                          {societyEvents.length === 0 && <p className="text-xs text-gray-500 text-center py-4 italic">No advertisements in the database.</p>}
                       </div>
                     </div>
@@ -1246,7 +1622,13 @@ function App() {
         <div className="max-w-4xl mx-auto px-4 text-center text-gray-500 text-sm space-y-8">
           <div className="bg-red-50/50 p-6 rounded-2xl border border-red-100 space-y-3">
             <h3 className="font-semibold text-gray-900">Disclaimer & Contact</h3>
-            <p className="leading-relaxed">This website is for easing the process of finding empty rooms. Not an official website.</p>
+            <p className="leading-relaxed">This website is for easing the process of finding empty rooms. It is made out of curiosity and to help students. All the data used to make this website is freely publicly available on the SRCC website. Please note that minor errors may be present and shifts in classes can happen with changes in timetables. There might be 5-10% data mismatch at max due to the complex structure of Timetables and accompanying changes. Any money earned through this website will be used to keep it operational.</p>
+            <p className="pt-2 font-medium">If you want to reach out or give any suggestion, feedback, complaint, or anything else, kindly mail us at <a href="mailto:abcddcba121202@gmail.com" className="text-red-700 hover:text-red-900 underline decoration-red-300 underline-offset-2">abcddcba121202@gmail.com</a>.</p>
+          </div>
+          <div>
+            <p>Data derived from SRCC Time Table 2025-26.</p>
+            <p className="mt-1">Note: Break time is usually 01:30 PM - 02:00 PM.</p>
+            <p>Not an official website.</p>
           </div>
         </div>
       </footer>

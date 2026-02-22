@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="google-site-verification" content="X0hFNA_KYCYG48OBsCuM_ek0cAdyZyGllDLPIdy1lVo" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#991b1b" />
+    <link rel="manifest" href="/manifest.json" />
+    
     <title>SRCC Empty Room Finder</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -27,5 +30,13 @@
   <body>
     <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
+  
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js');
+      });
+    }
+  </script>
 </body>
 </html>

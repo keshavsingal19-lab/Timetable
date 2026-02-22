@@ -91,6 +91,9 @@ function App() {
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [isSiteBlocked, setIsSiteBlocked] = useState(false);
   const [blockMessage, setBlockMessage] = useState('');
+  
+  // PWA Install Prompt State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   // Global Search Timetable (Formerly the main timetable tab)
   const [timetableRollNo, setTimetableRollNo] = useState('');
@@ -141,6 +144,13 @@ function App() {
          setSelectedTimeIndex(estimatedSlot);
       }
     }
+
+    // PWA Install Prompt Interception
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault(); // Stop the automatic annoying banner!
+      setDeferredPrompt(e); // Save it to trigger later via our "Get App" button
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     // Check for Auth Token in URL (Return from Google/Outlook)
     const urlParams = new URLSearchParams(window.location.search);
@@ -198,6 +208,10 @@ function App() {
         console.error("Attendance fetch error:", err);
         setLoading(false);
       });
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, []); 
 
   const completeLogin = (user: any) => {
@@ -311,6 +325,21 @@ function App() {
     setMyTimetableData(null);
     localStorage.removeItem("studentUser");
     setPortalMode('login');
+  };
+
+  // --- PWA INSTALL HANDLER ---
+  const handleInstallAppClick = async () => {
+    if (deferredPrompt) {
+      // Show the native Android install prompt
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
+    } else {
+      // Fallback for iPhone/Safari: Show your existing instructions modal
+      setIsInstallModalOpen(true);
+    }
   };
 
   // --- ADMIN ACTIONS ---
@@ -722,7 +751,8 @@ function App() {
                 <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Campus events.</p>
               </button>
 
-              <button onClick={() => setIsInstallModalOpen(true)} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
+              {/* Updated Get App button using PWA logic */}
+              <button onClick={handleInstallAppClick} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col items-center text-center group active:scale-95">
                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-pink-50 text-pink-600 group-hover:bg-pink-600 group-hover:text-white">
                   <Download className="w-6 h-6 md:w-8 md:h-8" />
                 </div>
@@ -1302,7 +1332,7 @@ function App() {
         </div>
       )}
 
-      {/* INSTALL MODAL */}
+      {/* INSTALL MODAL (Fallback for iOS/Desktop) */}
       {isInstallModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">

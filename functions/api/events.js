@@ -1,29 +1,29 @@
 export async function onRequest(context) {
   const { request, env } = context;
   const { method } = request;
+  
+  // Use a stable date string (YYYY-MM-DD) for grouping stats by day
+  const today = new Date().toISOString().split('T')[0];
 
-  // 1. GET REQUEST: Fetch events
+  // 1. GET REQUEST: Fetch events with Daily + Total stats
   if (method === 'GET') {
     const url = new URL(request.url);
     const isAdmin = url.searchParams.get('admin') === 'true';
 
     try {
-      // ORDER BY e.is_pinned DESC ensures the pinned event is always first
+      // Logic: Join society_events with subqueries that sum up total stats 
+      // and filter for today's specific stats.
       let query = `
-        SELECT e.*, a.views, a.clicks 
+        SELECT 
+          e.*, 
+          COALESCE((SELECT SUM(views) FROM daily_event_analytics WHERE event_id = e.id), 0) as total_views,
+          COALESCE((SELECT SUM(clicks) FROM daily_event_analytics WHERE event_id = e.id), 0) as total_clicks,
+          COALESCE((SELECT views FROM daily_event_analytics WHERE event_id = e.id AND log_date = '${today}'), 0) as today_views,
+          COALESCE((SELECT clicks FROM daily_event_analytics WHERE event_id = e.id AND log_date = '${today}'), 0) as today_clicks
         FROM society_events e 
-        LEFT JOIN event_analytics a ON e.id = a.event_id 
-        WHERE e.is_active = 1 ORDER BY e.is_pinned DESC, e.id DESC
+        WHERE ${isAdmin ? '1=1' : 'e.is_active = 1'} 
+        ORDER BY e.is_pinned DESC, e.id DESC
       `;
-      
-      if (isAdmin) {
-        query = `
-          SELECT e.*, a.views, a.clicks 
-          FROM society_events e 
-          LEFT JOIN event_analytics a ON e.id = a.event_id 
-          ORDER BY e.is_pinned DESC, e.id DESC
-        `;
-      }
       
       const { results } = await env.DB.prepare(query).all();
       return Response.json(results || []);
@@ -37,29 +37,32 @@ export async function onRequest(context) {
     try {
       const body = await request.json();
 
-      // --- PUBLIC TRACKING (No password needed) ---
+      // --- PUBLIC TRACKING (Daily Upsert Logic) ---
       if (body.action === 'track') {
         const field = body.type === 'click' ? 'clicks' : 'views';
-        if (field === 'clicks' || field === 'views') {
-            await env.DB.prepare(`UPDATE event_analytics SET ${field} = ${field} + 1 WHERE event_id = ?`)
-              .bind(body.eventId)
-              .run();
-        }
+        
+        // UPSERT: If a row for (event_id + today's date) exists, increment it.
+        // Otherwise, create a new row for today starting at 1.
+        await env.DB.prepare(`
+          INSERT INTO daily_event_analytics (event_id, log_date, ${field}) 
+          VALUES (?, ?, 1)
+          ON CONFLICT(event_id, log_date) 
+          DO UPDATE SET ${field} = ${field} + 1
+        `).bind(body.eventId, today).run();
+
         return Response.json({ success: true });
       }
 
       // --- ADMIN ACTIONS (Password Required) ---
       if (body.password !== env.ADMIN_PASSWORD) {
-        return Response.json({ error: "Unauthorized. Incorrect password." }, { status: 403 });
+        return Response.json({ error: "Unauthorized" }, { status: 403 });
       }
 
-      // Action: Pin Event (Make Featured)
+      // Action: Pin Event
       if (body.action === 'pin') {
-        // First, unpin all events
         await env.DB.prepare("UPDATE society_events SET is_pinned = 0").run(); 
-        // Then, pin only the selected one
         await env.DB.prepare("UPDATE society_events SET is_pinned = 1 WHERE id = ?").bind(body.eventId).run(); 
-        return Response.json({ success: true, message: "Event Pinned Successfully!" });
+        return Response.json({ success: true });
       }
 
       // Action: Toggle Active Status
@@ -67,14 +70,13 @@ export async function onRequest(context) {
         await env.DB.prepare("UPDATE society_events SET is_active = ? WHERE id = ?")
           .bind(body.isActive ? 1 : 0, body.eventId)
           .run();
-        return Response.json({ success: true, message: "Status updated" });
+        return Response.json({ success: true });
       } 
       
       // Action: Delete Event
       else if (body.action === 'delete') {
-        // Deleting from society_events will automatically delete from event_analytics due to ON DELETE CASCADE
         await env.DB.prepare("DELETE FROM society_events WHERE id = ?").bind(body.eventId).run();
-        return Response.json({ success: true, message: "Event permanently deleted" });
+        return Response.json({ success: true });
       }
 
       // Action: Edit Event
@@ -86,23 +88,20 @@ export async function onRequest(context) {
         `).bind(
           body.society, body.eventName, body.date, body.time, body.location, body.type, body.description, body.link, body.eventId
         ).run();
-        return Response.json({ success: true, message: "Event Updated Successfully!" });
+        return Response.json({ success: true });
       }
       
       // Action: Create New Event
       else if (body.action === 'create') {
-        const insertRes = await env.DB.prepare(`
+        await env.DB.prepare(`
           INSERT INTO society_events 
           (society_name, event_name, event_date, event_time, location, event_type, description, registration_link) 
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `).bind(
           body.society, body.eventName, body.date, body.time, body.location, body.type, body.description, body.link
-        ).all();
-        
-        const newId = insertRes.results[0].id;
-        await env.DB.prepare("INSERT INTO event_analytics (event_id) VALUES (?)").bind(newId).run();
+        ).run();
 
-        return Response.json({ success: true, message: "Event Listed Successfully!" });
+        return Response.json({ success: true });
       }
     } catch (error) {
       return Response.json({ error: error.message }, { status: 500 });

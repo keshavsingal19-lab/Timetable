@@ -5,7 +5,7 @@ import {
   CalendarDays, Download, Share, Users, GraduationCap, 
   ArrowRight, MessageCircle, Star, Timer, Megaphone, Mail, Home,
   BookOpen, User, UserPlus, Key, Settings, Menu, ShieldCheck, ChevronRight,
-  Eye, MousePointerClick
+  Eye, MousePointerClick, Edit, Trash2
 } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
@@ -108,6 +108,7 @@ function App() {
 
   // --- SOCIETY EVENTS STATES ---
   const [societyEvents, setSocietyEvents] = useState<any[]>([]);
+  const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const [eventForm, setEventForm] = useState({
     type: 'Featured', society: '', eventName: '', date: '', time: '', location: '', description: '', link: ''
   });
@@ -430,23 +431,35 @@ function App() {
     }
   };
 
+  // Create or Update Event
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsEventSubmitting(true);
     setEventMsg('');
+    
+    // Check if we are creating or updating
+    const actionType = editingEventId ? 'edit' : 'create';
+
     try {
       const res = await fetch('/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'create', password: adminPass, ...eventForm })
+        body: JSON.stringify({ 
+          action: actionType, 
+          password: adminPass, 
+          eventId: editingEventId, // only used if editing
+          ...eventForm 
+        })
       });
       const data = await res.json();
+      
       if (res.ok) {
-        setEventMsg("Event Listed Successfully!");
+        setEventMsg(editingEventId ? "Event Updated Successfully!" : "Event Listed Successfully!");
         setEventForm({ type: 'Featured', society: '', eventName: '', date: '', time: '', location: '', description: '', link: '' });
+        setEditingEventId(null);
         fetchAdminEvents();
       } else {
-        setEventMsg(data.error || "Failed to create event.");
+        setEventMsg(data.error || "Failed to save event.");
       }
     } catch(e) { setEventMsg("Connection error."); }
     finally { setIsEventSubmitting(false); }
@@ -472,6 +485,39 @@ function App() {
       });
       fetchAdminEvents();
     } catch(e) { console.error(e); }
+  };
+
+  const handleDeleteEvent = async (id: number) => {
+    if (!window.confirm("Are you sure you want to completely delete this ad? This action cannot be undone.")) return;
+    try {
+      await fetch('/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', password: adminPass, eventId: id })
+      });
+      fetchAdminEvents();
+    } catch(e) { console.error(e); }
+  };
+
+  const handleEditClick = (event: any) => {
+    setEditingEventId(event.id);
+    setEventForm({
+      type: event.event_type,
+      society: event.society_name,
+      eventName: event.event_name,
+      date: event.event_date,
+      time: event.event_time,
+      location: event.location,
+      description: event.description,
+      link: event.registration_link
+    });
+    setEventMsg('');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingEventId(null);
+    setEventForm({ type: 'Featured', society: '', eventName: '', date: '', time: '', location: '', description: '', link: '' });
+    setEventMsg('');
   };
 
   const handleGlobalSearchTimetable = (e: React.FormEvent) => {
@@ -1545,7 +1591,10 @@ function App() {
                     <div className="space-y-6">
                       
                       <form onSubmit={handleCreateEvent} className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-3">
-                         <h3 className="font-bold text-gray-800 text-sm flex items-center gap-2"><Megaphone className="w-4 h-4 text-indigo-500" /> Create New Listing</h3>
+                         <h3 className="font-bold text-gray-800 text-sm flex items-center gap-2">
+                           <Megaphone className="w-4 h-4 text-indigo-500" /> 
+                           {editingEventId ? '✏️ Edit Listing' : '📢 Create New Listing'}
+                         </h3>
                          
                          {eventMsg && <div className="text-xs font-bold text-indigo-600 bg-indigo-50 p-2 rounded">{eventMsg}</div>}
                          
@@ -1566,9 +1615,16 @@ function App() {
                          <input type="url" placeholder="Registration Link URL" value={eventForm.link} onChange={e => setEventForm({...eventForm, link: e.target.value})} className="p-2.5 border border-gray-200 rounded-lg text-xs w-full outline-none" required />
                          <textarea placeholder="Write a short description..." value={eventForm.description} onChange={e => setEventForm({...eventForm, description: e.target.value})} className="p-2.5 border border-gray-200 rounded-lg text-xs w-full h-16 outline-none" required></textarea>
                          
-                         <button type="submit" disabled={isEventSubmitting} className="w-full bg-indigo-600 text-white font-bold py-2.5 rounded-lg shadow-md hover:bg-indigo-700 active:scale-95 transition-all text-sm">
-                           {isEventSubmitting ? 'Saving to Database...' : 'Launch Ad'}
-                         </button>
+                         <div className="flex gap-2">
+                           <button type="submit" disabled={isEventSubmitting} className="flex-1 bg-indigo-600 text-white font-bold py-2.5 rounded-lg shadow-md hover:bg-indigo-700 active:scale-95 transition-all text-sm">
+                             {isEventSubmitting ? 'Saving...' : (editingEventId ? 'Update Ad' : 'Launch Ad')}
+                           </button>
+                           {editingEventId && (
+                             <button type="button" onClick={handleCancelEdit} className="px-4 bg-gray-200 text-gray-700 font-bold py-2.5 rounded-lg hover:bg-gray-300 transition-all text-sm">
+                               Cancel
+                             </button>
+                           )}
+                         </div>
                       </form>
 
                       <div className="space-y-3">
@@ -1580,6 +1636,14 @@ function App() {
                                <div>
                                  <p className="font-bold text-sm text-gray-900 leading-tight">{event.event_name}</p>
                                  <p className="text-[10px] font-bold text-gray-500 uppercase">{event.society_name}</p>
+                                 <div className="flex gap-1 mt-2">
+                                    <button onClick={() => handleEditClick(event)} className="text-[10px] font-black uppercase px-2 py-1 rounded shadow-sm bg-blue-100 text-blue-700 hover:bg-blue-200 flex items-center gap-1">
+                                      <Edit className="w-3 h-3"/> Edit
+                                    </button>
+                                    <button onClick={() => handleDeleteEvent(event.id)} className="text-[10px] font-black uppercase px-2 py-1 rounded shadow-sm bg-red-100 text-red-700 hover:bg-red-200 flex items-center gap-1">
+                                      <Trash2 className="w-3 h-3"/> Delete
+                                    </button>
+                                 </div>
                                </div>
                                <div className="flex flex-col gap-1 items-end">
                                  <button onClick={() => handleToggleEvent(event.id, event.is_active)} className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded shadow-sm ${event.is_active ? 'bg-green-100 text-green-700 hover:bg-red-100 hover:text-red-700' : 'bg-gray-200 text-gray-600 hover:bg-green-100 hover:text-green-700'}`}>

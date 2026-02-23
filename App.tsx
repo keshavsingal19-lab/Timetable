@@ -166,9 +166,16 @@ function App() {
 
         if (payload.isNewUser) {
           setPortalMode('setup_access');
+          // --- AUTOMATIC EXTRACTION ---
+          if (payload.email) {
+            const extractedRoll = payload.email.split('@')[0].toUpperCase();
+            setSetupRollNo(extractedRoll);
+          }
         } else {
           setPortalMode('change_access');
-          setSetupRollNo(payload.rollNo || '');
+          // Even for existing users, sync the Roll No to their email prefix
+          const syncRoll = payload.email ? payload.email.split('@')[0].toUpperCase() : (payload.rollNo || '');
+          setSetupRollNo(syncRoll);
         }
         window.history.replaceState({}, document.title, "/");
         setActiveTab('student_portal');
@@ -914,16 +921,17 @@ function App() {
                     <AlertCircle className="w-4 h-4" />{portalError}
                   </div>
                 )}
-
+                
                 <form onSubmit={handleSetAccessCode} className="space-y-4">
                   <input
                     type="text"
                     value={setupRollNo}
-                    onChange={e => setSetupRollNo(e.target.value.toUpperCase())}
-                    placeholder="College Roll No (e.g. 24BC008)"
+                    readOnly
+                    placeholder="College Roll No"
                     className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-center uppercase"
                     required
                   />
+
                   <div className="grid grid-cols-2 gap-3">
                     <select
                       value={setupSemester}
@@ -1277,9 +1285,41 @@ function App() {
         {/* --- ROOM FINDER TAB --- */}
         {activeTab === 'rooms' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <TeachersOnLeaveDashboard />
-
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+             <TeachersOnLeaveDashboard />
+             
+             {/* --- NEW: SEARCH & FILTER CONTROLS --- */}
+             <div className="flex flex-col md:flex-row gap-3 mb-6">
+                <div className="relative flex-1">
+                   <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                      <Search className="w-5 h-5 text-gray-400" />
+                   </div>
+                   <input 
+                     type="text" 
+                     placeholder="Search room (e.g. 104)" 
+                     value={searchQuery} 
+                     onChange={(e) => setSearchQuery(e.target.value)} 
+                     className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl outline-none shadow-sm focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                   />
+                </div>
+                <div className="relative shrink-0 md:w-56">
+                   <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                      <Filter className="w-5 h-5 text-gray-400" />
+                   </div>
+                   <select 
+                     value={filterType} 
+                     onChange={(e) => setFilterType(e.target.value)} 
+                     className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl outline-none shadow-sm font-bold text-gray-700 appearance-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                   >
+                     <option value="All">All Rooms</option>
+                     <option value="Lecture Hall">Lecture Halls</option>
+                     <option value="Tutorial Room">Tutorial Rooms</option>
+                     <option value="Computer Lab">Computer Labs</option>
+                     <option value="Seminar Room">Seminar Rooms</option>
+                   </select>
+                </div>
+             </div>
+             
+             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {availableRooms.map((room) => {
                 const duration = calculateFreeDuration(room, selectedTimeIndex);
                 return (

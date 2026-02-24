@@ -1020,7 +1020,7 @@ function App() {
                     <User className="w-8 h-8 text-red-600" />
                   </div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">Student Portal</h2>
-                  <p className="text-gray-500 text-sm mb-8">Sign in with your college email to manage access.</p>
+                  <p className="text-gray-500 text-sm mb-8">Sign in with your college email to manage access.[Only for B.Com Hons]</p>
 
                   <div className="space-y-3">
                     <button

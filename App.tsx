@@ -6,7 +6,7 @@ import {
   ArrowRight, MessageCircle, Star, Timer, Megaphone, Mail, Home,
   BookOpen, User, UserPlus, Key, Settings, Menu, ShieldCheck, ChevronRight, ChevronLeft,
   Eye, MousePointerClick, Edit, Trash2, LayoutDashboard, Contact, CalendarOff, Globe, Map,
-  RefreshCw, Database
+  RefreshCw, Layers
 } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
@@ -45,15 +45,23 @@ const convertSem6Data = (data: any) => {
   return converted;
 };
 
-// Combine all semesters
-const ALL_STUDENT_SCHEDULES = {
-  ...SEM2_STUDENT_SCHEDULES,
-  ...SEM4_STUDENT_SCHEDULES,
-  ...convertSem6Data(sem6StudentData)
-};
+// Aggregated in App via useMemo
 
 const getDayName = (day: DayOfWeek): string => day;
 function App() {
+  // Move heavy data processing into useMemo to prevent top-level hangs
+  const ALL_STUDENT_SCHEDULES = useMemo(() => {
+    try {
+      return {
+        ...(SEM2_STUDENT_SCHEDULES || {}),
+        ...(SEM4_STUDENT_SCHEDULES || {}),
+        ...convertSem6Data(sem6StudentData)
+      };
+    } catch (e) {
+      console.error("Error processing student schedules:", e);
+      return {};
+    }
+  }, []);
   // --- NAVIGATION & GLOBAL STATES ---
   
     const [activeTab, setActiveTab] = useState<'menu' | 'rooms' | 'teachers' | 'societies' | 'timetable' | 'leave' | 'student_portal'>('student_portal');
@@ -1977,7 +1985,7 @@ function App() {
                       <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-5">
                         <div className="flex items-center gap-3 mb-3">
                           <div className="bg-white p-2 rounded-lg shadow-sm text-indigo-600">
-                            <Database className="w-5 h-5" />
+                            <Layers className="w-5 h-5" />
                           </div>
                           <div>
                             <h3 className="font-bold text-gray-900 text-sm">Room Data Engine</h3>

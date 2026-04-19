@@ -35,6 +35,9 @@ export interface RoomSchedule {
 export interface RoomData {
   id: string;
   name: string;
-  type: 'Lab' | 'Lecture Hall' | 'Seminar Room' | 'Tutorial Room';
+  type: string; // Changed from enum literal to string for flexibility
   emptySlots: RoomSchedule;
+  occupiedBy?: Record<string, Record<string, string[]>>; // Day -> SlotIdx -> TeacherCodes[]
+  occupiedByDetailed?: any;
+  source?: 'hardcoded' | 'database';
 }

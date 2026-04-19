@@ -853,7 +853,7 @@ function App() {
 
   const visibleEntities = useMemo(() => {
     const query = finderSearchQuery.toLowerCase();
-    return Object.values(liveTeachers)
+    return (Object.values(liveTeachers) as any[])
       .filter((t: any) => t.id !== 'ADMIN')
       .filter((t: any) => t.name.toLowerCase().includes(query))
       .map((t: any) => ({ ...t, type: 'teacher' }))
@@ -1939,7 +1939,7 @@ function App() {
                         onChange={(e) => setAdminSearchQuery(e.target.value)}
                       />
                       <div className="space-y-2">
-                        {Object.values(TEACHER_SCHEDULES)
+                        {(Object.values(liveTeachers) as any[])
                           .filter(t => t.id !== 'ADMIN')
                           .filter(t => t.name.toLowerCase().includes(adminSearchQuery.toLowerCase()))
                           .sort((a, b) => a.name.localeCompare(b.name))

@@ -5,7 +5,7 @@ import {
   CalendarDays, Download, Share, Users, GraduationCap,
   ArrowRight, MessageCircle, Star, Timer, Megaphone, Mail, Home,
   BookOpen, User, UserPlus, Key, Settings, Menu, ShieldCheck, ChevronRight, ChevronLeft,
-  Eye, MousePointerClick, Edit, Trash2, LayoutDashboard, Contact, CalendarOff, Globe, Map,
+  Eye, MousePointerClick, Edit, Trash2, LayoutDashboard, Contact, CalendarOff, Globe, Map as LucideMap,
   RefreshCw, Layers
 } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
@@ -1019,7 +1019,7 @@ function App() {
              <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>Dashboard</span>
            </button>
            <button onClick={() => { setActiveTab('rooms'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'rooms' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
-             <Map className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'rooms' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
+             <LucideMap className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'rooms' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
              <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>Room Finder</span>
            </button>
            <button onClick={() => { setActiveTab('teachers'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'teachers' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
@@ -1073,7 +1073,7 @@ function App() {
                  <LayoutDashboard className="w-5 h-5 shrink-0" /> <span>Dashboard</span>
                </button>
                <button onClick={() => { setActiveTab('rooms'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'rooms' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300'}`}>
-                 <Map className="w-5 h-5 shrink-0" /> <span>Room Finder</span>
+                 <LucideMap className="w-5 h-5 shrink-0" /> <span>Room Finder</span>
                </button>
                <button onClick={() => { setActiveTab('teachers'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'teachers' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300'}`}>
                  <Contact className="w-5 h-5 shrink-0" /> <span>Staff Info</span>

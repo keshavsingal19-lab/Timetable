@@ -37,12 +37,34 @@ function trackPageView() {
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     
-    <title>SRCC Finder - StudentAssist Tool for SRCC Students</title>
+    <title>Student Assist SRCC - SRCC Finder</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              srcc: {
+                deepNavy: '#003266',
+                portalNavy: '#000066',
+                yellow: '#FCEB08',
+                skyBg: '#BFE4FA',
+                pageBg: '#ebffff'
+              }
+            },
+            fontFamily: {
+              sans: ['Outfit', 'Poppins', 'sans-serif'],
+              serif: ['Cinzel', 'serif'],
+            }
+          }
+        }
+      }
+    </script>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&display=swap');
       body {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Outfit', sans-serif;
       }
     </style>
   <script type="importmap">

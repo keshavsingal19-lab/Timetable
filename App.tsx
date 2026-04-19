@@ -4,12 +4,13 @@ import {
   XCircle, LogOut, AlertTriangle, AlertCircle, UserMinus,
   CalendarDays, Download, Share, Users, GraduationCap,
   ArrowRight, MessageCircle, Star, Timer, Megaphone, Mail, Home,
-  BookOpen, User, UserPlus, Key, Settings, Menu, ShieldCheck, ChevronRight,
-  Eye, MousePointerClick, Edit, Trash2
+  BookOpen, User, UserPlus, Key, Settings, Menu, ShieldCheck, ChevronRight, ChevronLeft,
+  Eye, MousePointerClick, Edit, Trash2, LayoutDashboard, Contact, CalendarOff, Globe, Map,
+  RefreshCw, Database
 } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
-import { TEACHER_SCHEDULES } from './teacherData';
+// import { TEACHER_SCHEDULES } from './teacherData';
 import { SEM2_STUDENT_SCHEDULES } from './Sem2';
 import { SEM4_STUDENT_SCHEDULES } from './Sem4';
 import { sem6StudentData } from './Sem6';
@@ -52,17 +53,34 @@ const ALL_STUDENT_SCHEDULES = {
 };
 
 const getDayName = (day: DayOfWeek): string => day;
-
 function App() {
   // --- NAVIGATION & GLOBAL STATES ---
-  const [activeTab, setActiveTab] = useState<'menu' | 'rooms' | 'teachers' | 'societies' | 'timetable' | 'leave' | 'student_portal'>('student_portal');
-  const [selectedDay, setSelectedDay] = useState<DayOfWeek>(DayOfWeek.Monday);
-  const [selectedTimeIndex, setSelectedTimeIndex] = useState<number>(0);
+  
+    const [activeTab, setActiveTab] = useState<'menu' | 'rooms' | 'teachers' | 'societies' | 'timetable' | 'leave' | 'student_portal'>('student_portal');
+    
+    const [selectedDay, setSelectedDay] = useState<DayOfWeek>(DayOfWeek.Monday);
+    const [selectedTimeIndex, setSelectedTimeIndex] = useState<number>(0);
 
-  // --- ROOM & TEACHER FINDER STATES ---
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [filterType, setFilterType] = useState<string>('All');
-  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+    // --- ROOM & TEACHER FINDER STATES ---
+    const [searchQuery, setSearchQuery] = useState<string>('');
+    const [filterType, setFilterType] = useState<string>('All');
+    const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+    
+    const [liveRooms, setLiveRooms] = useState<RoomData[]>(ROOMS);
+    const [liveTeachers, setLiveTeachers] = useState<any>({});
+    
+    useEffect(() => {
+      fetch('/api/rooms').then(res => res.json()).then(data => {
+        if(Array.isArray(data) && data.length > 0) setLiveRooms(data);
+      }).catch(() => {});
+      fetch('/api/teachers').then(res => res.json()).then(data => {
+        if(Array.isArray(data) && data.length > 0) {
+           const map: any = {};
+           data.forEach((t: any) => map[t.id] = t);
+           setLiveTeachers(map);
+        }
+      }).catch(() => {});
+    }, []);
   const [finderSearchQuery, setFinderSearchQuery] = useState('');
 
   // --- ADMIN STATES ---
@@ -73,7 +91,133 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [loginError, setLoginError] = useState('');
   const [adminSearchQuery, setAdminSearchQuery] = useState('');
-  const [adminTab, setAdminTab] = useState<'attendance' | 'events'>('attendance');
+  const [adminTab, setAdminTab] = useState<'attendance' | 'events' | 'rooms_update'>('attendance');
+  const [isRoomUpdateLoading, setIsRoomUpdateLoading] = useState(false);
+  const [roomUpdateMsg, setRoomUpdateMsg] = useState('');
+  
+  // --- STREAMING ROOM SYNC STATES ---
+  const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(0);
+  const [syncTotal, setSyncTotal] = useState(0);
+  const [currentRoom, setCurrentRoom] = useState('');
+  const [syncLogs, setSyncLogs] = useState<string[]>([]);
+  const [syncCompleted, setSyncCompleted] = useState(false);
+  const logRef = React.useRef<HTMLDivElement>(null);
+
+  const startSync = async () => {
+    const ALL_ROOM_IDS = [
+      "CL1","CL2","CLIB","PB2","PB3","PB4",
+      "R1","R2","R3","R4","R5","R6","R7","R8","R10",
+      "R13","R14","R15","R16","R17","R18","R19","R20","R21","R22","R23","R24","R25",
+      "R26","R27","R28","R29","R30","R31","R32","R33","R34","R35","R37",
+      "SCR1","SCR2","SCR3","SCR4",
+      "T1","T2","T3","T4","T5","T6","T7","T8","T9",
+      "T11","T12","T13","T14","T15","T16","T17","T18",
+      "T23","T24","T25","T26","T27","T29",
+      "T31","T32","T33","T34","T35","T36","T37","T38","T39","T40",
+      "T41","T42","T43","T44","T45","T46","T48","T49","T50","T51","T53","T54"
+    ];
+
+    setSyncing(true);
+    setSyncProgress(0);
+    setSyncTotal(ALL_ROOM_IDS.length);
+    setSyncLogs([]);
+    setSyncCompleted(false);
+    setCurrentRoom('');
+    setRoomUpdateMsg('');
+
+    const BATCH_SIZE = 15;
+    const batches: string[][] = [];
+    for (let i = 0; i < ALL_ROOM_IDS.length; i += BATCH_SIZE) {
+      batches.push(ALL_ROOM_IDS.slice(i, i + BATCH_SIZE));
+    }
+
+    let globalProcessed = 0;
+
+    try {
+      for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+        const isFirstBatch = i === 0;
+        
+        const response = await fetch('/api/sync_rooms', { 
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            roomIds: batch,
+            totalRooms: ALL_ROOM_IDS.length,
+            isFirstBatch,
+            processedCount: globalProcessed,
+            password: adminPass
+          })
+        });
+
+        if (!response.ok || !response.body) {
+          if (response.status === 401) throw new Error("Unauthorized");
+          throw new Error('Batch ' + (i+1) + ' failed to start.');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const event = JSON.parse(line.slice(6));
+
+              if (event.type === 'start') {
+                if (isFirstBatch) setSyncLogs(prev => [...prev, '🚀 ' + event.message]);
+              } else if (event.type === 'progress') {
+                setSyncProgress(event.processed);
+                globalProcessed = event.processed;
+                setCurrentRoom(event.room);
+                setSyncLogs(prev => [...prev, event.message]);
+              } else if (event.type === 'skip') {
+                setSyncProgress(event.processed);
+                globalProcessed = event.processed;
+                setSyncLogs(prev => [...prev, '⏭️ ' + event.message]);
+              } else if (event.type === 'error') {
+                setSyncProgress(event.processed);
+                globalProcessed = event.processed;
+                setSyncLogs(prev => [...prev, event.message]);
+              } else if (event.type === 'complete') {
+                if (i === batches.length - 1) {
+                  setSyncCompleted(true);
+                  setSyncLogs(prev => [...prev, '🎉 ' + event.message]);
+                  setRoomUpdateMsg('Updated smoothly!');
+                  
+                  // Reload fresh DB
+                  const freshRooms = await fetch('/api/rooms').then(r => r.json());
+                  if (Array.isArray(freshRooms) && freshRooms.length > 0) setLiveRooms(freshRooms);
+                } else {
+                  setSyncLogs(prev => [...prev, '📦 Batch ' + (i+1) + ' complete. Starting next...']);
+                }
+              } else if (event.type === 'fatal') {
+                throw new Error(event.message);
+              }
+            } catch (e) {}
+          }
+
+          if (logRef.current) {
+            logRef.current.scrollTop = logRef.current.scrollHeight;
+          }
+        }
+      }
+    } catch (err: any) {
+      setRoomUpdateMsg('Sync failed: ' + err.message);
+      setSyncLogs(prev => [...prev, '💀 ' + err.message]);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   // --- MODAL & PWA STATES ---
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
@@ -118,6 +262,10 @@ function App() {
   // --- AD TRACKING & MEMORY ---
   const [dismissedAds, setDismissedAds] = useState<number[]>([]);
   const [trackedViews, setTrackedViews] = useState<number[]>([]);
+
+  // --- SIDEBAR LAYOUT STATES ---
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const todayDateObj = new Date();
   const currentDayName = todayDateObj.toLocaleDateString('en-US', { weekday: 'long' });
@@ -318,6 +466,20 @@ function App() {
     if (!manualRollNo || !manualPasscode) return setPortalError('Enter Roll No and Access Code.');
 
     setIsPortalLoading(true);
+    
+    // --- LOCAL DEV BYPASS ---
+    if (import.meta.env.DEV) {
+      setTimeout(() => {
+        const dummyUser = { fillName: "Demo Student", rollNo: manualRollNo.toUpperCase(), semester: "IV", section: "A" };
+        completeLogin(dummyUser);
+        localStorage.setItem("studentUser", JSON.stringify(dummyUser));
+        setManualPasscode('');
+        setIsPortalLoading(false);
+      }, 800);
+      return;
+    }
+    // ------------------------
+
     try {
       const res = await fetch('/api/student_login', {
         method: 'POST',
@@ -330,7 +492,12 @@ function App() {
         localStorage.setItem("studentUser", JSON.stringify(data.user));
         setManualPasscode('');
       } else {
-        setPortalError(data.error || 'Invalid credentials.');
+        if (res.status === 403) {
+          setIsSiteBlocked(true);
+          setBlockMessage(data.message);
+        } else {
+          setPortalError(data.message || data.error || 'Invalid credentials.');
+        }
       }
     } catch (err) { setPortalError('Connection error.'); }
     finally { setIsPortalLoading(false); }
@@ -422,6 +589,14 @@ function App() {
 
   const handleAdminLogin = async () => {
     setLoginError('');
+
+    // --- LOCAL DEV BYPASS ---
+    if (import.meta.env.DEV) {
+      setIsLoggedIn(true);
+      setLoginError('');
+      return;
+    }
+
     try {
       const response = await fetch('/api/login', {
         method: 'POST',
@@ -437,7 +612,7 @@ function App() {
         if (response.status === 403) {
           setIsSiteBlocked(true); setBlockMessage(data.message); setIsAdminOpen(false);
         } else {
-          setLoginError(data.error || `Incorrect password.`);
+          setLoginError(data.message || data.error || `Incorrect password.`);
         }
       }
     } catch (error) { setLoginError("Connection error."); }
@@ -570,33 +745,49 @@ function App() {
     return freeSlots;
   };
 
-  const freedRooms = useMemo(() => {
+  // --- FREED ROOM ALGORITHM (Section 3 of room_finder_logic.md) ---
+  // Implements strict multi-occupancy verification:
+  // A room is only freed if ALL teachers scheduled there are absent.
+    const freedRooms = useMemo(() => {
     if (selectedDay !== currentDayName) return [];
-    const freed: RoomData[] = [];
-    const dayName = getDayName(selectedDay);
+    const freed: any[] = [];
 
-    absentTeachers.forEach(tid => {
-      const teacher = TEACHER_SCHEDULES[tid];
-      if (!teacher) return;
-      const schedule = teacher.schedule[dayName];
-      if (!schedule) return;
+    // Step 1: Identify rooms that absent teachers might have potentially occupied
+    const potentialFreedRooms = new Map<string, string[]>();
 
-      const classAtSlot = schedule.find((c: any) => c.periods.includes(selectedTimeIndex));
-      if (classAtSlot && classAtSlot.room) {
-        freed.push({
-          id: classAtSlot.room,
-          name: classAtSlot.room,
-          type: 'Lecture Hall',
-          emptySlots: { [selectedDay]: [selectedTimeIndex] } as any,
-          tags: [`Freed: ${teacher.name}`]
-        } as any);
+    liveRooms.forEach(room => {
+      const occupants = (room as any).occupiedBy?.[selectedDay]?.[selectedTimeIndex] || [];
+      const absentees = occupants.filter((code: string) => absentTeachers.includes(code));
+      
+      if (absentees.length > 0) {
+        potentialFreedRooms.set(room.id, absentees.map((code: string) => liveTeachers[code]?.name || code));
       }
     });
+
+    // Step 2: Strict Occupancy Verification
+    potentialFreedRooms.forEach((absentNames, roomId) => {
+      const room = liveRooms.find(r => r.id === roomId);
+      if (!room) return;
+
+      const occupants = (room as any).occupiedBy?.[selectedDay]?.[selectedTimeIndex] || [];
+      const presentOccupants = occupants.filter((code: string) => !absentTeachers.includes(code));
+
+      if (presentOccupants.length === 0) {
+        freed.push({
+          id: roomId,
+          name: room.name,
+          type: room.type || 'Lecture Hall',
+          emptySlots: { [selectedDay]: [selectedTimeIndex] } as any,
+          tags: [`Released: ${absentNames.join(', ')}`]
+        });
+      }
+    });
+
     return freed;
-  }, [absentTeachers, selectedDay, selectedTimeIndex, currentDayName]);
+  }, [absentTeachers, selectedDay, selectedTimeIndex, currentDayName, liveTeachers, liveRooms]);
 
   const availableRooms = useMemo(() => {
-    const staticRooms = ROOMS.filter(room => room.emptySlots[selectedDay]?.includes(selectedTimeIndex));
+    const staticRooms = liveRooms.filter(room => room.emptySlots[selectedDay]?.includes(selectedTimeIndex));
     const allRooms = [...staticRooms];
 
     freedRooms.forEach(freed => {
@@ -614,27 +805,21 @@ function App() {
 
   const getRoomTimeline = (roomId: string) => {
     const timeline = new Array(TIME_SLOTS.length).fill(null);
-    const dayName = getDayName(selectedDay);
+    const room = liveRooms.find(r => r.id === roomId);
+    if (!room || !room.occupiedBy?.[selectedDay]) return timeline;
 
-    Object.values(TEACHER_SCHEDULES).forEach((teacher: any) => {
-      if (teacher.id === 'ADMIN') return;
-      const daySchedule = teacher.schedule[dayName];
-      if (daySchedule) {
-        daySchedule.forEach((cls: any) => {
-          if (cls.room === roomId) {
-            cls.periods.forEach((period: number) => {
-              if (period < timeline.length) {
-                timeline[period] = {
-                  status: 'Occupied',
-                  teacher: teacher.name,
-                  teacherId: teacher.id,
-                  subject: cls.subject,
-                  isAbsent: absentTeachers.includes(teacher.id) && selectedDay === currentDayName
-                };
-              }
-            });
-          }
-        });
+    const dayOccupancy = room.occupiedBy[selectedDay];
+    Object.entries(dayOccupancy).forEach(([slotIdx, teacherCodes]) => {
+      const codes = teacherCodes as string[];
+      const idx = parseInt(slotIdx);
+      if (codes.length > 0 && idx < timeline.length) {
+        const names = codes.map(c => liveTeachers[c]?.name || c);
+        const allAbsent = codes.every(c => absentTeachers.includes(c));
+        timeline[idx] = {
+          status: 'Occupied',
+          teacher: names.join(' + '),
+          isAbsent: allAbsent && (selectedDay === currentDayName)
+        };
       }
     });
     return timeline;
@@ -643,29 +828,37 @@ function App() {
   const selectedRoomTimeline = useMemo(() => {
     if (!selectedRoomId) return [];
     return getRoomTimeline(selectedRoomId);
-  }, [selectedRoomId, selectedDay, absentTeachers]);
+  }, [selectedRoomId, selectedDay, absentTeachers, liveTeachers, liveRooms]);
 
   const getEntityStatus = (teacher: any) => {
     if (absentTeachers.includes(teacher.id) && selectedDay === currentDayName) {
       return { status: 'On Leave', color: 'red', icon: UserMinus, detail: 'Marked Absent' };
     }
-    const daySchedule = teacher.schedule[selectedDay];
-    if (!daySchedule) return { status: 'Free', color: 'green', icon: CheckCircle, detail: 'No classes today' };
 
-    const currentClass = daySchedule.find((c: any) => c.periods.includes(selectedTimeIndex));
-    if (currentClass) return { status: `In ${currentClass.room}`, color: 'blue', icon: MapPin, detail: currentClass.subject || 'Class' };
+    let locatedRoomName = '';
+    liveRooms.forEach(room => {
+       if (locatedRoomName) return;
+       const occupants = (room as any).occupiedBy?.[selectedDay]?.[selectedTimeIndex] || [];
+       if (occupants.includes(teacher.id)) {
+          locatedRoomName = room.name;
+       }
+    });
+
+    if (locatedRoomName) {
+      return { status: `In ${locatedRoomName}`, color: 'blue', icon: MapPin, detail: 'Scheduled Lecture' };
+    }
 
     return { status: 'Free', color: 'green', icon: CheckCircle, detail: 'Staff Room / Free' };
   };
 
   const visibleEntities = useMemo(() => {
     const query = finderSearchQuery.toLowerCase();
-    return Object.values(TEACHER_SCHEDULES)
-      .filter(t => t.id !== 'ADMIN')
-      .filter(t => t.name.toLowerCase().includes(query))
-      .map(t => ({ ...t, type: 'teacher' }))
+    return Object.values(liveTeachers)
+      .filter((t: any) => t.id !== 'ADMIN')
+      .filter((t: any) => t.name.toLowerCase().includes(query))
+      .map((t: any) => ({ ...t, type: 'teacher' }))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [finderSearchQuery]);
+  }, [finderSearchQuery, liveTeachers]);
 
   // --- REUSABLE COMPONENTS ---
   const TeachersOnLeaveDashboard = () => (
@@ -694,7 +887,7 @@ function App() {
           <div className="flex flex-wrap gap-2">
             {absentTeachers.map(tid => (
               <span key={tid} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-red-200 shadow-sm text-sm font-medium text-gray-700">
-                <div className="w-2 h-2 rounded-full bg-red-500"></div>{TEACHER_SCHEDULES[tid]?.name || tid}
+                <div className="w-2 h-2 rounded-full bg-red-500"></div>{liveTeachers[tid]?.name || tid}
               </span>
             ))}
           </div>
@@ -786,120 +979,129 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 pb-20 font-sans selection:bg-indigo-100">
-
-      {/* HEADER */}
-      <header className="bg-red-800 text-white sticky top-0 z-50 shadow-lg backdrop-blur-sm bg-opacity-95">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex justify-between items-center">
-
-            <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('student_portal')}>
-              <div className="bg-white/10 p-2 rounded-xl border border-white/10">
-                <MapPin className="w-6 h-6 text-yellow-400" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold leading-none tracking-tight">SRCC Finder</h1>
-                <p className="text-red-200 text-xs mt-1 font-medium tracking-wide">SESSION 2025-26</p>
-              </div>
+    <div className="flex h-screen bg-gray-50 text-gray-900 font-sans selection:bg-indigo-100 font-outfit overflow-hidden">
+      
+      {/* DESKTOP SIDEBAR */}
+      <aside className={`bg-srcc-portalNavy text-white transition-all shadow-xl z-40 hidden md:flex flex-col flex-shrink-0 ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}>
+        <div className={`p-6 border-b border-white/10 flex items-center justify-between`}>
+          <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'hidden' : 'flex'}`}>
+            <img src="/SRCC.svg" alt="SRCC" className="w-20 h-20" />
+            <div>
+              <h1 className="font-serif font-bold text-xl leading-tight tracking-wide text-white">SRCC Assist</h1>
+              <p className="text-srcc-yellow text-[10px] font-medium tracking-widest uppercase">Student Portal</p>
             </div>
-
-            <div className="flex items-center">
-              {activeTab !== 'menu' ? (
-                <button
-                  onClick={() => setActiveTab('menu')}
-                  className="bg-white/10 border border-white/20 text-white px-4 py-2 rounded-xl hover:bg-white/20 transition-all active:scale-95 flex items-center gap-2 font-bold shadow-sm"
-                >
-                  <Menu className="w-5 h-5" /> Menu
-                </button>
-              ) : (
-                <button
-                  onClick={() => setActiveTab('student_portal')}
-                  className="bg-white text-red-900 px-4 py-2 rounded-xl hover:bg-gray-100 transition-all active:scale-95 flex items-center gap-2 font-bold shadow-md"
-                >
-                  <Home className="w-5 h-5" /> Home
-                </button>
-              )}
-            </div>
-
           </div>
+          <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="p-1.5 bg-white/5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all">
+            {isSidebarCollapsed ? <Menu className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+          </button>
         </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-6 px-4 space-y-2">
+           <button onClick={() => { setActiveTab('student_portal'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'student_portal' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
+             <LayoutDashboard className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'student_portal' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
+             <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>Dashboard</span>
+           </button>
+           <button onClick={() => { setActiveTab('rooms'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'rooms' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
+             <Map className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'rooms' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
+             <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>Room Finder</span>
+           </button>
+           <button onClick={() => { setActiveTab('teachers'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'teachers' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
+             <Contact className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'teachers' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
+             <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>Staff Info</span>
+           </button>
+           <button onClick={() => { setActiveTab('timetable'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'timetable' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
+             <CalendarDays className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'timetable' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
+             <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>Schedules</span>
+           </button>
+           <button onClick={() => { setActiveTab('leave'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'leave' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
+             <CalendarOff className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'leave' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
+             <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>On Leave</span>
+           </button>
+           <button onClick={() => { setActiveTab('societies'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'societies' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
+             <Globe className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'societies' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
+             <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>Societies</span>
+           </button>
+        </nav>
 
-        {/* --- MENU TAB --- */}
-        {activeTab === 'menu' && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4 md:mb-6 text-center md:text-left">Explore Tools</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+        <div className={`p-4 border-t border-white/10 ${isSidebarCollapsed ? 'flex flex-col items-center px-2' : ''}`}>
+           <button onClick={() => { setIsAdminOpen(true); setLoginError(''); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-3' : 'justify-center py-3 gap-2'} bg-white/10 text-white rounded-[5px] font-bold hover:bg-white/20 transition-all shadow-sm group`}>
+             <Lock className={`w-4 h-4 shrink-0 ${isSidebarCollapsed ? 'group-hover:scale-110 transition-transform' : ''}`} /> 
+             <span className={`whitespace-nowrap transition-all duration-300 ${isSidebarCollapsed ? 'hidden' : 'block'}`}>Admin Login</span>
+           </button>
+           <button onClick={handleInstallAppClick} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-3' : 'justify-center py-3 gap-2'} bg-srcc-yellow/10 border border-srcc-yellow/40 text-srcc-yellow mt-2 rounded-[5px] font-bold hover:bg-srcc-yellow hover:text-srcc-portalNavy transition-all group`}>
+             <Download className="w-4 h-4 shrink-0" /> 
+             <span className={`whitespace-nowrap transition-all duration-300 ${isSidebarCollapsed ? 'hidden' : 'block'}`}>Install App</span>
+           </button>
+        </div>
+      </aside>
 
-              <button onClick={() => setActiveTab('student_portal')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white">
-                  <Home className="w-6 h-6 md:w-8 md:h-8" />
+      {/* MOBILE SIDEBAR MODAL */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 bg-srcc-portalNavy/80 backdrop-blur-sm z-50 md:hidden flex justify-start">
+           <aside className="w-64 bg-srcc-portalNavy text-white h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-300 relative">
+             <div className="p-6 border-b border-white/10 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <img src="/SRCC.svg" alt="SRCC" className="w-8 h-8" />
+                  <div>
+                    <h1 className="font-serif font-bold text-xl leading-tight tracking-wide text-white">SRCC Assist</h1>
+                    <p className="text-srcc-yellow text-[10px] font-medium tracking-widest uppercase">Student Portal</p>
+                  </div>
                 </div>
-                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">My Dashboard</h3>
-                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Your homepage.</p>
-              </button>
+                <button onClick={() => setIsMobileMenuOpen(false)} className="text-gray-400 hover:text-white bg-white/10 p-2 rounded-full hover:bg-red-500 transition-colors shadow-lg">
+                  <XCircle className="w-5 h-5" />
+                </button>
+             </div>
+             <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-2">
+               <button onClick={() => { setActiveTab('student_portal'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'student_portal' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300'}`}>
+                 <LayoutDashboard className="w-5 h-5 shrink-0" /> <span>Dashboard</span>
+               </button>
+               <button onClick={() => { setActiveTab('rooms'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'rooms' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300'}`}>
+                 <Map className="w-5 h-5 shrink-0" /> <span>Room Finder</span>
+               </button>
+               <button onClick={() => { setActiveTab('teachers'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'teachers' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300'}`}>
+                 <Contact className="w-5 h-5 shrink-0" /> <span>Staff Info</span>
+               </button>
+               <button onClick={() => { setActiveTab('timetable'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'timetable' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300'}`}>
+                 <CalendarDays className="w-5 h-5 shrink-0" /> <span>Schedules</span>
+               </button>
+               <button onClick={() => { setActiveTab('leave'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'leave' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300'}`}>
+                 <CalendarOff className="w-5 h-5 shrink-0" /> <span>On Leave</span>
+               </button>
+               <button onClick={() => { setActiveTab('societies'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'societies' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300'}`}>
+                 <Globe className="w-5 h-5 shrink-0" /> <span>Societies</span>
+               </button>
+             </nav>
+             <div className="p-4 border-t border-white/10">
+               <button onClick={() => { setIsAdminOpen(true); setLoginError(''); setIsMobileMenuOpen(false); }} className="w-full flex items-center justify-center py-3 gap-2 bg-white/10 text-white rounded-[5px] font-bold">
+                 <Lock className="w-4 h-4 shrink-0" /> <span>Admin Login</span>
+               </button>
+             </div>
+           </aside>
+        </div>
+      )}
 
-              <button onClick={() => setActiveTab('rooms')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-red-50 text-red-600 group-hover:bg-red-600 group-hover:text-white">
-                  <MapPin className="w-6 h-6 md:w-8 md:h-8" />
-                </div>
-                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Room Finder</h3>
-                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Find empty classrooms.</p>
-              </button>
-
-              <button onClick={() => setActiveTab('teachers')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
-                  <Users className="w-6 h-6 md:w-8 md:h-8" />
-                </div>
-                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Teacher Finder</h3>
-                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Locate staff status.</p>
-              </button>
-
-              <button onClick={() => setActiveTab('timetable')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white">
-                  <Search className="w-6 h-6 md:w-8 md:h-8" />
-                </div>
-                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Search Others</h3>
-                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Look up schedules.</p>
-              </button>
-
-              <button onClick={() => setActiveTab('leave')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white">
-                  <UserMinus className="w-6 h-6 md:w-8 md:h-8" />
-                </div>
-                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">On Leave</h3>
-                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Today's absent faculty.</p>
-              </button>
-
-              <button onClick={() => setActiveTab('societies')} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-green-50 text-green-600 group-hover:bg-green-600 group-hover:text-white">
-                  <Megaphone className="w-6 h-6 md:w-8 md:h-8" />
-                </div>
-                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Societies</h3>
-                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Campus events.</p>
-              </button>
-
-              <button onClick={handleInstallAppClick} className="bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-pink-50 text-pink-600 group-hover:bg-pink-600 group-hover:text-white">
-                  <Download className="w-6 h-6 md:w-8 md:h-8" />
-                </div>
-                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Get App</h3>
-                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Install on your phone.</p>
-              </button>
-
-              <button onClick={() => { setIsAdminOpen(true); setLoginError(''); }} className="col-span-2 sm:col-span-1 bg-white border border-gray-200 p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all flex flex-col items-center text-center group active:scale-95">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-colors bg-gray-100 text-gray-700 group-hover:bg-gray-800 group-hover:text-white">
-                  <Lock className="w-6 h-6 md:w-8 md:h-8" />
-                </div>
-                <h3 className="text-sm md:text-xl font-bold text-gray-900 mb-0.5 md:mb-1 leading-tight">Admin Login</h3>
-                <p className="text-[11px] md:text-sm text-gray-500 font-medium leading-tight">Authorized access only.</p>
-              </button>
-
-            </div>
+      {/* MAIN CONTENT WRAPPER */}
+      <div className="flex-1 flex flex-col relative overflow-hidden">
+        
+        {/* MOBILE HEADER FOR HAMBURGER */}
+        <header className="absolute top-0 left-0 w-full z-30 md:hidden pointer-events-none pt-[max(env(safe-area-inset-top),1.25rem)]">
+          <div className="px-4 py-3 flex items-center">
+            <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -ml-2 text-gray-700 bg-white/70 backdrop-blur-md shadow-sm border border-gray-200/50 rounded-xl hover:bg-white transition-all pointer-events-auto">
+              <Menu className="w-6 h-6" />
+            </button>
           </div>
-        )}
+        </header>
+
+        {/* SCROLLING MAIN CONTENT */}
+        <main
+          className={`flex-1 overflow-x-hidden overflow-y-auto pb-48 relative ${activeTab === 'student_portal' && !isStudentLoggedIn && portalMode === 'login' ? '' : 'bg-gray-50'}`}
+          style={activeTab === 'student_portal' && !isStudentLoggedIn && portalMode === 'login' ? { backgroundImage: 'url(/bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' } : {}}
+        >
+          {/* Overlay for login page - light so bg.jpg stays very visible */}
+          {activeTab === 'student_portal' && !isStudentLoggedIn && portalMode === 'login' && (
+            <div className="fixed inset-0 bg-srcc-portalNavy/25 pointer-events-none z-0" />
+          )}
+          <div className={activeTab === 'student_portal' && !isStudentLoggedIn && portalMode === 'login' ? "relative z-10 w-full min-h-full flex flex-col items-center justify-center" : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-32"}>
 
         {/* --- STUDENT PORTAL TAB --- */}
         {activeTab === 'student_portal' && (
@@ -1010,72 +1212,94 @@ function App() {
 
             {/* 3. LOGIN MODE */}
             {!isStudentLoggedIn && portalMode === 'login' && (
-              <div className="max-w-md mx-auto">
+              <div className="w-full flex items-center justify-center pt-16 pb-8 px-4">
 
-                {/* FEATURED AD SHOWN TO NON-LOGGED IN USERS AS WELL */}
-                {renderFeaturedAd()}
+                {/* Glassmorphism login card - wider on desktop, perfectly centred */}
+                <div className="w-full max-w-lg md:max-w-2xl lg:max-w-3xl text-white bg-white/8 backdrop-blur-2xl border border-white/25 rounded-2xl p-8 sm:p-10 lg:p-14 text-center shadow-[0_20px_60px_0_rgba(0,0,0,0.6)]">
+                  <img src="/SRCC100.svg" alt="SRCC Assist" className="w-16 h-16 sm:w-20 sm:h-20 lg:w-28 lg:h-28 mx-auto mb-4 sm:mb-6 lg:mb-8 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] hover:scale-110 transition-transform duration-500" />
+                  <h2 className="font-serif text-2xl sm:text-4xl lg:text-5xl font-bold text-white mb-1 sm:mb-3 tracking-wide">SRCC Assist</h2>
+                  <p className="text-gray-300 text-xs sm:text-sm mb-4 sm:mb-6 font-light">Sign in with your college email.</p>
 
-                <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 text-center">
-                  <div className="w-16 h-16 bg-red-50 rounded-2xl mx-auto flex items-center justify-center mb-6">
-                    <User className="w-8 h-8 text-red-600" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Student Portal</h2>
-                  <p className="text-gray-500 text-sm mb-8">Sign in with your college email to manage access.[Only for B.Com Hons]</p>
-
-                  <div className="space-y-3">
+                  <div className="space-y-3 mb-4">
                     <button
                       onClick={handleGoogleLogin}
-                      className="w-full bg-white border border-gray-300 text-gray-700 font-bold py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-50 transition-all shadow-sm"
+                      className="w-full bg-white/10 border border-white/20 text-white font-semibold py-3.5 rounded-[5px] flex items-center justify-center gap-3 hover:bg-white/20 transition-all"
                     >
                       <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="Google" />
                       Continue with Google
                     </button>
                     <button
                       onClick={handleMicrosoftLogin}
-                      className="w-full bg-white border border-gray-300 text-gray-700 font-bold py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-50 transition-all shadow-sm"
+                      className="w-full bg-white/10 border border-white/20 text-white font-semibold py-3.5 rounded-[5px] flex items-center justify-center gap-3 hover:bg-white/20 transition-all"
                     >
                       <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" className="w-5 h-5" alt="Microsoft" />
                       Continue with Microsoft
                     </button>
                   </div>
 
-                  <div className="relative my-6">
+                  <div className="relative my-4">
                     <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-200"></div>
+                      <div className="w-full border-t border-white/20"></div>
                     </div>
                     <div className="relative flex justify-center text-sm">
-                      <span className="px-2 bg-white text-gray-500">OR</span>
+                      <span className="px-2 bg-transparent text-gray-300 font-medium">OR</span>
                     </div>
                   </div>
 
-                  <form onSubmit={handleManualLogin} className="space-y-3">
+                  <form onSubmit={handleManualLogin} className="space-y-5">
                     {portalError && (
-                      <div className="text-red-600 text-sm font-bold flex items-center justify-center gap-1">
+                      <div className="text-red-400 text-sm font-bold flex items-center justify-center gap-1 bg-red-500/10 py-2 rounded-lg border border-red-500/20">
                         <AlertCircle className="w-4 h-4" />{portalError}
                       </div>
                     )}
-                    <input
-                      type="text"
-                      value={manualRollNo}
-                      onChange={e => setManualRollNo(e.target.value.toUpperCase())}
-                      placeholder="Roll No (e.g. 24BC008)"
-                      className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-center font-bold uppercase placeholder:normal-case outline-none"
-                    />
-                    <input
-                      type="password"
-                      value={manualPasscode}
-                      onChange={e => setManualPasscode(e.target.value)}
-                      placeholder="Access Code"
-                      className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-center tracking-widest outline-none"
-                    />
+
+                    <div className="relative group text-left">
+                      <input
+                        type="text"
+                        required
+                        value={manualRollNo}
+                        onChange={e => setManualRollNo(e.target.value.toUpperCase())}
+                        className="w-full bg-transparent border border-[#DADADA] rounded-[5px] h-[45px] text-white px-4 pt-2 pb-1 focus:ring-0 focus:border-white transition-colors peer uppercase"
+                      />
+                      <label className="absolute left-4 top-[14px] text-[13px] tracking-[2px] text-[#DADADA] transition-all pointer-events-none peer-focus:top-[-8px] peer-focus:left-3 peer-focus:text-[11px] peer-focus:bg-srcc-portalNavy peer-focus:px-1 peer-valid:top-[-8px] peer-valid:left-3 peer-valid:text-[11px] peer-valid:bg-srcc-portalNavy peer-valid:px-1">
+                        ROLL NO
+                      </label>
+                    </div>
+
+                    <div className="relative group text-left">
+                      <input
+                        type="password"
+                        required
+                        value={manualPasscode}
+                        onChange={e => setManualPasscode(e.target.value)}
+                        className="w-full bg-transparent border border-[#DADADA] rounded-[5px] h-[45px] text-white tracking-widest px-4 pt-2 pb-1 focus:ring-0 focus:border-white transition-colors peer"
+                      />
+                      <label className="absolute left-4 top-[14px] text-[13px] tracking-[2px] text-[#DADADA] transition-all pointer-events-none peer-focus:top-[-8px] peer-focus:left-3 peer-focus:text-[11px] peer-focus:bg-srcc-portalNavy peer-focus:px-1 peer-valid:top-[-8px] peer-valid:left-3 peer-valid:text-[11px] peer-valid:bg-srcc-portalNavy peer-valid:px-1">
+                        PASSCODE
+                      </label>
+                    </div>
+
                     <button
                       type="submit"
                       disabled={isPortalLoading}
-                      className="w-full bg-gray-900 hover:bg-gray-800 text-white py-3.5 rounded-xl font-bold transition-all shadow-md"
+                      className="w-full bg-srcc-yellow hover:bg-yellow-400 text-srcc-portalNavy py-[12px] mt-2 rounded-[5px] font-bold transition-all shadow-[0_4px_14px_0_rgba(252,235,8,0.39)] uppercase tracking-wide text-sm"
                     >
                       {isPortalLoading ? 'Logging in...' : 'Login with Code'}
                     </button>
                   </form>
+
+                  {/* MOBILE INSTALL BUTTON — shown only on mobile, hidden when already installed */}
+                  {!window.matchMedia('(display-mode: standalone)').matches && (
+                    <div className="mt-5 md:hidden">
+                      <button
+                        onClick={handleInstallAppClick}
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-[5px] border border-srcc-yellow/50 text-srcc-yellow bg-srcc-yellow/10 hover:bg-srcc-yellow hover:text-srcc-portalNavy font-bold text-sm transition-all"
+                      >
+                        <Download className="w-4 h-4" />
+                        Install App on Your Phone
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1234,8 +1458,8 @@ function App() {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             {!activeSearchTimetable ? (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center max-w-md mx-auto mt-10">
-                <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Search className="w-10 h-10 text-purple-600" />
+                <div className="w-20 h-20 bg-srcc-portalNavy/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Search className="w-10 h-10 text-srcc-portalNavy" />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Search Any Timetable</h2>
                 <form onSubmit={handleGlobalSearchTimetable} className="space-y-4">
@@ -1248,7 +1472,7 @@ function App() {
                   />
                   <button
                     type="submit"
-                    className="w-full bg-purple-600 text-white font-bold py-3.5 rounded-xl shadow-md active:scale-95"
+                    className="w-full bg-srcc-portalNavy hover:bg-srcc-yellow text-white hover:text-srcc-portalNavy font-bold py-3.5 rounded-xl shadow-md transition-colors active:scale-95"
                   >
                     Look Up Schedule
                   </button>
@@ -1259,7 +1483,7 @@ function App() {
                 <div className="flex justify-between gap-4 mb-6 bg-white p-5 rounded-2xl border shadow-sm">
                   <div>
                     <h2 className="text-2xl font-bold flex items-center gap-2">
-                      <CalendarDays className="w-6 h-6 text-purple-600" /> Viewing Schedule
+                      <CalendarDays className="w-6 h-6 text-srcc-portalNavy" /> Viewing Schedule
                     </h2>
                     <p className="text-gray-500 font-medium mt-1">
                       Roll No: <span className="text-gray-900 font-bold bg-gray-100 px-2 py-0.5 rounded">{timetableRollNo}</span>
@@ -1328,7 +1552,7 @@ function App() {
                     onClick={() => setSelectedRoomId(room.id)}
                     className={`relative bg-white rounded-xl border p-5 flex flex-col items-center justify-center text-center transition-all hover:shadow-lg hover:-translate-y-1 active:scale-95 group ${(room as any).tags ? 'border-green-400 ring-2 ring-green-50' : 'border-gray-200'}`}
                   >
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 text-xl font-bold shadow-sm ${(room as any).tags ? 'bg-green-100 text-green-700' : 'bg-gray-50 text-gray-600 group-hover:bg-red-50 group-hover:text-red-600'}`}>
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 text-xl font-bold shadow-sm ${(room as any).tags ? 'bg-green-100 text-green-700' : 'bg-srcc-portalNavy/10 text-srcc-portalNavy group-hover:bg-srcc-portalNavy group-hover:text-srcc-yellow transition-colors'}`}>
                       {room.name.replace(/[^0-9]/g, '') || room.name.charAt(0)}
                     </div>
                     <h3 className="font-bold text-gray-900 text-lg">{room.name}</h3>
@@ -1368,7 +1592,7 @@ function App() {
                 return (
                   <div key={entity.id} className="bg-white border rounded-xl p-5 hover:shadow-md transition-all">
                     <div className="flex justify-between items-start mb-3">
-                      <div className="bg-gray-100 p-2.5 rounded-xl text-gray-500">
+                      <div className="bg-srcc-portalNavy/10 p-2.5 rounded-xl text-srcc-portalNavy">
                         <GraduationCap className="w-6 h-6" />
                       </div>
                       <div className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 ${statusInfo.color === 'red' ? 'bg-red-50 text-red-700' : statusInfo.color === 'blue' ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'}`}>
@@ -1405,18 +1629,18 @@ function App() {
               {societyEvents.map((event) => (
                 <div key={event.id} className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-xl transition-all group relative overflow-hidden flex flex-col justify-between">
                   <div>
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-150"></div>
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-srcc-portalNavy/10 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-150"></div>
                     <div className="relative z-10">
-                      <span className="inline-block bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md mb-3">
+                      <span className="inline-block bg-srcc-portalNavy/10 text-srcc-portalNavy text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md mb-3">
                         {event.event_type}
                       </span>
                       <h3 className="text-xl font-bold text-gray-900 leading-tight mb-1">{event.event_name}</h3>
                       <p className="text-sm font-semibold text-gray-500 mb-4">{event.society_name}</p>
 
                       <div className="space-y-2 text-sm text-gray-600">
-                        <div className="flex items-center gap-2"><CalendarDays className="w-4 h-4 text-red-500" /> {event.event_date}</div>
-                        <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-red-500" /> {event.event_time}</div>
-                        <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-red-500" /> {event.location}</div>
+                        <div className="flex items-center gap-2"><CalendarDays className="w-4 h-4 text-srcc-portalNavy" /> {event.event_date}</div>
+                        <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-srcc-portalNavy" /> {event.event_time}</div>
+                        <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-srcc-portalNavy" /> {event.location}</div>
                       </div>
 
                       <div className="mt-4 pt-4 border-t border-gray-100 mb-6">
@@ -1429,7 +1653,7 @@ function App() {
                   {/* Event Tracking Button */}
                   <button
                     onClick={() => handleTrackClick(event.id, event.registration_link)}
-                    className="relative z-10 w-full text-center bg-red-50 text-red-700 hover:bg-red-600 hover:text-white py-3 rounded-xl font-bold transition-colors"
+                    className="relative z-10 w-full text-center bg-srcc-portalNavy/5 text-srcc-portalNavy hover:bg-srcc-portalNavy hover:text-srcc-yellow py-3 rounded-xl font-bold transition-colors"
                   >
                     View / Register Now
                   </button>
@@ -1444,22 +1668,108 @@ function App() {
             </div>
 
             {/* 2. PROMO BANNER AT BOTTOM */}
-            <div className="bg-gradient-to-r from-red-600 to-red-800 rounded-2xl text-white p-6 shadow-lg flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="bg-gradient-to-r from-srcc-portalNavy to-blue-900 rounded-2xl text-white p-6 shadow-lg flex flex-col md:flex-row items-center justify-between gap-6">
               <div>
-                <h2 className="text-2xl font-bold flex items-center gap-2"><Megaphone className="w-6 h-6 text-yellow-300" /> Upcoming Society Events</h2>
-                <p className="text-red-100 mt-2">Discover what's happening around campus this week.</p>
+                <h2 className="text-2xl font-bold flex items-center gap-2"><Megaphone className="w-6 h-6 text-srcc-yellow" /> Upcoming Society Events</h2>
+                <p className="text-blue-100 mt-2">Discover what's happening around campus this week.</p>
               </div>
               <div className="text-center md:text-right">
-                <a href="mailto:abcddcba121202@gmail.com" className="bg-white text-red-900 px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md hover:bg-gray-100 transition-all">
+                <a href="mailto:abcddcba121202@gmail.com" className="bg-white text-srcc-portalNavy hover:bg-srcc-yellow hover:text-srcc-portalNavy px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md transition-all">
                   <Mail className="w-5 h-5" /> List Your Event
                 </a>
-                <p className="text-xs text-red-200 mt-2 font-medium opacity-80">Listing starts @ ₹5/day</p>
+                <p className="text-xs text-blue-200 mt-2 font-medium opacity-80">Listing starts @ ₹5/day</p>
               </div>
             </div>
 
           </div>
         )}
-      </main>
+
+        {/* --- LEGAL PAGES --- */}
+        {activeTab.startsWith('legal_') && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto py-12 px-4 sm:px-6 mb-20">
+            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
+              <h2 className="text-3xl font-black text-srcc-portalNavy mb-6 border-b border-gray-100 pb-4">
+                {activeTab === 'legal_disclaimer' ? 'Disclaimer' : 
+                 activeTab === 'legal_terms' ? 'Terms Of Use' : 
+                 activeTab === 'legal_policies' ? 'Website Policies' : 
+                 activeTab === 'legal_contact' ? 'Contact Us' : ''}
+              </h2>
+              <div className="prose prose-indigo max-w-none text-gray-600 text-sm leading-relaxed space-y-4">
+                {activeTab === 'legal_disclaimer' && (
+                  <>
+                    <p>The terms of use of the SRCC Assist portal are governed by our Website Terms of Use. Users and visitors are expected to have reviewed and consented to these terms.</p>
+                    <p>The information contained in this portal (SRCC Assist) is for general information purposes only. The information is provided by Shri Ram College of Commerce (SRCC) and while it is endeavoured to keep the information up to date and correct, no representations or warranties of any kind, express or implied, are made about the completeness, accuracy, reliability, suitability or availability with respect to the portal or the information services contained on the portal for any purpose. Any reliance you place on such information is therefore strictly at your own risk.</p>
+                    <p>In no event will the College be liable for any loss or damage including without limitation, indirect or consequential loss or damage, or any loss or damage whatsoever arising from loss of data or profits arising out of, or in connection with, the use of this portal.</p>
+                    <p>Every effort is made to keep the SRCC Assist portal up and running smoothly. However, Shri Ram College of Commerce takes no responsibility for, and will not be liable for, the portal being temporarily unavailable due to technical issues beyond its control.</p>
+                  </>
+                )}
+                {activeTab === 'legal_terms' && (
+                  <>
+                    <p>The SRCC Assist portal (the 'Host' application) is a copyrighted work belonging to Shri Ram College of Commerce, University of Delhi. Certain features of the portal may be subject to additional guidelines, terms, or rules, which will be posted on the portal in connection with such features.</p>
+                    <h3 className="text-lg font-bold text-gray-800 mt-6 mb-2">A. General</h3>
+                    <p>A.1. The SRCC Assist portal is owned and operated by Shri Ram College of Commerce. Any person, individual or organization visiting the portal is termed as a “user”.</p>
+                    <p>A.2. The Terms of Use describe the legally binding terms and conditions that oversee the user’s use of the portal.</p>
+                    <p>A.3. By logging into this portal via student or administrator access, the user agrees compliance and consent to these terms. If the user disagrees with any/all of the provisions of these terms, they are requested to not log into and/or use the portal.</p>
+                    <h3 className="text-lg font-bold text-gray-800 mt-6 mb-2">B. Access to the Portal</h3>
+                    <p>B.1. User Rights: Subject to these Terms, the Host grants the user a non-transferable, non-exclusive, revocable, limited access to the portal solely for academic, non-commercial use.</p>
+                    <p>B.2. Certain Restrictions: The user shall not sell, rent, lease, transfer, assign, distribute, host, or otherwise commercially exploit the portal. The user shall not change, make derivative works of, disassemble, reverse compile or reverse engineer any part of the portal.</p>
+                    <p>B.3. Excluding any User Content that the user may provide, the user is aware that all the intellectual property rights, including copyrights, patents, trademarks, and trade secrets, in the portal and its content are owned by the Host.</p>
+                    <h3 className="text-lg font-bold text-gray-800 mt-6 mb-2">C. Dispute Resolution & Liability</h3>
+                    <p>To the maximum extent permitted by law, in no event shall the Host be liable to the user or any third-party for any lost profits, lost data, costs of procurement of substitute products, or any indirect, consequential, exemplary, incidental, special or punitive damages arising from or relating to these terms or the user’s use of the portal. Access to and use of the portal is at the user’s own discretion and risk.</p>
+                  </>
+                )}
+                {activeTab === 'legal_policies' && (
+                  <>
+                    <h3 className="text-lg font-bold text-gray-800 mt-4 mb-2">A. Copyright Policy</h3>
+                    <p>No part of the SRCC Assist portal may be copied, reproduced, distributed, republished, downloaded, displayed, posted or transmitted in any form or by any means unless otherwise indicated or through explicit consent of the Host.</p>
+                    <h3 className="text-lg font-bold text-gray-800 mt-6 mb-2">B. Content Policy</h3>
+                    <p>Though all efforts have been made to ensure the accuracy and currency of the content (including timetables, teacher schedules, and events) on this portal, the same should not be construed as a statement of law or used for any legal purposes. Information related to timetables and student data is provided for academic convenience and may be subject to real-time changes by the administration.</p>
+                    <h3 className="text-lg font-bold text-gray-800 mt-6 mb-2">C. Local Storage & Caching Policy</h3>
+                    <p>SRCC Assist utilizes local storage and Progressive Web App (PWA) caching strategies (like Stale-While-Revalidate) to securely store session information and static assets on your device. This is done strictly to ensure the portal operates efficiently under offline constraints and to keep the user logged securely over time without requiring repetitive access code entries.</p>
+                    <h3 className="text-lg font-bold text-gray-800 mt-6 mb-2">D. Privacy & Security Policy</h3>
+                    <p>The portal does not automatically capture any specific personal information from the user without explicit consent. Personal Information, where sought via student roll numbers or admin access codes, is collected, stored and addressed only with respect to the purpose of academic administration. To protect from unauthorized access and brute-force attempts, strict IP-based rate limiting is implemented alongside industry-standard data protection policies.</p>
+                  </>
+                )}
+                {activeTab === 'legal_contact' && (
+                  <>
+                    <p>For any queries, support, or feedback regarding the SRCC Assist portal, please reach out to the college administration team.</p>
+                    <div className="bg-gray-50 p-4 border rounded-lg mt-4 w-fit">
+                      <p className="font-bold text-gray-800 mb-1">Shri Ram College of Commerce (SRCC)</p>
+                      <p>University of Delhi, Maurice Nagar</p>
+                      <p>New Delhi - 110007</p>
+                      <br/>
+                      <p><span className="font-semibold text-gray-700">Email:</span> principaloffice@srcc.du.ac.in</p>
+                      <p><span className="font-semibold text-gray-700">Phone:</span> 011 - 27667905</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+          </div>
+        </main>
+
+        {/* GLOBAL FOOTER - Locks permanently to the bottom of the viewport beneath <main> */}
+        <footer className="absolute bottom-0 w-full bg-srcc-portalNavy/95 border-t border-white/10 z-40 backdrop-blur-md">
+          <div className="max-w-4xl mx-auto px-4 py-2 md:py-3 flex flex-col items-center justify-center -mt-1 md:mt-0">
+            <div className="flex flex-wrap justify-center items-center gap-x-4 md:gap-x-6 gap-y-1 text-[10px] md:text-sm font-medium text-white/80 mb-1">
+              <button onClick={() => setActiveTab('legal_disclaimer')} className="hover:text-white transition-colors focus:outline-none">Disclaimer</button>
+              <span className="text-white/20">|</span>
+              <button onClick={() => setActiveTab('legal_terms')} className="hover:text-white transition-colors focus:outline-none">Terms Of Use</button>
+              <span className="text-white/20">|</span>
+              <button onClick={() => setActiveTab('legal_policies')} className="hover:text-white transition-colors focus:outline-none">Policies</button>
+              <span className="text-white/20">|</span>
+              <button onClick={() => setActiveTab('legal_contact')} className="hover:text-white transition-colors focus:outline-none">Contact</button>
+            </div>
+            
+            <div className="text-white/60 text-[9px] md:text-xs flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-center pb-0.5">
+              <p>Developed with Curiosity by <a href="https://linkedin.com/in/keshavsingal" target="_blank" rel="noopener noreferrer" className="text-srcc-yellow hover:text-yellow-300 font-medium transition-colors"><b>Keshav Singal (24BC702)</b></a></p>
+            </div>
+          </div>
+        </footer>
+      </div>
 
       {/* --- MODAL: ROOM TIMELINE --- */}
       {selectedRoomId && (
@@ -1613,7 +1923,8 @@ function App() {
 
                   {/* ADMIN TABS */}
                   <div className="flex border-b border-gray-200 mb-4">
-                    <button onClick={() => setAdminTab('attendance')} className={`flex-1 py-2 font-bold text-sm transition-colors ${adminTab === 'attendance' ? 'text-red-600 border-b-2 border-red-600' : 'text-gray-400 hover:text-gray-600'}`}>Staff Attendance</button>
+                    <button onClick={() => setAdminTab('attendance')} className={`flex-1 py-2 font-bold text-sm transition-colors ${adminTab === 'attendance' ? 'text-red-600 border-b-2 border-red-600' : 'text-gray-400 hover:text-gray-600'}`}>Attendance</button>
+                    <button onClick={() => setAdminTab('rooms_update')} className={`flex-1 py-2 font-bold text-sm transition-colors ${adminTab === 'rooms_update' ? 'text-red-600 border-b-2 border-red-600' : 'text-gray-400 hover:text-gray-600'}`}>Room Data</button>
                     <button onClick={() => setAdminTab('events')} className={`flex-1 py-2 font-bold text-sm transition-colors ${adminTab === 'events' ? 'text-red-600 border-b-2 border-red-600' : 'text-gray-400 hover:text-gray-600'}`}>Manage Ads</button>
                   </div>
 
@@ -1642,6 +1953,82 @@ function App() {
                           ))}
                       </div>
                     </>
+                  )}
+
+                  {/* ROOM DATA UPDATE TAB */}
+                  {adminTab === 'rooms_update' && (
+                    <div className="space-y-4">
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-5">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="bg-white p-2 rounded-lg shadow-sm text-indigo-600">
+                            <Database className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-gray-900 text-sm">Room Data Engine</h3>
+                            <p className="text-xs text-gray-500">Scrapes live data from srcccollegetimetable.in</p>
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-600 mb-4 leading-relaxed">
+                          This will fetch the latest timetable for all <b>70 campus rooms</b> from the official SRCC website,
+                          parse empty slots and teacher assignments, and update the database.
+                        </p>
+                        
+                        <div className="flex flex-col gap-4 mb-4">
+                          <button
+                            onClick={startSync}
+                            disabled={syncing}
+                            className={`inline-flex items-center justify-center gap-2 px-5 py-3 font-bold text-sm rounded-lg transition-all shadow-sm active:scale-95 ${
+                              syncing ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md'
+                            }`}
+                          >
+                            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                            {syncing ? 'Syncing...' : 'Sync All Rooms from Website'}
+                          </button>
+                          
+                          {syncing && (
+                            <div className="flex justify-between items-center text-sm text-gray-500 bg-white p-2 border border-gray-100 rounded-md">
+                              <span>
+                                {currentRoom && <span className="font-bold text-indigo-600">{currentRoom}</span>}
+                              </span>
+                              <span>{syncProgress} / {syncTotal} ({syncTotal > 0 ? Math.round((syncProgress/syncTotal)*100) : 0}%)</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Progress Bar */}
+                        {(syncing || syncCompleted) && syncTotal > 0 && (
+                          <div className="w-full bg-indigo-100 rounded-full h-2 overflow-hidden mb-4 border border-indigo-200">
+                            <div
+                              className={`h-full transition-all duration-300 ${syncCompleted ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                              style={{ width: `${Math.round((syncProgress / syncTotal) * 100)}%` }}
+                            />
+                          </div>
+                        )}
+
+                        {/* Live Log */}
+                        {syncLogs.length > 0 && (
+                          <div
+                            ref={logRef}
+                            className="bg-gray-900 text-gray-200 rounded-lg p-4 h-48 overflow-y-auto font-mono text-[11px] space-y-1 border border-indigo-200/50 shadow-inner"
+                          >
+                            {syncLogs.map((line, i) => (
+                              <div key={i} className="leading-relaxed border-b border-gray-800 pb-1">{line}</div>
+                            ))}
+                          </div>
+                        )}
+                        
+                      </div>
+
+                      {roomUpdateMsg && (
+                        <div className={`p-3 rounded-lg text-sm font-medium border ${
+                          roomUpdateMsg.includes('smoothly')
+                            ? 'bg-green-50 text-green-700 border-green-200'
+                            : 'bg-red-50 text-red-700 border-red-200'
+                        }`}>
+                          {roomUpdateMsg}
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   {/* EVENTS / ADS TAB */}
@@ -1765,21 +2152,6 @@ function App() {
         </div>
       )}
 
-      {/* FOOTER */}
-      <footer className="bg-white border-t border-gray-200 mt-12 py-8">
-        <div className="max-w-4xl mx-auto px-4 text-center text-gray-500 text-sm space-y-8">
-          <div className="bg-red-50/50 p-6 rounded-2xl border border-red-100 space-y-3">
-            <h3 className="font-semibold text-gray-900">Disclaimer & Contact</h3>
-            <p className="leading-relaxed">This website is for easing the process of finding empty rooms. It is made out of curiosity and to help students. All the data used to make this website is freely publicly available on the SRCC website. Please note that minor errors may be present and shifts in classes can happen with changes in timetables. There might be 5-10% data mismatch at max due to the complex structure of Timetables and accompanying changes. Any money earned through this website will be used to keep it operational.</p>
-            <p className="pt-2 font-medium">If you want to reach out or give any suggestion, feedback, complaint, or anything else, kindly mail us at <a href="mailto:abcddcba121202@gmail.com" className="text-red-700 hover:text-red-900 underline decoration-red-300 underline-offset-2">abcddcba121202@gmail.com</a>.</p>
-          </div>
-          <div>
-            <p>Data derived from SRCC Time Table 2025-26.</p>
-            <p className="mt-1">Note: Break time is usually 01:30 PM - 02:00 PM.</p>
-            <p>Not an official website.</p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

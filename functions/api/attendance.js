@@ -15,7 +15,7 @@ export async function onRequest(context) {
   // --- GET Request: Public (Anyone can see who is absent) ---
   if (request.method === "GET") {
     try {
-      // Ensure table exists (Lazy initialization)
+      // Ensure local daily_absences table exists
       await env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS daily_absences (
           date TEXT, 
@@ -31,7 +31,6 @@ export async function onRequest(context) {
       const ids = results.map(r => r.teacher_id);
       return new Response(JSON.stringify(ids), { headers: { "Content-Type": "application/json" } });
     } catch (e) {
-      // If DB fails (e.g. table doesn't exist yet), return empty list instead of crashing
       return new Response(JSON.stringify([]), { headers: { "Content-Type": "application/json" } });
     }
   }

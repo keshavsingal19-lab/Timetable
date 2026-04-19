@@ -70,16 +70,28 @@ function App() {
     const [liveTeachers, setLiveTeachers] = useState<any>({});
     
     useEffect(() => {
-      fetch('/api/rooms').then(res => res.json()).then(data => {
-        if(Array.isArray(data) && data.length > 0) setLiveRooms(data);
-      }).catch(() => {});
-      fetch('/api/teachers').then(res => res.json()).then(data => {
-        if(Array.isArray(data) && data.length > 0) {
-           const map: any = {};
-           data.forEach((t: any) => map[t.id] = t);
-           setLiveTeachers(map);
+      // Load cached teachers immediately for instant UI response
+      const cached = localStorage.getItem('srcc_teachers_cache');
+      if (cached) {
+        try {
+          setLiveTeachers(JSON.parse(cached));
+        } catch (e) {
+          console.warn("Failed to parse cached teachers", e);
         }
-      }).catch(() => {});
+      }
+
+      fetch('/api/rooms').then(res => res.json()).then(data => {
+        if (Array.isArray(data) && data.length > 0) setLiveRooms(data);
+      }).catch(() => { });
+
+      fetch('/api/teachers').then(res => res.json()).then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          const map: any = {};
+          data.forEach((t: any) => map[t.id] = t);
+          setLiveTeachers(map);
+          localStorage.setItem('srcc_teachers_cache', JSON.stringify(map));
+        }
+      }).catch(() => { });
     }, []);
   const [finderSearchQuery, setFinderSearchQuery] = useState('');
 
@@ -795,7 +807,7 @@ function App() {
     });
 
     const filtered = allRooms.filter(room => {
-      const matchesSearch = room.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = (room.name || '').toLowerCase().includes(searchQuery.toLowerCase());
       const matchesType = filterType === 'All' || room.type === filterType;
       return matchesSearch && matchesType;
     });
@@ -837,11 +849,12 @@ function App() {
 
     let locatedRoomName = '';
     liveRooms.forEach(room => {
-       if (locatedRoomName) return;
-       const occupants = (room as any).occupiedBy?.[selectedDay]?.[selectedTimeIndex] || [];
-       if (occupants.includes(teacher.id)) {
-          locatedRoomName = room.name;
-       }
+      if (locatedRoomName) return;
+      // Index by string to match Record keys
+      const occupants = room.occupiedBy?.[selectedDay]?.[selectedTimeIndex.toString()] || [];
+      if (occupants.includes(teacher.id)) {
+        locatedRoomName = room.name;
+      }
     });
 
     if (locatedRoomName) {
@@ -855,7 +868,7 @@ function App() {
     const query = finderSearchQuery.toLowerCase();
     return (Object.values(liveTeachers) as any[])
       .filter((t: any) => t.id !== 'ADMIN')
-      .filter((t: any) => t.name.toLowerCase().includes(query))
+      .filter((t: any) => (t.name || '').toLowerCase().includes(query))
       .map((t: any) => ({ ...t, type: 'teacher' }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [finderSearchQuery, liveTeachers]);
@@ -1941,7 +1954,7 @@ function App() {
                       <div className="space-y-2">
                         {(Object.values(liveTeachers) as any[])
                           .filter(t => t.id !== 'ADMIN')
-                          .filter(t => t.name.toLowerCase().includes(adminSearchQuery.toLowerCase()))
+                          .filter(t => (t.name || '').toLowerCase().includes(adminSearchQuery.toLowerCase()))
                           .sort((a, b) => a.name.localeCompare(b.name))
                           .map((t: any) => (
                             <div key={t.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">

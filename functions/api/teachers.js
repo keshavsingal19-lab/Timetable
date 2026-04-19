@@ -6,9 +6,11 @@ export async function onRequestGet(context) {
   
       if (env.DB) {
         try {
-          const result = await env.DB.prepare("SELECT id, name, department FROM teachers ORDER BY name ASC").all();
+          const result = await env.DB.prepare("SELECT id, name, department, schedule FROM faculty_schedules ORDER BY name ASC").all();
           dbTeachers = result.results || [];
-        } catch (e) {}
+        } catch (e) {
+          console.error("DB Query error:", e);
+        }
       }
       return new Response(JSON.stringify(dbTeachers), {
         headers: { "Content-Type": "application/json" }

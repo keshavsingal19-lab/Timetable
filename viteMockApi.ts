@@ -48,7 +48,7 @@ function extractTeacherCode(cellText: string) {
 
 function parseRoomHtml(html: string) {
   const emptySlots: Record<string, number[]> = {};
-  const occupiedBy: Record<string, Record<string, string>> = {};
+  const occupiedBy: Record<string, Record<string, string[]>> = {};
 
   for (const day of DAYS) {
     emptySlots[day] = [];
@@ -79,7 +79,8 @@ function parseRoomHtml(html: string) {
           } else {
             const teacherCode = extractTeacherCode(textContent);
             if (teacherCode) {
-              occupiedBy[day][slotIdx.toString()] = teacherCode;
+              // Store as array of segments (IDs) to match production schema
+              occupiedBy[day][slotIdx.toString()] = teacherCode.split(',').map(s => s.trim());
             }
           }
         }
@@ -108,10 +109,15 @@ export function mockBackendPlugin(): Plugin {
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify([
             { id: 'ADMIN', name: 'System Administrator', department: 'Office Control' },
-            { id: 'T1', name: 'Dr. Aruna Jha', department: 'Commerce' },
-            { id: 'T2', name: 'Mr. R.K. Singh', department: 'Economics' },
-            { id: 'T3', name: 'Ms. Poonam', department: 'English' },
-            { id: 'T4', name: 'Dr. Saurabh Gupta', department: 'Commerce' }
+            { id: 'AJ', name: 'Dr. Aruna Jha', department: 'Commerce' },
+            { id: 'RKS', name: 'Mr. R.K. Singh', department: 'Economics' },
+            { id: 'PNM', name: 'Ms. Poonam', department: 'English' },
+            { id: 'SGP', name: 'Dr. Saurabh Gupta', department: 'Commerce' },
+            { id: 'MKM', name: 'Dr. M.K. Mahajan', department: 'Commerce' },
+            { id: 'AKS', name: 'Dr. Amit Kumar Singh', department: 'Commerce' },
+            { id: 'JS', name: 'Ms. J. Sahay', department: 'Economics' },
+            { id: 'RK', name: 'Dr. Ravi Kant', department: 'Commerce' },
+            { id: 'SK', name: 'Mr. Santosh Kumar', department: 'Commerce' }
           ]));
           return;
         }

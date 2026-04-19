@@ -74,7 +74,10 @@ function App() {
       const cached = localStorage.getItem('srcc_teachers_cache');
       if (cached) {
         try {
-          setLiveTeachers(JSON.parse(cached));
+          const parsed = JSON.parse(cached);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            setLiveTeachers(parsed);
+          }
         } catch (e) {
           console.warn("Failed to parse cached teachers", e);
         }
@@ -870,7 +873,7 @@ function App() {
       .filter((t: any) => t.id !== 'ADMIN')
       .filter((t: any) => (t.name || '').toLowerCase().includes(query))
       .map((t: any) => ({ ...t, type: 'teacher' }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [finderSearchQuery, liveTeachers]);
 
   // --- REUSABLE COMPONENTS ---
@@ -1955,7 +1958,7 @@ function App() {
                         {(Object.values(liveTeachers) as any[])
                           .filter(t => t.id !== 'ADMIN')
                           .filter(t => (t.name || '').toLowerCase().includes(adminSearchQuery.toLowerCase()))
-                          .sort((a, b) => a.name.localeCompare(b.name))
+                          .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
                           .map((t: any) => (
                             <div key={t.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
                               <div><p className="font-bold text-gray-800 text-sm">{t.name}</p></div>

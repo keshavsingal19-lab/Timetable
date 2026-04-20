@@ -104,6 +104,7 @@ function App() {
   const [adminPass, setAdminPass] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [absentTeachers, setAbsentTeachers] = useState<any[]>([]);
+  const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [loginError, setLoginError] = useState('');
   const [adminSearchQuery, setAdminSearchQuery] = useState('');
@@ -367,8 +368,8 @@ function App() {
 
     fetch('/api/attendance')
       .then(res => res.json())
-      .then(ids => {
-        setAbsentTeachers(Array.isArray(ids) ? ids : []);
+      .then(data => {
+        setAbsentTeachers(Array.isArray(data) ? data : []);
         setLoading(false);
       }).catch(err => setLoading(false));
 
@@ -427,6 +428,10 @@ function App() {
 
     // Open the link
     window.open(link, '_blank');
+  };
+
+  const handleTeacherClick = (teacher: any) => {
+    setSelectedTeacher(teacher);
   };
 
   const handleDismissAd = (id: number) => {
@@ -935,6 +940,83 @@ function App() {
       </div>
     </div>
   );
+
+  const TeacherContactModal = () => {
+    if (!selectedTeacher) return null;
+    
+    const email = selectedTeacher.email || null;
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = () => {
+      if (email) {
+        navigator.clipboard.writeText(email);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col relative">
+          <div className="p-8 bg-srcc-portalNavy text-white text-center">
+            <button 
+              onClick={() => setSelectedTeacher(null)}
+              className="absolute top-4 right-4 bg-white/10 p-2 rounded-full hover:bg-white/20 transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="w-20 h-20 bg-srcc-yellow rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg rotate-3 group-hover:rotate-0 transition-transform">
+              <GraduationCap className="w-10 h-10 text-srcc-portalNavy" />
+            </div>
+            <h2 className="text-2xl font-black mb-1">{selectedTeacher.name}</h2>
+            <p className="text-srcc-yellow font-bold text-xs uppercase tracking-widest">{selectedTeacher.department}</p>
+          </div>
+
+          <div className="p-8 space-y-6">
+            <div className="space-y-4">
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Email Address</span>
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 group">
+                  <span className="font-bold text-gray-700 truncate mr-2">
+                    {email || 'Not available'}
+                  </span>
+                  {email && (
+                    <button 
+                      onClick={handleCopy}
+                      className="shrink-0 p-2 hover:bg-white rounded-lg transition-colors text-srcc-portalNavy"
+                    >
+                      {copied ? <CheckCircle className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5" />}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {email ? (
+                <a 
+                  href={`mailto:${email}`}
+                  className="w-full bg-srcc-portalNavy text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-900 transition-all shadow-md active:scale-95"
+                >
+                  <Mail className="w-5 h-5 text-srcc-yellow" /> Send Email
+                </a>
+              ) : (
+                <div className="w-full bg-gray-100 text-gray-400 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 cursor-not-allowed">
+                  <Mail className="w-5 h-5" /> Email Not Provided
+                </div>
+              )}
+              <button 
+                onClick={() => setSelectedTeacher(null)}
+                className="w-full text-gray-500 font-bold py-2 hover:text-srcc-portalNavy transition-colors text-sm"
+              >
+                Close Profile
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const renderTimetableSlots = (timetableData: any, day: DayOfWeek) => {
     if (!timetableData || !timetableData[day] || timetableData[day].length === 0) {
@@ -1631,9 +1713,13 @@ function App() {
                 const statusInfo = getEntityStatus(entity);
                 const StatusIcon = statusInfo.icon;
                 return (
-                  <div key={entity.id} className="bg-white border rounded-xl p-5 hover:shadow-md transition-all">
+                  <button 
+                    key={entity.id} 
+                    onClick={() => handleTeacherClick(entity)}
+                    className="bg-white border rounded-xl p-5 hover:shadow-md transition-all text-left group active:scale-95"
+                  >
                     <div className="flex justify-between items-start mb-3">
-                      <div className="bg-srcc-portalNavy/10 p-2.5 rounded-xl text-srcc-portalNavy">
+                      <div className="bg-srcc-portalNavy/10 p-2.5 rounded-xl text-srcc-portalNavy group-hover:bg-srcc-portalNavy group-hover:text-srcc-yellow transition-colors">
                         <GraduationCap className="w-6 h-6" />
                       </div>
                       <div className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 ${statusInfo.color === 'red' ? 'bg-red-50 text-red-700' : statusInfo.color === 'blue' ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'}`}>
@@ -1642,12 +1728,15 @@ function App() {
                     </div>
                     <h3 className="font-bold text-gray-900 text-lg leading-tight">{entity.name}</h3>
                     <p className="text-xs text-gray-500 font-bold uppercase tracking-wide mt-1">{entity.department}</p>
-                    <div className="mt-4 pt-4 border-t border-gray-100">
+                    <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
                       <p className="text-sm text-gray-600 flex items-center gap-2">
                         <Clock className="w-3.5 h-3.5 text-gray-400" /> {statusInfo.detail}
                       </p>
+                      <div className="text-srcc-portalNavy opacity-0 group-hover:opacity-100 transition-opacity">
+                         <Mail className="w-4 h-4" />
+                      </div>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -2192,6 +2281,9 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* --- MODAL: TEACHER CONTACT --- */}
+      <TeacherContactModal />
 
     </div>
   );

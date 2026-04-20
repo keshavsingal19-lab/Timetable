@@ -847,15 +847,19 @@ function App() {
   }, [selectedRoomId, selectedDay, absentTeachers, liveTeachers, liveRooms]);
 
   const getEntityStatus = (teacher: any) => {
+    // 1. Check leave status
     if (absentTeachers.includes(teacher.id) && selectedDay === currentDayName) {
       return { status: 'On Leave', color: 'red', icon: UserMinus, detail: 'Marked Absent' };
     }
 
+    // 2. Direct matching (now perfectly aligned between CSV and Scraper)
     let locatedRoomName = '';
     liveRooms.forEach(room => {
       if (locatedRoomName) return;
-      // Index by string to match Record keys
+      
       const occupants = room.occupiedBy?.[selectedDay]?.[selectedTimeIndex.toString()] || [];
+      
+      // Match against: ID directly (CSV IDs like SLK match Scraper codes like SLK)
       if (occupants.includes(teacher.id)) {
         locatedRoomName = room.name;
       }

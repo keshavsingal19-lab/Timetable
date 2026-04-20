@@ -14,6 +14,7 @@ export async function onRequest(context) {
 
   // --- GET Request: Public (Anyone can see who is absent) ---
   if (request.method === "GET") {
+    try {
       // Fetch records where today is between start_date and end_date
       const { results } = await env.DB.prepare(
         "SELECT teacher_id, start_date, end_date FROM global_absences WHERE ? BETWEEN start_date AND end_date"

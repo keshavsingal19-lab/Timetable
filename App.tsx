@@ -103,7 +103,7 @@ function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [adminPass, setAdminPass] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [absentTeachers, setAbsentTeachers] = useState<string[]>([]);
+  const [absentTeachers, setAbsentTeachers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loginError, setLoginError] = useState('');
   const [adminSearchQuery, setAdminSearchQuery] = useState('');
@@ -773,7 +773,7 @@ function App() {
 
     liveRooms.forEach(room => {
       const occupants = (room as any).occupiedBy?.[selectedDay]?.[selectedTimeIndex] || [];
-      const absentees = occupants.filter((code: string) => absentTeachers.includes(code));
+      const absentees = occupants.filter((code: string) => absentTeachers.some(a => a.teacher_id === code));
       
       if (absentees.length > 0) {
         potentialFreedRooms.set(room.id, absentees.map((code: string) => liveTeachers[code]?.name || code));
@@ -786,7 +786,7 @@ function App() {
       if (!room) return;
 
       const occupants = (room as any).occupiedBy?.[selectedDay]?.[selectedTimeIndex] || [];
-      const presentOccupants = occupants.filter((code: string) => !absentTeachers.includes(code));
+      const presentOccupants = occupants.filter((code: string) => !absentTeachers.some(a => a.teacher_id === code));
 
       if (presentOccupants.length === 0) {
         freed.push({
@@ -830,7 +830,7 @@ function App() {
       const idx = parseInt(slotIdx);
       if (codes.length > 0 && idx < timeline.length) {
         const names = codes.map(c => liveTeachers[c]?.name || c);
-        const allAbsent = codes.every(c => absentTeachers.includes(c));
+        const allAbsent = codes.every(c => absentTeachers.some(a => a.teacher_id === c));
         timeline[idx] = {
           status: 'Occupied',
           teacher: names.join(' + '),
@@ -848,7 +848,7 @@ function App() {
 
   const getEntityStatus = (teacher: any) => {
     // 1. Check leave status
-    if (absentTeachers.includes(teacher.id) && selectedDay === currentDayName) {
+    if (absentTeachers.some(a => a.teacher_id === teacher.id) && selectedDay === currentDayName) {
       return { status: 'On Leave', color: 'red', icon: UserMinus, detail: 'Marked Absent' };
     }
 
@@ -883,40 +883,55 @@ function App() {
 
   // --- REUSABLE COMPONENTS ---
   const TeachersOnLeaveDashboard = () => (
-    <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl shadow-sm border border-red-100 p-6 mb-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-white p-2 rounded-lg shadow-sm text-red-600">
-            <UserMinus className="w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">Teachers on Leave</h2>
-            <div className="flex items-center gap-2 text-red-600 text-sm font-medium">
-              <CalendarDays className="w-4 h-4" />{formattedDate}
-            </div>
-          </div>
+    <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden mb-8">
+      <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-black text-srcc-portalNavy mb-1">FACULTY ON LEAVE</h2>
+          <p className="text-gray-500 text-sm font-medium">Daily absence directory for {currentDayName}, {formattedDate}</p>
         </div>
         {absentTeachers.length > 0 && (
-          <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-bold border border-red-200">
+          <div className="bg-red-100 text-red-700 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-red-200">
             {absentTeachers.length} Absent Today
-          </span>
+          </div>
         )}
       </div>
-
-      <div className="bg-white/60 rounded-lg p-4 border border-red-100/50">
-        {absentTeachers.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {absentTeachers.map(tid => (
-              <span key={tid} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-red-200 shadow-sm text-sm font-medium text-gray-700">
-                <div className="w-2 h-2 rounded-full bg-red-500"></div>{liveTeachers[tid]?.name || tid}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500 text-sm italic flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-green-500" />No teachers marked absent today.
-          </p>
-        )}
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-srcc-portalNavy text-white">
+              <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">S.No</th>
+              <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">Name</th>
+              <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">From</th>
+              <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">To</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {absentTeachers.length > 0 ? (
+              absentTeachers.map((abs, index) => {
+                const teacher = liveTeachers[abs.teacher_id];
+                return (
+                  <tr key={abs.teacher_id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 text-sm font-bold text-gray-400">{index + 1}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-srcc-portalNavy leading-tight">{teacher?.name || abs.teacher_id}</span>
+                        <span className="text-[10px] uppercase font-black text-srcc-yellow bg-srcc-portalNavy px-1.5 py-0.5 rounded w-fit mt-1">{teacher?.department || 'Faculty'}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-600">{abs.start_date}</td>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-600">{abs.end_date}</td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={4} className="px-6 py-12 text-center text-gray-500 font-medium whitespace-nowrap">
+                  No faculty absences reported for today.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -1008,7 +1023,7 @@ function App() {
           <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'hidden' : 'flex'}`}>
             <img src="/SRCC.svg" alt="SRCC" className="w-20 h-20" />
             <div>
-              <h1 className="font-serif font-bold text-xl leading-tight tracking-wide text-white">SRCC Assist</h1>
+              <h1 className="font-serif font-bold text-xl leading-tight tracking-wide text-white">SRCC ASSIST</h1>
               <p className="text-srcc-yellow text-[10px] font-medium tracking-widest uppercase">Student Portal</p>
             </div>
           </div>
@@ -1018,27 +1033,27 @@ function App() {
         </div>
 
         <nav className="flex-1 overflow-y-auto overflow-x-hidden py-6 px-4 space-y-2">
-           <button onClick={() => { setActiveTab('student_portal'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'student_portal' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
+           <button onClick={() => { setActiveTab('student_portal'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'student_portal' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
              <LayoutDashboard className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'student_portal' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
              <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>Dashboard</span>
            </button>
-           <button onClick={() => { setActiveTab('rooms'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'rooms' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
+           <button onClick={() => { setActiveTab('rooms'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'rooms' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
              <LucideMap className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'rooms' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
              <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>Room Finder</span>
            </button>
-           <button onClick={() => { setActiveTab('teachers'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'teachers' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
+           <button onClick={() => { setActiveTab('teachers'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'teachers' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
              <Contact className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'teachers' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
              <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>Staff Info</span>
            </button>
-           <button onClick={() => { setActiveTab('timetable'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'timetable' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
+           <button onClick={() => { setActiveTab('timetable'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'timetable' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
              <CalendarDays className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'timetable' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
              <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>Schedules</span>
            </button>
-           <button onClick={() => { setActiveTab('leave'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'leave' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
+           <button onClick={() => { setActiveTab('leave'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'leave' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
              <CalendarOff className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'leave' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
              <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>On Leave</span>
            </button>
-           <button onClick={() => { setActiveTab('societies'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'societies' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
+           <button onClick={() => { setActiveTab('societies'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'societies' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
              <Globe className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'societies' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
              <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>Societies</span>
            </button>
@@ -1058,13 +1073,13 @@ function App() {
 
       {/* MOBILE SIDEBAR MODAL */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-srcc-portalNavy/80 backdrop-blur-sm z-50 md:hidden flex justify-start">
+        <div className="fixed inset-0 bg-transparent z-50 md:hidden flex justify-start">
            <aside className="w-64 bg-srcc-portalNavy text-white h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-300 relative">
              <div className="p-6 border-b border-white/10 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <img src="/SRCC.svg" alt="SRCC" className="w-8 h-8" />
                   <div>
-                    <h1 className="font-serif font-bold text-xl leading-tight tracking-wide text-white">SRCC Assist</h1>
+                    <h1 className="font-serif font-bold text-xl leading-tight tracking-wide text-white">SRCC ASSIST</h1>
                     <p className="text-srcc-yellow text-[10px] font-medium tracking-widest uppercase">Student Portal</p>
                   </div>
                 </div>
@@ -1073,22 +1088,22 @@ function App() {
                 </button>
              </div>
              <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-2">
-               <button onClick={() => { setActiveTab('student_portal'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'student_portal' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300'}`}>
+               <button onClick={() => { setActiveTab('student_portal'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'student_portal' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300'}`}>
                  <LayoutDashboard className="w-5 h-5 shrink-0" /> <span>Dashboard</span>
                </button>
-               <button onClick={() => { setActiveTab('rooms'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'rooms' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300'}`}>
+               <button onClick={() => { setActiveTab('rooms'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'rooms' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300'}`}>
                  <LucideMap className="w-5 h-5 shrink-0" /> <span>Room Finder</span>
                </button>
-               <button onClick={() => { setActiveTab('teachers'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'teachers' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300'}`}>
+               <button onClick={() => { setActiveTab('teachers'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'teachers' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300'}`}>
                  <Contact className="w-5 h-5 shrink-0" /> <span>Staff Info</span>
                </button>
-               <button onClick={() => { setActiveTab('timetable'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'timetable' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300'}`}>
+               <button onClick={() => { setActiveTab('timetable'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'timetable' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300'}`}>
                  <CalendarDays className="w-5 h-5 shrink-0" /> <span>Schedules</span>
                </button>
-               <button onClick={() => { setActiveTab('leave'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'leave' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300'}`}>
+               <button onClick={() => { setActiveTab('leave'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'leave' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300'}`}>
                  <CalendarOff className="w-5 h-5 shrink-0" /> <span>On Leave</span>
                </button>
-               <button onClick={() => { setActiveTab('societies'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'societies' ? 'bg-srcc-yellow text-srcc-portalNavy' : 'text-gray-300'}`}>
+               <button onClick={() => { setActiveTab('societies'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'societies' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300'}`}>
                  <Globe className="w-5 h-5 shrink-0" /> <span>Societies</span>
                </button>
              </nav>
@@ -1238,7 +1253,7 @@ function App() {
                 {/* Glassmorphism login card - wider on desktop, perfectly centred */}
                 <div className="w-full max-w-lg md:max-w-2xl lg:max-w-3xl text-white bg-white/8 backdrop-blur-2xl border border-white/25 rounded-2xl p-8 sm:p-10 lg:p-14 text-center shadow-[0_20px_60px_0_rgba(0,0,0,0.6)]">
                   <img src="/SRCC100.svg" alt="SRCC Assist" className="w-16 h-16 sm:w-20 sm:h-20 lg:w-28 lg:h-28 mx-auto mb-4 sm:mb-6 lg:mb-8 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] hover:scale-110 transition-transform duration-500" />
-                  <h2 className="font-serif text-2xl sm:text-4xl lg:text-5xl font-bold text-white mb-1 sm:mb-3 tracking-wide">SRCC Assist</h2>
+                  <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white mb-1 sm:mb-3 tracking-wide" style={{ fontFamily: "'Trajan Pro', 'Trajan', 'Cinzel', serif" }}>SRCC ASSIST</h2>
                   <p className="text-gray-300 text-xs sm:text-sm mb-4 sm:mb-6 font-light">Sign in with your college email.</p>
 
                   <div className="space-y-3 mb-4">
@@ -1493,7 +1508,7 @@ function App() {
                   />
                   <button
                     type="submit"
-                    className="w-full bg-srcc-portalNavy hover:bg-srcc-yellow text-white hover:text-srcc-portalNavy font-bold py-3.5 rounded-xl shadow-md transition-colors active:scale-95"
+                    className="w-full bg-srcc-portalNavy hover:bg-srcc-yellow text-gray-100 hover:text-srcc-portalNavy font-bold py-3.5 rounded-xl shadow-md transition-colors active:scale-95"
                   >
                     Look Up Schedule
                   </button>
@@ -1530,7 +1545,11 @@ function App() {
         {/* --- ROOM FINDER TAB --- */}
         {activeTab === 'rooms' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-             <TeachersOnLeaveDashboard />
+             
+             <h2 className="text-3xl font-black text-srcc-portalNavy mb-6 mt-2 flex items-center gap-3">
+                <span className="w-2 h-8 bg-srcc-gold rounded-full"></span>
+                Vacant Rooms
+             </h2>
              
              {/* --- NEW: SEARCH & FILTER CONTROLS --- */}
              <div className="flex flex-col md:flex-row gap-3 mb-6">
@@ -1699,7 +1718,7 @@ function App() {
                 <a href="mailto:abcddcba121202@gmail.com" className="bg-white text-srcc-portalNavy hover:bg-srcc-yellow hover:text-srcc-portalNavy px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md transition-all">
                   <Mail className="w-5 h-5" /> List Your Event
                 </a>
-                <p className="text-xs text-blue-200 mt-2 font-medium opacity-80">Listing starts @ ₹5/day</p>
+                
               </div>
             </div>
 
@@ -1786,7 +1805,7 @@ function App() {
               <button onClick={() => setActiveTab('legal_contact')} className="hover:text-white transition-colors focus:outline-none">Contact</button>
             </div>
             
-            <div className="text-white/60 text-[9px] md:text-xs flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-center pb-0.5">
+            <div className="text-white/60 text-[11px] md:text-xs flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-center pb-0.5">
               <p>Developed with Curiosity by <a href="https://linkedin.com/in/keshavsingal" target="_blank" rel="noopener noreferrer" className="text-srcc-yellow hover:text-yellow-300 font-medium transition-colors"><b>Keshav Singal (24BC702)</b></a></p>
             </div>
           </div>

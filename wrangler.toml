@@ -6,6 +6,3 @@ compatibility_date = "2025-02-04"
 binding = "DB"
 database_name = "school-db"
 database_id = "deaadb8b-6d35-4211-9201-66dcb9439e94"
-
-[vars]
-WEBHOOK_SECRET = "your-webhook-secret-here"

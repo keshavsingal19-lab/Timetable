@@ -14,22 +14,12 @@ export async function onRequest(context) {
 
   // --- GET Request: Public (Anyone can see who is absent) ---
   if (request.method === "GET") {
-    try {
-      // Ensure local daily_absences table exists
-      await env.DB.prepare(`
-        CREATE TABLE IF NOT EXISTS daily_absences (
-          date TEXT, 
-          teacher_id TEXT, 
-          PRIMARY KEY (date, teacher_id)
-        )
-      `).run();
-
+      // Fetch records where today is between start_date and end_date
       const { results } = await env.DB.prepare(
-        "SELECT teacher_id FROM daily_absences WHERE date = ?"
+        "SELECT teacher_id, start_date, end_date FROM global_absences WHERE ? BETWEEN start_date AND end_date"
       ).bind(today).all();
       
-      const ids = results.map(r => r.teacher_id);
-      return new Response(JSON.stringify(ids), { headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify(results), { headers: { "Content-Type": "application/json" } });
     } catch (e) {
       return new Response(JSON.stringify([]), { headers: { "Content-Type": "application/json" } });
     }

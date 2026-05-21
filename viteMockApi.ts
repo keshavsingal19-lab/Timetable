@@ -26,7 +26,23 @@ function classifyRoomType(id: string) {
   return "Lecture Hall";
 }
 
-function extractTeacherCode(cellText: string) {
+// Parse teacher legend from bottom of page — ground truth for code-to-name
+function parseTeacherLegend(html: string): Map<string, string> {
+  const legend = new Map<string, string>();
+  const regex = /<b>([A-Z0-9]+)<\/b>\s*-\s*([^,<]+)/gi;
+  let match;
+  while ((match = regex.exec(html)) !== null) {
+    legend.set(match[1].toUpperCase(), match[2].trim());
+  }
+  return legend;
+}
+
+const TEACHER_BLOCKLIST = new Set(['SEM','BCH','BAHE','JOINT','CLAW',
+  'HRM','COST','EVS','IB','BA','CA','ADVT','PME','TGNLC',
+  'TSH','AEC','VAC','SEC','GE','DSE','II','III','IV','VI',
+  'BCOM', 'HONS', 'TUT', 'PRAC', 'LAB']);
+
+function extractTeacherCode(cellText: string, legend: Map<string, string>) {
   if (!cellText || !cellText.trim()) return null;
   const segments = cellText.split(/[\/|,]+/);
   const codes: string[] = [];
@@ -36,10 +52,13 @@ function extractTeacherCode(cellText: string) {
     if (!cleaned) continue;
     const parts = cleaned.split(/[\s\-]+/);
     for (let i = parts.length - 1; i >= 0; i--) {
-      const part = parts[i].trim();
-      if (/^[A-Za-z]{1,4}$/.test(part)) {
-        codes.push(part.toUpperCase());
-        break;
+      const part = parts[i].trim().toUpperCase();
+      if (/^[A-Z]{1,5}\d{0,2}$/.test(part) && !TEACHER_BLOCKLIST.has(part)) {
+        if (legend.size > 0) {
+          if (legend.has(part)) { codes.push(part); break; }
+        } else {
+          codes.push(part); break;
+        }
       }
     }
   }
@@ -47,6 +66,7 @@ function extractTeacherCode(cellText: string) {
 }
 
 function parseRoomHtml(html: string) {
+  const legend = parseTeacherLegend(html);
   const emptySlots: Record<string, number[]> = {};
   const occupiedBy: Record<string, Record<string, string[]>> = {};
 
@@ -64,7 +84,6 @@ function parseRoomHtml(html: string) {
     let colIndex = 0;
 
     while ((cellMatch = cellRegex.exec(rowHtml)) !== null) {
-      const fullCellTag = cellMatch[0];
       const cellContent = cellMatch[1];
       const slotIdx = COL_TO_SLOT[colIndex];
 
@@ -77,7 +96,7 @@ function parseRoomHtml(html: string) {
           if (!meaningfulText) {
             emptySlots[day].push(slotIdx);
           } else {
-            const teacherCode = extractTeacherCode(textContent);
+            const teacherCode = extractTeacherCode(textContent, legend);
             if (teacherCode) {
               // Store as array of segments (IDs) to match production schema
               occupiedBy[day][slotIdx.toString()] = teacherCode.split(',').map(s => s.trim());
@@ -88,7 +107,7 @@ function parseRoomHtml(html: string) {
       colIndex++;
     }
   }
-  return { emptySlots, occupiedBy };
+  return { emptySlots, occupiedBy, legend };
 }
 
 let localDbRooms: any[] = [];

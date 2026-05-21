@@ -6,7 +6,7 @@ import {
   ArrowRight, MessageCircle, Star, Timer, Megaphone, Mail, Home,
   BookOpen, User, UserPlus, Key, Settings, Menu, ShieldCheck, ChevronRight, ChevronLeft,
   Eye, MousePointerClick, Edit, Trash2, LayoutDashboard, Contact, CalendarOff, Globe, Map as LucideMap,
-  RefreshCw, Layers
+  RefreshCw, Layers, X, Copy
 } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
@@ -384,9 +384,25 @@ function App() {
   const completeLogin = (user: any) => {
     setIsStudentLoggedIn(true);
     setStudentUser(user);
-    const sData = ALL_STUDENT_SCHEDULES[user.rollNo.toUpperCase() as keyof typeof ALL_STUDENT_SCHEDULES];
-    if (sData) setMyTimetableData(sData);
+
+    // TEMPORARILY DISABLED STATIC FALLBACK FOR TESTING
+    // const sData = ALL_STUDENT_SCHEDULES[user.rollNo.toUpperCase() as keyof typeof ALL_STUDENT_SCHEDULES];
+    // if (sData) setMyTimetableData(sData);
+    setMyTimetableData({ Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [] }); // Start empty
     setPortalMode('login');
+
+    // Fetch dynamic DB-driven schedule
+    fetch(`/api/student_schedule?rollNo=${encodeURIComponent(user.rollNo)}`)
+      .then(res => {
+        if (res.ok) return res.json();
+        return null;
+      })
+      .then(data => {
+        if (data?.schedule) {
+          setMyTimetableData(data.schedule);
+        }
+      })
+      .catch(e => console.warn("Dynamic schedule fetch failed:", e));
   };
 
   // --- NEW: DAILY RESET TRACKING LOGIC ---
@@ -633,8 +649,11 @@ function App() {
         setLoginError('');
         fetchAdminEvents();
       } else {
-        if (response.status === 403) {
-          setIsSiteBlocked(true); setBlockMessage(data.message); setIsAdminOpen(false);
+        if (response.status === 429) {
+          // Rate-limited — show inline error, not full block
+          setLoginError(data.error || 'Too many failed attempts.');
+        } else if (response.status === 403) {
+          setLoginError(data.error || 'Too many failed attempts. Try again later.');
         } else {
           setLoginError(data.message || data.error || `Incorrect password.`);
         }
@@ -752,11 +771,20 @@ function App() {
     const roll = timetableRollNo.trim().toUpperCase();
     if (!roll) return;
 
-    const studentData = ALL_STUDENT_SCHEDULES[roll as keyof typeof ALL_STUDENT_SCHEDULES];
-    if (studentData) {
-      setActiveSearchTimetable(studentData);
-      setSearchTimetableDay(Object.values(DayOfWeek).includes(currentDayName as DayOfWeek) ? (currentDayName as DayOfWeek) : DayOfWeek.Monday);
-    } else { alert("Roll Number not found! Please check for typos."); }
+    // Fetch dynamic DB-driven schedule
+    fetch(`/api/student_schedule?rollNo=${encodeURIComponent(roll)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.schedule) {
+          setActiveSearchTimetable(data.schedule);
+          setSearchTimetableDay(Object.values(DayOfWeek).includes(currentDayName as DayOfWeek) ? (currentDayName as DayOfWeek) : DayOfWeek.Monday);
+        } else { 
+          alert("Roll Number not found in DB or has no schedule! Please check for typos."); 
+        }
+      })
+      .catch(e => {
+        alert("Failed to fetch schedule from DB.");
+      });
   };
 
   // --- LOGIC FUNCTIONS ---
@@ -1099,7 +1127,7 @@ function App() {
     );
   }
 
-  if (IS_MAINTENANCE) {
+  if (IS_MAINTENANCE && !isLoggedIn) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden font-sans" 
            style={{ backgroundImage: 'url(/bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
@@ -1134,6 +1162,30 @@ function App() {
             <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-srcc-yellow/10 border border-srcc-yellow/20 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest text-srcc-yellow">
               <span className="w-2 h-2 bg-srcc-yellow rounded-full animate-ping"></span>
               Optimization In Progress
+            </div>
+
+            <div className="mt-8 border-t border-white/20 pt-8">
+               <p className="text-white/60 text-xs font-medium mb-4 uppercase tracking-widest">Admin Access</p>
+               {loginError && (
+                 <div className="mb-4 text-red-400 text-xs font-bold bg-red-500/10 py-2 rounded border border-red-500/20">
+                   {loginError}
+                 </div>
+               )}
+               <div className="flex flex-col gap-3">
+                 <input 
+                   type="password" 
+                   value={adminPass}
+                   onChange={e => setAdminPass(e.target.value)}
+                   placeholder="Admin Password"
+                   className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/50 text-center outline-none focus:border-srcc-yellow transition-colors tracking-widest"
+                 />
+                 <button 
+                   onClick={handleAdminLogin}
+                   className="w-full bg-srcc-yellow hover:bg-yellow-400 text-srcc-portalNavy font-bold py-3 rounded-xl transition-all shadow-lg uppercase text-sm tracking-wide"
+                 >
+                   Bypass Maintenance
+                 </button>
+               </div>
             </div>
           </div>
           

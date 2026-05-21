@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teacher Finder — Analysis & Implementation Plan</title>
+<style>
+  :root { --navy: #1a2744; --gold: #d4a843; --green: #22c55e; --red: #ef4444; --blue: #3b82f6; --gray: #64748b; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.7; }
+  .container { max-width: 960px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 28px; color: var(--navy); border-bottom: 3px solid var(--gold); padding-bottom: 12px; margin-bottom: 24px; }
+  h2 { font-size: 22px; color: var(--navy); margin: 32px 0 16px; padding: 8px 16px; background: #e2e8f0; border-left: 4px solid var(--gold); border-radius: 0 8px 8px 0; }
+  h3 { font-size: 17px; color: var(--navy); margin: 20px 0 10px; }
+  p, li { font-size: 15px; margin-bottom: 8px; }
+  ul, ol { padding-left: 24px; }
+  code { background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 13px; font-family: 'Cascadia Code', 'Fira Code', monospace; }
+  pre { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0; font-size: 13px; line-height: 1.5; }
+  pre code { background: none; padding: 0; color: inherit; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .badge-yellow { background: #fef9c3; color: #854d0e; }
+  .badge-blue { background: #dbeafe; color: #1e40af; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 16px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .card-header { font-weight: 700; font-size: 16px; color: var(--navy); margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { background: var(--navy); color: white; padding: 10px 14px; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; }
+  tr:hover td { background: #f1f5f9; }
+  .diagram { background: white; border: 2px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 16px 0; text-align: center; font-family: monospace; font-size: 13px; white-space: pre; line-height: 1.4; overflow-x: auto; }
+  .alert { padding: 14px 18px; border-radius: 8px; margin: 12px 0; font-size: 14px; }
+  .alert-info { background: #dbeafe; border-left: 4px solid var(--blue); }
+  .alert-warn { background: #fef9c3; border-left: 4px solid #eab308; }
+  .alert-ok { background: #dcfce7; border-left: 4px solid var(--green); }
+  .section-num { color: var(--gold); font-weight: 800; }
+  hr { border: none; border-top: 1px solid #e2e8f0; margin: 32px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>🔍 Teacher Finder — Analysis & Implementation Plan</h1>
+<p><strong>Goal:</strong> Admin button "Update Teacher Finder" scrapes the SRCC timetable website, extracts <em>which teacher is in which room at which time slot on which day</em>, and sends that data to the Timetable app's Teacher Finder feature.</p>
+
+<hr>
+
+<h2><span class="section-num">1.</span> Current State Analysis</h2>
+
+<h3>1.1 What Already Exists</h3>
+
+<div class="alert alert-ok">
+  <strong>Good news:</strong> About 80% of this feature already exists! The data extraction, storage, and UI are all in place. The main gap is that the data pipeline from Admin to Timetable is indirect and the parser has accuracy issues.
+</div>
+
+<table>
+  <tr><th>Component</th><th>Location</th><th>Status</th><th>Notes</th></tr>
+  <tr>
+    <td><strong>HTML Scraper</strong></td>
+    <td><code>Admin/functions/api/sync_rooms.ts</code></td>
+    <td><span class="badge badge-green">EXISTS</span></td>
+    <td>Scrapes all 80+ rooms from srcccollegetimetable.in. Already extracts <code>occupiedBy</code> data (teacher IDs per slot).</td>
+  </tr>
+  <tr>
+    <td><strong>Parser Logic</strong></td>
+    <td><code>extractTeacherId()</code> + <code>parseRoomHtml()</code></td>
+    <td><span class="badge badge-yellow">BUGGY</span></td>
+    <td>Regex <code>/^[A-Za-z]{1,4}$/</code> misses codes like <code>C17</code>, <code>EG2</code>, <code>EVSG1</code> (contain digits). Also misidentifies subject fragments as teacher IDs.</td>
+  </tr>
+  <tr>
+    <td><strong>Webhook Broadcast</strong></td>
+    <td><code>sync_rooms.ts</code> lines 236-257</td>
+    <td><span class="badge badge-green">EXISTS</span></td>
+    <td>After sync, broadcasts all rooms (with <code>occupiedBy</code>) to Timetable + Teacher via <code>/api/webhook/save_rooms</code>.</td>
+  </tr>
+  <tr>
+    <td><strong>Webhook Receiver</strong></td>
+    <td><code>Timetable/functions/api/webhook/save_rooms.js</code></td>
+    <td><span class="badge badge-green">EXISTS</span></td>
+    <td>Stores <code>occupiedBy</code> in <code>campus_rooms</code> table correctly.</td>
+  </tr>
+  <tr>
+    <td><strong>Rooms API</strong></td>
+    <td><code>Timetable/functions/api/rooms.js</code></td>
+    <td><span class="badge badge-green">EXISTS</span></td>
+    <td>Returns parsed <code>occupiedBy</code> JSON from DB.</td>
+  </tr>
+  <tr>
+    <td><strong>Teacher Finder UI</strong></td>
+    <td><code>Timetable/App.tsx</code> lines 857-890</td>
+    <td><span class="badge badge-green">EXISTS</span></td>
+    <td>Full UI with search, status badges ("In R1", "Free", "On Leave"). Uses <code>getEntityStatus()</code> to look up teacher in <code>room.occupiedBy</code>.</td>
+  </tr>
+  <tr>
+    <td><strong>Teacher Legend Parser</strong></td>
+    <td>N/A</td>
+    <td><span class="badge badge-red">MISSING</span></td>
+    <td>The HTML contains a legend at the bottom mapping codes to full names (e.g. <code>&lt;b&gt;RNC&lt;/b&gt;-DR. REENA CHADHA</code>). This is <strong>not being extracted</strong>.</td>
+  </tr>
+  <tr>
+    <td><strong>Admin "Update Teacher Finder" Button</strong></td>
+    <td>N/A</td>
+    <td><span class="badge badge-red">MISSING</span></td>
+    <td>No dedicated button. Currently only "Sync Room Data" exists which already does the job but isn't named/positioned for this purpose.</td>
+  </tr>
+</table>
+
+<h3>1.2 The Data Source (HTML Structure)</h3>
+<p>Each room page at <code>srcccollegetimetable.in/admin/timetable_printpreview.php?mode=print&roomno=R1</code> contains:</p>
+
+<div class="card">
+  <div class="card-header">Timetable Grid (per room)</div>
+  <p>Each <code>&lt;tr&gt;</code> is a day (Monday–Saturday). Each <code>&lt;td&gt;</code> is a time slot. A cell like:</p>
+  <pre><code>&lt;td style="background:#FFCC99"&gt;
+  &lt;span&gt;L-&lt;/span&gt;BCH-J-SEM II&lt;br/&gt;
+  Commerce-CLAW-<strong>RNC</strong>&lt;br/&gt;
+&lt;/td&gt;</code></pre>
+  <p>Means: <strong>Teacher RNC</strong> (Dr. Reena Chadha) is teaching in this room during this slot.</p>
+  <p>Empty cells have <code>style="Array"</code> with no text content → that slot is free.</p>
+</div>
+
+<div class="card">
+  <div class="card-header">Teacher Legend (bottom of page)</div>
+  <pre><code>&lt;div class="w98 size11"&gt;
+  &lt;b&gt;AOK&lt;/B&gt;-DR. ALOK KUMAR, 
+  &lt;b&gt;ATS&lt;/B&gt;-DR. AMARJEET SINGH, 
+  &lt;b&gt;RNC&lt;/B&gt;-DR. REENA CHADHA, 
+  &lt;b&gt;C17&lt;/B&gt;-COMMERCE GUEST 17, 
+  &lt;b&gt;EG2&lt;/B&gt;-ECO GUEST 2, 
+  &lt;b&gt;EVSG1&lt;/B&gt;-EVS GUEST 1,
+  ...
+&lt;/div&gt;</code></pre>
+  <p>This maps <strong>short codes → full names</strong>. Currently <strong>not being parsed</strong>.</p>
+</div>
+
+<h3>1.3 How the Teacher Finder Currently Works</h3>
+
+<div class="diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│  CURRENT FLOW (already working, but with data quality issues)  │
+└─────────────────────────────────────────────────────────────────┘
+
+Admin "Sync Room Data" button
+         │
+         ▼
+sync_rooms.ts scrapes 80+ rooms from SRCC website
+         │
+         ├── Extracts emptySlots (which slots are free)
+         ├── Extracts occupiedBy { day → slot → [teacherCodes] }
+         │        ⚠️ Parser misses codes with digits (C17, EG2)
+         │        ⚠️ Sometimes picks up subject fragments as codes
+         │
+         ▼
+Saves to Admin DB (campus_rooms table)
+         │
+         ▼
+Broadcasts via webhook → Timetable /api/webhook/save_rooms
+         │
+         ▼
+Timetable DB stores occupiedBy in campus_rooms
+         │
+         ▼
+Frontend loads /api/rooms → gets rooms with occupiedBy
+         │
+         ▼
+getEntityStatus(teacher) loops all rooms:
+  "Is teacher.id in room.occupiedBy[today][currentSlot]?"
+         │
+         ├── YES → "In Room R1" (blue badge)
+         ├── NO + absent → "On Leave" (red badge)
+         └── NO → "Free" (green badge)
+</div>
+
+<hr>
+
+<h2><span class="section-num">2.</span> What Needs To Be Done</h2>
+
+<div class="alert alert-info">
+  <strong>Key Insight:</strong> The existing <code>sync_rooms</code> flow already does 90% of what "Update Teacher Finder" needs. The real work is: (A) fix the parser to extract teacher IDs accurately, (B) extract the teacher legend for code→name mapping, and (C) add a clear "Update Teacher Finder" button in the Admin UI.
+</div>
+
+<table>
+  <tr><th>#</th><th>Task</th><th>Effort</th><th>Files</th></tr>
+  <tr>
+    <td><strong>A</strong></td>
+    <td><strong>Fix Teacher ID Parser</strong> — The regex <code>/^[A-Za-z]{1,4}$/</code> rejects codes containing digits. The SRCC system uses alphanumeric codes (C17, EG2, C4, EVSG1, VAC5, VAC25). Need to update to <code>/^[A-Z]{1,5}\d{0,2}$/i</code> and filter out known false positives (subject abbreviations like SEM, BCH, CLAW, HRM, etc).</td>
+    <td><span class="badge badge-yellow">Medium</span></td>
+    <td><code>Admin/sync_rooms.ts</code>, <code>Timetable/sync_rooms.ts</code></td>
+  </tr>
+  <tr>
+    <td><strong>B</strong></td>
+    <td><strong>Extract Teacher Legend</strong> — Parse the <code>&lt;b&gt;CODE&lt;/b&gt;-FULL NAME</code> block at the bottom of each room page. Accumulate a global code→name map across all rooms. Send this map to the Timetable app so the Teacher Finder can display real names even for teachers not in the local DB.</td>
+    <td><span class="badge badge-yellow">Medium</span></td>
+    <td><code>Admin/sync_rooms.ts</code>, new webhook endpoint or extend <code>save_rooms</code></td>
+  </tr>
+  <tr>
+    <td><strong>C</strong></td>
+    <td><strong>Add "Update Teacher Finder" Button</strong> — In the Admin Dashboard, add a button that triggers the same <code>sync_rooms</code> flow. Could be: (1) a separate button that reuses the same API, or (2) simply rename/reposition the existing "Sync Room Data" button since it already does this.</td>
+    <td><span class="badge badge-green">Low</span></td>
+    <td><code>Admin/src/pages/Dashboard.tsx</code></td>
+  </tr>
+  <tr>
+    <td><strong>D</strong></td>
+    <td><strong>Ensure Teachers Are Synced to Timetable</strong> — The Teacher Finder UI reads from <code>liveTeachers</code> (loaded from <code>/api/teachers</code>). If a teacher code from the scraper doesn't exist in the Timetable's <code>teachers</code> table, they won't show up in the finder. The legend parsing (Task B) can populate missing teachers automatically.</td>
+    <td><span class="badge badge-yellow">Medium</span></td>
+    <td><code>Timetable/webhook/save_rooms.js</code> or new webhook</td>
+  </tr>
+  <tr>
+    <td><strong>E</strong></td>
+    <td><strong>False-Positive Filter</strong> — Current parser extracts subject codes (CLAW, HRM, COST, etc.) as teacher IDs. Need a blocklist of known non-teacher codes or a smarter extraction strategy that uses the legend as ground truth.</td>
+    <td><span class="badge badge-yellow">Medium</span></td>
+    <td><code>Admin/sync_rooms.ts</code></td>
+  </tr>
+</table>
+
+<hr>
+
+<h2><span class="section-num">3.</span> Implementation Plan</h2>
+
+<h3>Phase 1: Fix the Parser (Admin)</h3>
+<div class="card">
+  <div class="card-header">Task A + B + E — Improve Data Extraction</div>
+  <p><strong>File:</strong> <code>Admin/functions/api/sync_rooms.ts</code></p>
+  <ol>
+    <li><strong>Add legend parser:</strong> New function <code>parseTeacherLegend(html)</code> that extracts the <code>&lt;b&gt;CODE&lt;/b&gt;-FULL NAME</code> block → returns <code>Map&lt;string, string&gt;</code> of code→name.</li>
+    <li><strong>Fix <code>extractTeacherId()</code>:</strong> Update regex to <code>/^[A-Z]{1,5}\d{0,2}$/i</code> to allow alphanumeric codes.</li>
+    <li><strong>Add subject blocklist:</strong> Filter out known non-teacher segments: <code>['SEM', 'BCH', 'BAHE', 'JOINT', 'CLAW', 'HRM', 'COST', 'EVS', 'IB', 'BA', 'CA', 'ADVT', 'PME', 'TGNLC', 'TSH', 'InterMME']</code></li>
+    <li><strong>Cross-validate with legend:</strong> After extracting a potential teacher ID from a cell, check if it exists in the legend. If it does → confirmed teacher. If not → likely a subject code, skip it.</li>
+    <li><strong>Accumulate global teacher map:</strong> Merge legends from all rooms into a single <code>teacherDirectory</code> map.</li>
+    <li><strong>Include in webhook payload:</strong> Add <code>teacherDirectory</code> alongside <code>rooms</code> in the broadcast to Timetable.</li>
+  </ol>
+  <pre><code>// NEW: Parse teacher legend from bottom of page
+function parseTeacherLegend(html: string): Map&lt;string, string&gt; {
+  const legend = new Map&lt;string, string&gt;();
+  // Match: &lt;b&gt;CODE&lt;/B&gt;-FULL NAME,
+  const regex = /&lt;b&gt;([A-Z0-9]+)&lt;\/b&gt;\s*-\s*([^,&lt;]+)/gi;
+  let match;
+  while ((match = regex.exec(html)) !== null) {
+    legend.set(match[1].toUpperCase(), match[2].trim());
+  }
+  return legend;
+}
+
+// FIXED: Allow alphanumeric codes
+function extractTeacherId(segment: string, legend: Map): string | null {
+  const BLOCKLIST = new Set(['SEM','BCH','BAHE','JOINT','CLAW',
+    'HRM','COST','EVS','IB','BA','CA','ADVT','PME','TGNLC',
+    'TSH','AEC','VAC','SEC','GE','DSE','II','III','IV','VI']);
+  const parts = segment.split('-').map(p =&gt; p.trim());
+  for (let i = parts.length - 1; i &gt;= 0; i--) {
+    const p = parts[i].toUpperCase();
+    if (/^[A-Z]{1,5}\d{0,2}$/.test(p) 
+        &amp;&amp; !BLOCKLIST.has(p) 
+        &amp;&amp; legend.has(p)) {
+      return p;
+    }
+  }
+  return null;
+}</code></pre>
+</div>
+
+<h3>Phase 2: Extend Webhook to Carry Teacher Directory</h3>
+<div class="card">
+  <div class="card-header">Task D — Sync Teacher Names to Timetable</div>
+  <p><strong>Files:</strong> <code>Admin/sync_rooms.ts</code>, <code>Timetable/webhook/save_rooms.js</code></p>
+  <ol>
+    <li><strong>Extend broadcast payload:</strong> Add <code>teacherDirectory: { [code]: fullName }</code> to the webhook.</li>
+    <li><strong>Extend receiver:</strong> In <code>save_rooms.js</code>, if <code>payload.teacherDirectory</code> exists, upsert each entry into the <code>teachers</code> table (so Teacher Finder has names for all scraped codes).</li>
+  </ol>
+  <pre><code>// In Admin sync_rooms.ts — broadcast payload:
+const payload = { 
+  action: "save_rooms", 
+  rooms: results,
+  teacherDirectory: Object.fromEntries(globalTeacherMap)
+};
+
+// In Timetable webhook/save_rooms.js — receiver:
+if (payload.teacherDirectory) {
+  for (const [code, name] of Object.entries(payload.teacherDirectory)) {
+    await env.DB.prepare(`
+      INSERT INTO teachers (id, name, department) 
+      VALUES (?, ?, 'SRCC')
+      ON CONFLICT(id) DO UPDATE SET name=excluded.name
+    `).bind(code, name).run();
+  }
+}</code></pre>
+</div>
+
+<h3>Phase 3: Admin UI Button</h3>
+<div class="card">
+  <div class="card-header">Task C — "Update Teacher Finder" Button</div>
+  <p><strong>File:</strong> <code>Admin/src/pages/Dashboard.tsx</code></p>
+  <p>Two options:</p>
+  <ol>
+    <li><strong>Option A (Recommended):</strong> The existing "Sync Room Data" button already calls <code>/api/sync_rooms</code> which does exactly what we need. Simply add a second button labeled "Update Teacher Finder" in the sidebar or in the Room Finder section that triggers the same <code>handleSyncRooms()</code> function. The label clarifies the purpose.</li>
+    <li><strong>Option B:</strong> Create a separate <code>/api/sync_teacher_finder</code> endpoint that only extracts teacher data (no empty slots). Lighter but adds code duplication.</li>
+  </ol>
+  <p><strong>Recommendation:</strong> Option A. One sync does both jobs. The button text change makes it clear.</p>
+</div>
+
+<hr>
+
+<h2><span class="section-num">4.</span> Data Flow After Implementation</h2>
+
+<div class="diagram">
+┌──────────────────────────────────────────────────────────────┐
+│              NEW FLOW (after implementation)                 │
+└──────────────────────────────────────────────────────────────┘
+
+Admin clicks "Update Teacher Finder" (or "Sync Room Data")
+         │
+         ▼
+sync_rooms.ts scrapes 80+ rooms
+         │
+         ├── parseTeacherLegend(html) → { RNC: "Dr. Reena Chadha", ... }
+         ├── parseRoomHtml(html, legend) → { emptySlots, occupiedBy }
+         │      ✅ Alphanumeric codes supported (C17, EG2, EVSG1)
+         │      ✅ Cross-validated against legend (no false positives)
+         │
+         ▼
+Merges all legends → globalTeacherDirectory
+         │
+         ▼
+Broadcasts webhook to Timetable:
+  {
+    action: "save_rooms",
+    rooms: [...],                    ← room data with occupiedBy
+    teacherDirectory: { RNC: "..." } ← code-to-name map
+  }
+         │
+         ▼
+Timetable webhook/save_rooms.js:
+  1. Upserts rooms into campus_rooms (existing logic)
+  2. NEW: Upserts teacherDirectory into teachers table
+         │
+         ▼
+Frontend loads /api/rooms + /api/teachers
+         │
+         ▼
+Teacher Finder UI shows:
+  ✅ "Dr. Reena Chadha — In R1" (accurate room location)
+  ✅ "Dr. Alok Kumar — Free" (not in any room right now)
+  ✅ "Commerce Guest 17 — In T5" (even guest faculty found)
+</div>
+
+<hr>
+
+<h2><span class="section-num">5.</span> Execution Order & Estimated Effort</h2>
+
+<table>
+  <tr><th>Phase</th><th>What</th><th>Files Changed</th><th>Risk</th><th>Est. Time</th></tr>
+  <tr>
+    <td>1</td>
+    <td>Fix parser + add legend extraction</td>
+    <td><code>Admin/sync_rooms.ts</code>, <code>Timetable/sync_rooms.ts</code></td>
+    <td><span class="badge badge-yellow">Medium</span> — parser accuracy</td>
+    <td>~30 min</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>Extend webhook payload + receiver</td>
+    <td><code>Admin/sync_rooms.ts</code>, <code>Timetable/webhook/save_rooms.js</code>, <code>Teacher/webhook/save_rooms.js</code></td>
+    <td><span class="badge badge-green">Low</span></td>
+    <td>~15 min</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>Add Admin UI button</td>
+    <td><code>Admin/src/pages/Dashboard.tsx</code></td>
+    <td><span class="badge badge-green">Low</span></td>
+    <td>~10 min</td>
+  </tr>
+</table>
+
+<div class="alert alert-warn">
+  <strong>Free Tier Note:</strong> This reuses the existing <code>sync_rooms</code> endpoint. No new Cloudflare Workers subrequests are needed beyond what already exists. The teacher directory adds minimal payload size (~5KB for all teacher codes).
+</div>
+
+<hr>
+
+<h2><span class="section-num">6.</span> Parser Bug Examples</h2>
+<p>From real room R1 HTML, the current parser produces these false results:</p>
+
+<table>
+  <tr><th>Cell Content</th><th>Current Output</th><th>Correct Output</th><th>Issue</th></tr>
+  <tr>
+    <td><code>Commerce-CLAW-RNC</code></td>
+    <td><code>["RNC"]</code> ✅</td>
+    <td><code>["RNC"]</code></td>
+    <td>Works — pure alpha, 3 chars</td>
+  </tr>
+  <tr>
+    <td><code>Commerce-CA-C17</code></td>
+    <td><code>["CA"]</code> ❌</td>
+    <td><code>["C17"]</code></td>
+    <td>C17 rejected (has digit), CA is a subject</td>
+  </tr>
+  <tr>
+    <td><code>Economics-InterMME-EG2</code></td>
+    <td><code>[]</code> ❌</td>
+    <td><code>["EG2"]</code></td>
+    <td>EG2 rejected (has digit), InterMME too long</td>
+  </tr>
+  <tr>
+    <td><code>EVS-EVS-II-FYV-AEC-4</code></td>
+    <td><code>["AEC"]</code> ❌</td>
+    <td><code>["FYV"]</code></td>
+    <td>AEC is a course code, FYV is the teacher</td>
+  </tr>
+  <tr>
+    <td><code>Commerce-TSH-C4-VAC25</code></td>
+    <td><code>["TSH"]</code> ❌</td>
+    <td><code>["C4"]</code> or <code>["VAC25"]</code></td>
+    <td>TSH is a subject. C4/VAC25 rejected (digits)</td>
+  </tr>
+</table>
+
+<div class="alert alert-info">
+  <strong>Solution:</strong> The legend at the bottom of the HTML page is the ground truth. By parsing it first and using it as a whitelist, we eliminate all false positives. The legend for room R1 lists: <code>AOK, ATS, AAG, RUA, VIS, EG2, RNC, C17, RKS, YAA, AKY, PAA, SJJ, PAC, NAD, ALK, JTW, FYV, C4, EVSG1</code>.
+</div>
+
+<hr>
+
+<h2><span class="section-num">7.</span> Summary</h2>
+
+<div class="card" style="border-color: var(--gold); border-width: 2px;">
+  <div class="card-header" style="font-size: 18px;">The feature is 80% built. Here's what's needed:</div>
+  <ol>
+    <li><strong>Fix the parser</strong> — Allow alphanumeric teacher codes and cross-validate against the legend</li>
+    <li><strong>Extract the legend</strong> — Parse <code>&lt;b&gt;CODE&lt;/b&gt;-NAME</code> and send to Timetable</li>
+    <li><strong>Auto-populate teachers table</strong> — Upsert legend entries so Teacher Finder shows all faculty</li>
+    <li><strong>Add an Admin button</strong> — "Update Teacher Finder" that triggers the existing sync</li>
+  </ol>
+  <p style="margin-top: 12px; font-weight: 600; color: var(--navy);">Total estimated effort: ~1 hour. No new API endpoints needed. No additional Cloudflare costs.</p>
+</div>
+
+</div>
+</body>
+</html>

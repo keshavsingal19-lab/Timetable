@@ -1293,10 +1293,18 @@ function App() {
               <>
                 <div className="flex justify-between items-start mb-1">
                   <h4 className="font-bold text-gray-900 text-base leading-tight pr-10">{classData.subject}</h4>
-                  <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md ${classData.type === 'Lecture' ? 'bg-blue-50 text-blue-700' :
-                      classData.type === 'Tutorial' ? 'bg-purple-50 text-purple-700' : 'bg-green-50 text-green-700'
+                  <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md ${
+                      classData.type === 'Lecture' ? 'bg-blue-50 text-blue-700' :
+                      classData.type === 'Tutorial' ? 'bg-purple-50 text-purple-700' : 
+                      classData.type === 'Makeup' ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300' :
+                      'bg-green-50 text-green-700'
                     }`}>{classData.type}</span>
                 </div>
+                {classData.date && (
+                  <div className="text-xs font-bold text-amber-600 mb-1 flex items-center gap-1">
+                    <CalendarDays className="w-3 h-3" /> Scheduled for: {new Date(classData.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </div>
+                )}
                 <div className="flex items-center gap-3 text-sm mt-1">
                   <span className="flex items-center gap-1 text-gray-600 font-medium">
                     <MapPin className="w-3.5 h-3.5 text-indigo-500" /> Room {classData.room}

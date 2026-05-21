@@ -71,7 +71,7 @@ export async function onRequestGet(context) {
     // 4. Find vacant rooms for all available slots
     // We check a standard 6 days x 8 periods grid
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const periods = [0, 1, 2, 3, 4, 5, 6, 7]; // 8 periods
+    const periods = [0, 1, 2, 3, 4, 5, 6, 7, 8]; // 9 periods
 
     let dbRooms = [];
     try {

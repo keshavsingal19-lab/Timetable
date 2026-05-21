@@ -57,7 +57,7 @@ export async function onRequestGet(context) {
           if (!parsedOccupied[d]) parsedOccupied[d] = {};
           if (!parsedOccupied[d][p]) parsedOccupied[d][p] = [];
           
-          parsedOccupied[d][p].push(ext.teacher_id + ' (Extra)');
+          parsedOccupied[d][p].push(ext.teacher_id + ' (Extra|' + ext.date + ')');
         }
       });
       return {

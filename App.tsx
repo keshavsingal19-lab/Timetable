@@ -1043,7 +1043,14 @@ function App() {
   }, [absentTeachers, selectedDay, selectedTimeIndex, currentDayName, liveTeachers, liveRooms]);
 
   const availableRooms = useMemo(() => {
-    const staticRooms = liveRooms.filter(room => room.emptySlots[selectedDay]?.includes(selectedTimeIndex));
+    const staticRooms = liveRooms.filter(room => room.emptySlots[selectedDay]?.includes(selectedTimeIndex)).map(room => {
+       let isTaken = false;
+       if (room.occupiedBy && room.occupiedBy[selectedDay] && room.occupiedBy[selectedDay][selectedTimeIndex]) {
+           const occupants = room.occupiedBy[selectedDay][selectedTimeIndex];
+           isTaken = Array.isArray(occupants) && occupants.some(c => typeof c === 'string' && c.includes('(Extra)'));
+       }
+       return { ...room, isTaken };
+    });
     const allRooms = [...staticRooms];
 
     freedRooms.forEach(freed => {
@@ -2186,15 +2193,17 @@ function App() {
                   <button
                     key={room.id}
                     onClick={() => setSelectedRoomId(room.id)}
-                    className={`relative bg-white rounded-xl border p-5 flex flex-col items-center justify-center text-center transition-all hover:shadow-lg hover:-translate-y-1 active:scale-95 group ${(room as any).tags ? 'border-green-400 ring-2 ring-green-50' : 'border-gray-200'}`}
+                    className={`relative bg-white rounded-xl border p-5 flex flex-col items-center justify-center text-center transition-all hover:shadow-lg hover:-translate-y-1 active:scale-95 group ${(room as any).tags ? 'border-green-400 ring-2 ring-green-50' : (room as any).isTaken ? 'border-orange-400 ring-2 ring-orange-50 bg-orange-50/50 opacity-80' : 'border-gray-200'}`}
                   >
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 text-xl font-bold shadow-sm ${(room as any).tags ? 'bg-green-100 text-green-700' : 'bg-srcc-portalNavy/10 text-srcc-portalNavy group-hover:bg-srcc-portalNavy group-hover:text-srcc-yellow transition-colors'}`}>
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 text-xl font-bold shadow-sm ${(room as any).tags ? 'bg-green-100 text-green-700' : (room as any).isTaken ? 'bg-orange-100 text-orange-700' : 'bg-srcc-portalNavy/10 text-srcc-portalNavy group-hover:bg-srcc-portalNavy group-hover:text-srcc-yellow transition-colors'}`}>
                       {room.name.replace(/[^0-9]/g, '') || room.name.charAt(0)}
                     </div>
-                    <h3 className="font-bold text-gray-900 text-lg">{room.name}</h3>
+                    <h3 className={`font-bold text-lg ${ (room as any).isTaken ? 'text-orange-900' : 'text-gray-900' }`}>{room.name}</h3>
 
                     {(room as any).tags ? (
                       <span className="text-[10px] uppercase px-2 py-1 rounded-full mt-2 font-bold bg-green-100 text-green-700">FREED UP</span>
+                    ) : (room as any).isTaken ? (
+                      <span className="text-[10px] uppercase px-2 py-1 rounded-full mt-2 font-bold bg-orange-100 text-orange-700">TAKEN</span>
                     ) : (
                       <div className="flex items-center gap-1 mt-2 bg-gray-100 px-2 py-1 rounded-full">
                         <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wide">

@@ -50,10 +50,8 @@ export async function onRequestGet(context) {
           const d = ext.day_of_week;
           const p = ext.period_index;
           
-          // Remove from emptySlots
-          if (parsedEmpty[d]) {
-            parsedEmpty[d] = parsedEmpty[d].filter(slot => slot !== p);
-          }
+          // DO NOT remove from emptySlots! We want the frontend to see it as a slot that is theoretically "Empty" in the main timetable,
+          // but we will mark it as "Occupied" so the frontend can render it as "TAKEN".
           
           // Add to occupiedBy
           if (!parsedOccupied[d]) parsedOccupied[d] = {};

@@ -75,6 +75,50 @@ export async function onRequestGet(context) {
       }
     }
 
+    // 4.5 Fetch Make-up classes
+    try {
+      // Create table if not exists just in case
+      await env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS makeup_classes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          course TEXT,
+          semester TEXT,
+          section TEXT,
+          subject TEXT,
+          room TEXT,
+          date TEXT,
+          day_of_week TEXT,
+          period_index INTEGER,
+          teacher_id TEXT,
+          created_at INTEGER
+        )
+      `).run();
+
+      const makeupSlots = await env.DB.prepare(`
+        SELECT * FROM makeup_classes
+        WHERE course = ? AND semester = ? AND section = ?
+      `).bind(profile.course, profile.semester, profile.section).all();
+
+      if (makeupSlots && makeupSlots.results) {
+        for (const slot of makeupSlots.results) {
+          if (schedule[slot.day_of_week]) {
+            // Check if there is already a makeup class or normal class here.
+            // For now, we'll just push it and maybe the frontend can show both or highlight the makeup class.
+            schedule[slot.day_of_week].push({
+              periodIndex: slot.period_index,
+              subject: slot.subject,
+              room: slot.room,
+              type: 'Makeup',
+              teacher: slot.teacher_id,
+              date: slot.date // Helpful for frontend to show the specific date
+            });
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore if makeup table doesn't exist
+    }
+
     // 5. Check if we actually got any slots
     const totalSlots = Object.values(schedule).reduce((sum, day) => sum + day.length, 0);
     if (totalSlots === 0) {

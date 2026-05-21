@@ -250,6 +250,17 @@ function App() {
   const [activeSearchTimetable, setActiveSearchTimetable] = useState<any>(null);
   const [searchTimetableDay, setSearchTimetableDay] = useState<DayOfWeek>(DayOfWeek.Monday);
 
+  // --- FRIENDS FEATURE STATES ---
+  const [friendsList, setFriendsList] = useState<any[]>([]);
+  const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
+  const [outgoingRequests, setOutgoingRequests] = useState<any[]>([]);
+  const [blockedList, setBlockedList] = useState<any[]>([]);
+  const [friendSearchRoll, setFriendSearchRoll] = useState('');
+  const [friendsError, setFriendsError] = useState('');
+  const [friendsSuccess, setFriendsSuccess] = useState('');
+  const [isFriendsLoading, setIsFriendsLoading] = useState(false);
+  const [viewingFriendName, setViewingFriendName] = useState('');
+
   // --- STUDENT AUTH STATES ---
   const [isStudentLoggedIn, setIsStudentLoggedIn] = useState(false);
   const [studentUser, setStudentUser] = useState<any>(null);
@@ -381,9 +392,32 @@ function App() {
     };
   }, []);
 
+  const fetchFriendsData = async (rollNo: string) => {
+    if (!rollNo) return;
+    try {
+      const res = await fetch(`/api/friends?rollNo=${encodeURIComponent(rollNo)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setFriendsList(data.friends || []);
+        setIncomingRequests(data.incomingRequests || []);
+        setOutgoingRequests(data.outgoingRequests || []);
+        setBlockedList(data.blocks || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch friends data:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'timetable' && isStudentLoggedIn && studentUser?.rollNo) {
+      fetchFriendsData(studentUser.rollNo);
+    }
+  }, [activeTab, isStudentLoggedIn, studentUser]);
+
   const completeLogin = (user: any) => {
     setIsStudentLoggedIn(true);
     setStudentUser(user);
+    fetchFriendsData(user.rollNo);
 
     // TEMPORARILY DISABLED STATIC FALLBACK FOR TESTING
     // const sData = ALL_STUDENT_SCHEDULES[user.rollNo.toUpperCase() as keyof typeof ALL_STUDENT_SCHEDULES];
@@ -766,25 +800,195 @@ function App() {
     setEventMsg('');
   };
 
-  const handleGlobalSearchTimetable = (e: React.FormEvent) => {
+  const handleSendFriendRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    const roll = timetableRollNo.trim().toUpperCase();
-    if (!roll) return;
+    setFriendsError('');
+    setFriendsSuccess('');
+    const targetRoll = friendSearchRoll.trim().toUpperCase();
+    if (!targetRoll) return;
 
-    // Fetch dynamic DB-driven schedule
-    fetch(`/api/student_schedule?rollNo=${encodeURIComponent(roll)}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.schedule) {
-          setActiveSearchTimetable(data.schedule);
-          setSearchTimetableDay(Object.values(DayOfWeek).includes(currentDayName as DayOfWeek) ? (currentDayName as DayOfWeek) : DayOfWeek.Monday);
-        } else { 
-          alert("Roll Number not found in DB or has no schedule! Please check for typos."); 
-        }
-      })
-      .catch(e => {
-        alert("Failed to fetch schedule from DB.");
+    if (!studentUser?.rollNo) {
+      setFriendsError("Please log in to add friends.");
+      return;
+    }
+
+    setIsFriendsLoading(true);
+    try {
+      const res = await fetch('/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'send_request',
+          senderRoll: studentUser.rollNo,
+          receiverRoll: targetRoll
+        })
       });
+      const data = await res.json();
+      if (res.ok) {
+        setFriendsSuccess(data.message || "Friend request sent!");
+        setFriendSearchRoll('');
+        fetchFriendsData(studentUser.rollNo);
+      } else {
+        setFriendsError(data.error || "Failed to send request.");
+      }
+    } catch (err) {
+      setFriendsError("Connection error.");
+    } finally {
+      setIsFriendsLoading(false);
+    }
+  };
+
+  const handleAcceptRequest = async (reqRoll: string) => {
+    setFriendsError('');
+    setFriendsSuccess('');
+    try {
+      const res = await fetch('/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'accept_request',
+          senderRoll: reqRoll,
+          receiverRoll: studentUser.rollNo
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFriendsSuccess(data.message || "Request accepted!");
+        fetchFriendsData(studentUser.rollNo);
+      } else {
+        setFriendsError(data.error || "Failed to accept request.");
+      }
+    } catch (err) {
+      setFriendsError("Connection error.");
+    }
+  };
+
+  const handleRejectRequest = async (reqRoll: string) => {
+    setFriendsError('');
+    setFriendsSuccess('');
+    try {
+      const res = await fetch('/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'reject_request',
+          senderRoll: reqRoll,
+          receiverRoll: studentUser.rollNo
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFriendsSuccess(data.message || "Request rejected.");
+        fetchFriendsData(studentUser.rollNo);
+      } else {
+        setFriendsError(data.error || "Failed to reject request.");
+      }
+    } catch (err) {
+      setFriendsError("Connection error.");
+    }
+  };
+
+  const handleRemoveFriend = async (friendRoll: string) => {
+    if (!window.confirm("Are you sure you want to remove this friend?")) return;
+    setFriendsError('');
+    setFriendsSuccess('');
+    try {
+      const res = await fetch('/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'remove_friend',
+          senderRoll: studentUser.rollNo,
+          receiverRoll: friendRoll
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFriendsSuccess(data.message || "Friend removed.");
+        fetchFriendsData(studentUser.rollNo);
+        if (activeSearchTimetable && timetableRollNo === friendRoll) {
+          setActiveSearchTimetable(null);
+          setViewingFriendName('');
+        }
+      } else {
+        setFriendsError(data.error || "Failed to remove friend.");
+      }
+    } catch (err) {
+      setFriendsError("Connection error.");
+    }
+  };
+
+  const handleBlockUser = async (targetRoll: string) => {
+    if (!window.confirm(`Are you sure you want to permanently block ${targetRoll}? They won't be able to send you friend requests.`)) return;
+    setFriendsError('');
+    setFriendsSuccess('');
+    try {
+      const res = await fetch('/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'block_user',
+          senderRoll: studentUser.rollNo,
+          receiverRoll: targetRoll
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFriendsSuccess(data.message || "User blocked.");
+        fetchFriendsData(studentUser.rollNo);
+        if (activeSearchTimetable && timetableRollNo === targetRoll) {
+          setActiveSearchTimetable(null);
+          setViewingFriendName('');
+        }
+      } else {
+        setFriendsError(data.error || "Failed to block user.");
+      }
+    } catch (err) {
+      setFriendsError("Connection error.");
+    }
+  };
+
+  const handleUnblockUser = async (targetRoll: string) => {
+    setFriendsError('');
+    setFriendsSuccess('');
+    try {
+      const res = await fetch('/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'unblock_user',
+          senderRoll: studentUser.rollNo,
+          receiverRoll: targetRoll
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFriendsSuccess(data.message || "User unblocked.");
+        fetchFriendsData(studentUser.rollNo);
+      } else {
+        setFriendsError(data.error || "Failed to unblock user.");
+      }
+    } catch (err) {
+      setFriendsError("Connection error.");
+    }
+  };
+
+  const handleViewFriendSchedule = async (friendRoll: string, friendName: string) => {
+    setFriendsError('');
+    try {
+      const res = await fetch(`/api/student_schedule?rollNo=${encodeURIComponent(friendRoll)}`);
+      const data = await res.json();
+      if (data.schedule) {
+        setActiveSearchTimetable(data.schedule);
+        setTimetableRollNo(friendRoll);
+        setViewingFriendName(friendName);
+        setSearchTimetableDay(Object.values(DayOfWeek).includes(currentDayName as DayOfWeek) ? (currentDayName as DayOfWeek) : DayOfWeek.Monday);
+      } else {
+        alert("This friend has no schedule data in the database.");
+      }
+    } catch (e) {
+      alert("Failed to fetch schedule.");
+    }
   };
 
   // --- LOGIC FUNCTIONS ---
@@ -1229,8 +1433,8 @@ function App() {
              <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>Staff Info</span>
            </button>
            <button onClick={() => { setActiveTab('timetable'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'timetable' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
-             <CalendarDays className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'timetable' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
-             <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>Schedules</span>
+             <Users className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'timetable' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
+             <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>Friends</span>
            </button>
            <button onClick={() => { setActiveTab('leave'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'leave' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
              <CalendarOff className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'leave' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
@@ -1281,7 +1485,7 @@ function App() {
                  <Contact className="w-5 h-5 shrink-0" /> <span>Staff Info</span>
                </button>
                <button onClick={() => { setActiveTab('timetable'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'timetable' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300'}`}>
-                 <CalendarDays className="w-5 h-5 shrink-0" /> <span>Schedules</span>
+                 <Users className="w-5 h-5 shrink-0" /> <span>Friends</span>
                </button>
                <button onClick={() => { setActiveTab('leave'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'leave' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300'}`}>
                  <CalendarOff className="w-5 h-5 shrink-0" /> <span>On Leave</span>
@@ -1672,54 +1876,255 @@ function App() {
           </div>
         )}
 
-        {/* --- GLOBAL TIMETABLE SEARCH TAB --- */}
+        {/* --- FRIENDS TAB --- */}
         {activeTab === 'timetable' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {!activeSearchTimetable ? (
+            {!isStudentLoggedIn ? (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center max-w-md mx-auto mt-10">
                 <div className="w-20 h-20 bg-srcc-portalNavy/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Search className="w-10 h-10 text-srcc-portalNavy" />
+                  <Users className="w-10 h-10 text-srcc-portalNavy" />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Search Any Timetable</h2>
-                <form onSubmit={handleGlobalSearchTimetable} className="space-y-4">
-                  <input
-                    type="text"
-                    placeholder="e.g. 24BC008"
-                    value={timetableRollNo}
-                    onChange={(e) => setTimetableRollNo(e.target.value.toUpperCase())}
-                    className="w-full text-center text-lg p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none uppercase font-bold"
-                  />
-                  <button
-                    type="submit"
-                    className="w-full bg-srcc-portalNavy hover:bg-srcc-yellow text-gray-100 hover:text-srcc-portalNavy font-bold py-3.5 rounded-xl shadow-md transition-colors active:scale-95"
-                  >
-                    Look Up Schedule
-                  </button>
-                </form>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Friends Portal</h2>
+                <p className="text-gray-500 mb-6">
+                  Log in to your student portal to connect with classmates, send/receive friend requests, and view their live schedules!
+                </p>
+                <button
+                  onClick={() => setActiveTab('student_portal')}
+                  className="w-full bg-srcc-portalNavy hover:bg-srcc-yellow text-gray-100 hover:text-srcc-portalNavy font-bold py-3.5 rounded-xl transition-all shadow-md active:scale-95"
+                >
+                  Go to Student Login
+                </button>
               </div>
-            ) : (
-              <div className="max-w-3xl mx-auto">
-                <div className="flex justify-between gap-4 mb-6 bg-white p-5 rounded-2xl border shadow-sm">
+            ) : activeSearchTimetable ? (
+              /* Viewing Friend's Timetable */
+              <div className="max-w-4xl mx-auto animate-in fade-in duration-300">
+                <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6 bg-white p-5 rounded-2xl border shadow-sm items-start sm:items-center">
                   <div>
-                    <h2 className="text-2xl font-bold flex items-center gap-2">
-                      <CalendarDays className="w-6 h-6 text-srcc-portalNavy" /> Viewing Schedule
+                    <span className="bg-srcc-yellow/20 text-srcc-portalNavy font-black text-xs px-2.5 py-1 rounded-full uppercase tracking-wider">
+                      Shared Schedule
+                    </span>
+                    <h2 className="text-2xl font-bold flex items-center gap-2 mt-2">
+                      <Users className="w-6 h-6 text-srcc-portalNavy" /> {viewingFriendName}
                     </h2>
                     <p className="text-gray-500 font-medium mt-1">
-                      Roll No: <span className="text-gray-900 font-bold bg-gray-100 px-2 py-0.5 rounded">{timetableRollNo}</span>
+                      Roll No: <span className="text-gray-900 font-bold bg-gray-100 px-2.5 py-0.5 rounded text-sm">{timetableRollNo}</span>
                     </p>
                   </div>
-                  <button
-                    onClick={() => { setActiveSearchTimetable(null); setTimetableRollNo(''); }}
-                    className="text-sm font-bold text-gray-600 bg-gray-100 px-4 py-2.5 rounded-xl hover:bg-gray-200 flex items-center gap-2"
-                  >
-                    <Search className="w-4 h-4" /> Back
-                  </button>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <select
+                      value={searchTimetableDay}
+                      onChange={(e) => setSearchTimetableDay(e.target.value as DayOfWeek)}
+                      className="bg-gray-100 border-none text-gray-900 text-sm font-bold rounded-xl p-2.5 outline-none shadow-sm cursor-pointer"
+                    >
+                      {Object.values(DayOfWeek).map(day => <option key={day} value={day}>{day}</option>)}
+                    </select>
+                    <button
+                      onClick={() => { setActiveSearchTimetable(null); setViewingFriendName(''); }}
+                      className="text-sm font-bold text-gray-600 bg-gray-100 px-4 py-2.5 rounded-xl hover:bg-gray-200 flex items-center gap-2 transition-all"
+                    >
+                      <ArrowRight className="w-4 h-4 rotate-180" /> Back
+                    </button>
+                  </div>
                 </div>
                 <div className="bg-white border rounded-2xl overflow-hidden shadow-sm">
                   <div className="p-4 space-y-3 bg-gray-50/30">
                     {renderTimetableSlots(activeSearchTimetable, searchTimetableDay)}
                   </div>
                 </div>
+              </div>
+            ) : (
+              /* Friends Main Dashboard */
+              <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-300">
+                
+                {/* Header and Add Friend Row */}
+                <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-8 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="space-y-1">
+                    <h2 className="text-3xl font-black text-srcc-portalNavy flex items-center gap-2">
+                      Friends Connection
+                    </h2>
+                    <p className="text-gray-500 font-medium">
+                      Manage classmate connections. Limit: <span className="font-bold text-srcc-portalNavy bg-gray-100 px-2 py-0.5 rounded">{friendsList.length}/10 friends</span>.
+                    </p>
+                  </div>
+
+                  {/* Add Friend Form */}
+                  <div className="w-full md:max-w-xs">
+                    <form onSubmit={handleSendFriendRequest} className="relative">
+                      <input
+                        type="text"
+                        placeholder="Enter Friend's Roll No"
+                        value={friendSearchRoll}
+                        onChange={(e) => setFriendSearchRoll(e.target.value.toUpperCase())}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none pr-12 text-sm font-bold placeholder-gray-400 focus:ring-2 focus:ring-srcc-portalNavy/20 uppercase"
+                        disabled={isFriendsLoading}
+                      />
+                      <button
+                        type="submit"
+                        className="absolute right-2 top-2 p-1.5 bg-srcc-portalNavy hover:bg-srcc-yellow text-white hover:text-srcc-portalNavy rounded-lg transition-all"
+                        title="Send Friend Request"
+                        disabled={isFriendsLoading}
+                      >
+                        <UserPlus className="w-4 h-4" />
+                      </button>
+                    </form>
+                  </div>
+                </div>
+
+                {/* Notifications & Feedback Messages */}
+                {friendsError && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm font-semibold flex items-center gap-2 animate-in fade-in">
+                    <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+                    {friendsError}
+                  </div>
+                )}
+                {friendsSuccess && (
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-green-700 text-sm font-semibold flex items-center gap-2 animate-in fade-in">
+                    <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
+                    {friendsSuccess}
+                  </div>
+                )}
+
+                {/* Received Pending Friend Requests */}
+                {incomingRequests.length > 0 && (
+                  <div className="bg-amber-50/50 border border-amber-200/60 rounded-2xl p-6 shadow-sm space-y-4">
+                    <h3 className="font-bold text-amber-900 flex items-center gap-2 text-lg">
+                      <Timer className="w-5 h-5 text-amber-600 animate-pulse" /> Pending Friend Requests ({incomingRequests.length})
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {incomingRequests.map(req => (
+                        <div key={req.roll_no} className="bg-white border border-amber-100 rounded-xl p-4 flex items-center justify-between shadow-sm hover:border-amber-200 transition-all">
+                          <div>
+                            <p className="font-bold text-gray-900">{req.name || "Unknown Student"}</p>
+                            <p className="text-xs font-semibold text-gray-500 uppercase">{req.roll_no}</p>
+                          </div>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => handleAcceptRequest(req.roll_no)}
+                              className="px-3 py-1.5 bg-srcc-portalNavy hover:bg-srcc-yellow text-white hover:text-srcc-portalNavy font-bold rounded-lg text-xs transition-all"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              onClick={() => handleRejectRequest(req.roll_no)}
+                              className="px-3 py-1.5 bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-600 font-bold rounded-lg text-xs transition-all"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Active Friends List (Highlighted Name if Accepted) */}
+                <div className="space-y-4">
+                  <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <Users className="w-5 h-5 text-srcc-portalNavy" /> My Friends ({friendsList.length})
+                  </h3>
+                  
+                  {friendsList.length === 0 ? (
+                    <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center text-gray-400 font-medium">
+                      <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                      No friends added yet. Connect with roll numbers above!
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      {friendsList.map(friend => (
+                        <div 
+                          key={friend.roll_no} 
+                          className="bg-white hover:bg-indigo-50/20 border border-gray-200 hover:border-indigo-300 rounded-2xl p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group relative overflow-hidden"
+                        >
+                          {/* Accent highlight strip on side */}
+                          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-indigo-600"></div>
+                          
+                          <div className="pl-2 space-y-2 cursor-pointer" onClick={() => handleViewFriendSchedule(friend.roll_no, friend.name)}>
+                            {/* Friend Name - Highlighted premium indigo font since accepted */}
+                            <h4 className="font-extrabold text-indigo-700 group-hover:text-indigo-900 transition-colors text-base flex items-center gap-1.5">
+                              {friend.name || "Classmate"}
+                              <CheckCircle className="w-3.5 h-3.5 text-indigo-500 fill-indigo-100 shrink-0" />
+                            </h4>
+                            <div>
+                              <p className="text-xs font-bold text-gray-800 uppercase tracking-wide">{friend.roll_no}</p>
+                              <p className="text-[11px] font-semibold text-gray-500 mt-0.5">{friend.semester} • {friend.section}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between border-t border-gray-100 pt-3 mt-4 pl-2">
+                            <button
+                              onClick={() => handleViewFriendSchedule(friend.roll_no, friend.name)}
+                              className="text-[11px] font-bold text-indigo-600 hover:text-indigo-900 flex items-center gap-1"
+                            >
+                              <Search className="w-3 h-3" /> View Timetable
+                            </button>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleRemoveFriend(friend.roll_no)}
+                                className="text-gray-400 hover:text-red-600 p-1 rounded transition-colors"
+                                title="Remove Friend"
+                              >
+                                <UserMinus className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleBlockUser(friend.roll_no)}
+                                className="text-gray-400 hover:text-red-700 p-1 rounded transition-colors"
+                                title="Permanently Block"
+                              >
+                                <XCircle className="w-4 h-4 text-red-400/80" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Sent Friend Requests (Pending) - Not highlighted / Grayed out */}
+                {outgoingRequests.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                      Sent Requests Pending ({outgoingRequests.length})
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 opacity-60">
+                      {outgoingRequests.map(req => (
+                        <div key={req.roll_no} className="bg-gray-100 border border-gray-200 rounded-xl p-4 flex items-center justify-between">
+                          <div>
+                            {/* Sender's view of sent request: unhighlighted gray, no clicking/highlighting */}
+                            <p className="font-semibold text-gray-700">{req.name || "Unknown Student"}</p>
+                            <p className="text-xs font-semibold text-gray-500 uppercase">{req.roll_no}</p>
+                          </div>
+                          <span className="text-[10px] font-bold text-gray-500 uppercase bg-gray-200 px-2 py-1 rounded">
+                            Pending
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Blocked Users Section */}
+                {blockedList.length > 0 && (
+                  <div className="border-t border-gray-200 pt-6 space-y-3">
+                    <h3 className="text-sm font-bold text-red-600/80 uppercase tracking-widest">
+                      Blocked Connections ({blockedList.length})
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {blockedList.map(blocked => (
+                        <div key={blocked.roll_no} className="bg-red-50/50 border border-red-100 rounded-xl px-3 py-2 flex items-center gap-3 text-xs font-bold text-red-800">
+                          <span>{blocked.name || blocked.roll_no} ({blocked.roll_no})</span>
+                          <button
+                            onClick={() => handleUnblockUser(blocked.roll_no)}
+                            className="text-red-500 hover:text-red-700 hover:underline"
+                          >
+                            Unblock
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
               </div>
             )}
           </div>

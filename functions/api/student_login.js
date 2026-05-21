@@ -32,10 +32,8 @@ export async function onRequestPost(context) {
     }
 
     if (!user) {
-      // RATE LIMIT BYPASSED FOR TESTING
       return new Response(JSON.stringify({ 
-        error: "Invalid Roll No or Access Code.", 
-        message: `Invalid credentials. Rate limiting is currently disabled.`
+        error: "Invalid Roll No or Access Code."
       }), { status: 401 });
     }
 

@@ -39,20 +39,40 @@ function classifyRoomType(id: string): string {
   return "Lecture Hall";
 }
 
-// Refined extraction logic for teacher IDs
-function extractTeacherId(segment: string): string | null {
+// NEW: Parse teacher legend from bottom of page
+function parseTeacherLegend(html: string): Map<string, string> {
+  const legend = new Map<string, string>();
+  // Match: <b>CODE</B>-FULL NAME,
+  const regex = /<b>([A-Z0-9]+)<\/b>\s*-\s*([^,<]+)/gi;
+  let match;
+  while ((match = regex.exec(html)) !== null) {
+    legend.set(match[1].toUpperCase(), match[2].trim());
+  }
+  return legend;
+}
+
+// FIXED: Allow alphanumeric codes and cross-validate with legend
+function extractTeacherId(segment: string, legend: Map<string, string>): string | null {
+  const BLOCKLIST = new Set(['SEM','BCH','BAHE','JOINT','CLAW',
+    'HRM','COST','EVS','IB','BA','CA','ADVT','PME','TGNLC',
+    'TSH','AEC','VAC','SEC','GE','DSE','II','III','IV','VI',
+    'BCOM', 'HONS', 'TUT', 'PRAC', 'LAB']);
   const parts = segment.split('-').map(p => p.trim());
   for (let i = parts.length - 1; i >= 0; i--) {
-    const p = parts[i];
-    if (/^[A-Za-z]{1,4}$/.test(p)) {
-      return p.toUpperCase();
+    const p = parts[i].toUpperCase();
+    if (/^[A-Z]{1,5}\d{0,2}$/.test(p) && !BLOCKLIST.has(p)) {
+      if (legend.size > 0) {
+        if (legend.has(p)) return p;
+      } else {
+        return p;
+      }
     }
   }
   return null;
 }
 
 // Enhanced HTML parser - extracts both empty slots and occupying teachers
-function parseRoomHtml(html: string): { emptySlots: Record<string, number[]>, occupiedBy: Record<string, Record<number, string[]>> } {
+function parseRoomHtml(html: string, legend: Map<string, string>): { emptySlots: Record<string, number[]>, occupiedBy: Record<string, Record<number, string[]>> } {
   const emptySlots: Record<string, number[]> = {};
   const occupiedBy: Record<string, Record<number, string[]>> = {};
 
@@ -69,17 +89,22 @@ function parseRoomHtml(html: string): { emptySlots: Record<string, number[]>, oc
 
     const rowContent = dayMatch[1];
     const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-    const cells: string[] = [];
+    const cells: { html: string; colspan: number }[] = [];
     let tdMatch;
     while ((tdMatch = tdRegex.exec(rowContent)) !== null) {
-      cells.push(tdMatch[0]);
+      const colspanMatch = tdMatch[0].match(/colspan\s*=\s*"?(\d+)"?/i);
+      const colspan = colspanMatch ? parseInt(colspanMatch[1], 10) : 1;
+      cells.push({ html: tdMatch[0], colspan });
     }
 
-    for (let colIdx = 0; colIdx < cells.length; colIdx++) {
-      const slotIdx = COL_TO_SLOT[colIdx];
-      if (slotIdx === undefined) continue;
+    // Track visual column position (accounts for colspan)
+    let visualCol = 0;
+    for (let cellIdx = 0; cellIdx < cells.length; cellIdx++) {
+      const { html: cell, colspan } = cells[cellIdx];
+      const baseSlotIdx = COL_TO_SLOT[visualCol];
+      visualCol += colspan;
+      if (baseSlotIdx === undefined) continue;
 
-      const cell = cells[colIdx];
       const hasArrayStyle = cell.includes('style="Array');
       
       const textContent = cell
@@ -93,18 +118,24 @@ function parseRoomHtml(html: string): { emptySlots: Record<string, number[]>, oc
       const isActuallyEmpty = hasArrayStyle && textContent.length === 0;
 
       if (isActuallyEmpty) {
-        emptySlots[day].push(slotIdx);
+        emptySlots[day].push(baseSlotIdx);
       } else {
         const segments = textContent.split('|').map(s => s.trim()).filter(s => s.length > 0);
         const teachers: string[] = [];
         for (const segment of segments) {
-          const tid = extractTeacherId(segment);
+          const tid = extractTeacherId(segment, legend);
           if (tid && !teachers.includes(tid)) {
             teachers.push(tid);
           }
         }
+        // Mark ALL spanned slots as occupied
         if (teachers.length > 0) {
-          occupiedBy[day][slotIdx] = teachers;
+          for (let spanOffset = 0; spanOffset < colspan; spanOffset++) {
+            const spannedSlotIdx = COL_TO_SLOT[visualCol - colspan + spanOffset];
+            if (spannedSlotIdx !== undefined) {
+              occupiedBy[day][spannedSlotIdx] = teachers;
+            }
+          }
         }
       }
     }
@@ -157,6 +188,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       let processed = processedCount;
       let errors = 0;
       const results: any[] = [];
+      const globalTeacherMap = new Map<string, string>();
 
       for (const roomId of roomIdsToProcess) {
         if (IGNORED_ROOMS.some(ignored => roomId.toUpperCase() === ignored.replace(/\s+/g, ''))) {
@@ -183,7 +215,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           }
 
           const html = await response.text();
-          const { emptySlots, occupiedBy } = parseRoomHtml(html);
+          const legend = parseTeacherLegend(html);
+          legend.forEach((name, code) => globalTeacherMap.set(code, name));
+
+          const { emptySlots, occupiedBy } = parseRoomHtml(html, legend);
           const roomType = classifyRoomType(roomId);
 
           // Save to D1
@@ -215,7 +250,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             message: `✅ ${roomId} synced (${Object.values(emptySlots).flat().length} free slots)`
           });
 
-          // Small delay between requests to be polite
           await new Promise(resolve => setTimeout(resolve, 300));
 
         } catch (err: any) {
@@ -227,6 +261,31 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             processed,
             message: `❌ ${roomId}: ${err.message}`
           });
+        }
+      }
+
+      // Update the local teachers table with the legends
+      if (globalTeacherMap.size > 0) {
+        await env.DB.prepare(`CREATE TABLE IF NOT EXISTS teachers (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          department TEXT
+        )`).run();
+        
+        for (const [code, name] of globalTeacherMap) {
+          try {
+            await env.DB.prepare(`
+              INSERT INTO teachers (id, name, department, access_code) 
+              VALUES (?, ?, 'SRCC', ?)
+              ON CONFLICT(id) DO UPDATE SET name=excluded.name
+            `).bind(code, name, `WH_${code}_${Date.now()}`).run();
+          } catch (e) {
+            await env.DB.prepare(`
+              INSERT INTO teachers (id, name, department) 
+              VALUES (?, ?, 'SRCC')
+              ON CONFLICT(id) DO UPDATE SET name=excluded.name
+            `).bind(code, name).run();
+          }
         }
       }
 

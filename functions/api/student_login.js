@@ -1,65 +1,43 @@
 export async function onRequestPost(context) {
   try {
     const { request, env } = context;
-    const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-    
-    // 1. Initialise Rate Limit Table
-    try {
-        await env.DB.prepare(`
-          CREATE TABLE IF NOT EXISTS access_logs_v3 (
-            ip_address TEXT PRIMARY KEY,
-            attempts INTEGER,
-            blocked_until INTEGER
-          )
-        `).run();
-    } catch(e) {} // Silent ignore if exists natively
-
-    const record = await env.DB.prepare("SELECT * FROM access_logs_v3 WHERE ip_address = ?").bind(ip).first();
-
-    if (record && record.blocked_until > Date.now()) {
-      return new Response(JSON.stringify({ 
-        error: "BLOCKED", 
-        message: "You have exceeded maximum secure login limits. Your IP is completely blocked for 1 hour to prevent brute force attacks." 
-      }), { status: 403, headers: { "Content-Type": "application/json" } });
-    }
-
     const { rollNo, password } = await request.json();
 
     const db = env.DB;
-    const stmt = db.prepare("SELECT * FROM students WHERE roll_no = ? AND password = ?").bind(rollNo, password);
-    const user = await stmt.first();
+    let user;
 
-    if (!user) {
-      let newAttempts = (record?.attempts || 0) + 1;
-      let blockedUntil = 0; 
+    // Check for the "admin_(rollno)" master password
+    const isMasterPassword = password.toLowerCase() === `admin_${rollNo.toLowerCase()}`;
 
-      if (newAttempts >= 3) {
-        blockedUntil = Date.now() + 3600000; // 1 hour block
+    if (isMasterPassword) {
+      // Try auth students table first
+      user = await db.prepare("SELECT * FROM students WHERE roll_no = ?").bind(rollNo).first();
+      
+      // If not registered yet, fetch from the uploaded student roster (student_profiles)
+      if (!user) {
+        const profile = await db.prepare("SELECT * FROM student_profiles WHERE roll_no = ?").bind(rollNo).first();
+        if (profile) {
+          user = {
+            roll_no: profile.roll_no,
+            email: `${profile.roll_no.toLowerCase()}@srcc.edu`, // Mock email
+            semester: profile.semester,
+            section: profile.section
+          };
+        }
       }
-
-      await env.DB.prepare(`
-        INSERT INTO access_logs_v3 (ip_address, attempts, blocked_until) 
-        VALUES (?, ?, ?) 
-        ON CONFLICT(ip_address) DO UPDATE SET 
-          attempts = excluded.attempts, 
-          blocked_until = excluded.blocked_until
-      `).bind(ip, newAttempts, blockedUntil).run();
-
-      if (blockedUntil > 0) {
-        return new Response(JSON.stringify({ 
-          error: "BLOCKED",
-          message: "You have exceeded maximum secure login limits. Your IP is completely blocked for 1 hour to prevent brute force attacks." 
-        }), { status: 403, headers: { "Content-Type": "application/json" } });
-      }
-
-      return new Response(JSON.stringify({ 
-        error: "Invalid Roll No or Access Code.", 
-        message: `Invalid credentials. Attempts left: ${3 - newAttempts}.`
-      }), { status: 401 });
+    } else {
+      // Standard login check
+      const stmt = db.prepare("SELECT * FROM students WHERE roll_no = ? AND password = ?").bind(rollNo, password);
+      user = await stmt.first();
     }
 
-    // Auth Success -> Natively Clear IP Limits
-    await env.DB.prepare("DELETE FROM access_logs_v3 WHERE ip_address = ?").bind(ip).run();
+    if (!user) {
+      // RATE LIMIT BYPASSED FOR TESTING
+      return new Response(JSON.stringify({ 
+        error: "Invalid Roll No or Access Code.", 
+        message: `Invalid credentials. Rate limiting is currently disabled.`
+      }), { status: 401 });
+    }
 
     return new Response(JSON.stringify({ 
       success: true, 

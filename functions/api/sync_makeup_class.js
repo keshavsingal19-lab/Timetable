@@ -14,6 +14,15 @@ export async function onRequestPost(context) {
       return Response.json({ error: 'Missing required payload fields' }, { status: 400 });
     }
 
+    // Normalize Course
+    const normCourse = course === 'B.Com (Hons.)' ? 'B.Com. (Hons.)' : course;
+
+    // Normalize Semester
+    let normSemester = semester;
+    if (semester === 'Sem 2') normSemester = 'II';
+    else if (semester === 'Sem 4') normSemester = 'IV';
+    else if (semester === 'Sem 6') normSemester = 'VI';
+
     const db = env.DB;
     const now = Math.floor(Date.now() / 1000);
 
@@ -39,7 +48,7 @@ export async function onRequestPost(context) {
       INSERT INTO makeup_classes (course, semester, section, subject, room, date, day_of_week, period_index, teacher_id, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
-      course, semester, section, subject, room, date, day_of_week, period_index, teacher_id.toUpperCase(), now
+      normCourse, normSemester, section, subject, room, date, day_of_week, period_index, teacher_id.toUpperCase(), now
     ).run();
 
     return Response.json({ success: true, message: 'Makeup class scheduled successfully' }, { status: 200 });

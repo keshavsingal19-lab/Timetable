@@ -29,7 +29,32 @@ export async function onRequest(context) {
         'SELECT * FROM makeup_classes WHERE teacher_id = ? ORDER BY date DESC, period_index ASC'
       ).bind(teacherId.toUpperCase()).all();
 
-      return Response.json({ success: true, classes: classes.results || [] });
+      // Filter expired classes
+      const now = new Date();
+      const istString = now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+      const istDate = new Date(istString);
+      const todayDateStr = istDate.getFullYear() + "-" + String(istDate.getMonth() + 1).padStart(2, '0') + "-" + String(istDate.getDate()).padStart(2, '0');
+      
+      const timeMins = istDate.getHours() * 60 + istDate.getMinutes();
+      let currentPeriodIndex = -1;
+      if (timeMins >= 8*60+30 && timeMins < 9*60+30) currentPeriodIndex = 0;
+      else if (timeMins >= 9*60+30 && timeMins < 10*60+30) currentPeriodIndex = 1;
+      else if (timeMins >= 10*60+30 && timeMins < 11*60+30) currentPeriodIndex = 2;
+      else if (timeMins >= 11*60+30 && timeMins < 12*60+30) currentPeriodIndex = 3;
+      else if (timeMins >= 12*60+30 && timeMins < 13*60+30) currentPeriodIndex = 4;
+      else if (timeMins >= 14*60 && timeMins < 15*60) currentPeriodIndex = 5;
+      else if (timeMins >= 15*60 && timeMins < 16*60) currentPeriodIndex = 6;
+      else if (timeMins >= 16*60 && timeMins < 17*60) currentPeriodIndex = 7;
+      else if (timeMins >= 17*60 && timeMins < 18*60) currentPeriodIndex = 8;
+      else if (timeMins >= 18*60) currentPeriodIndex = 9;
+
+      const results = (classes.results || []).filter(cls => {
+        if (cls.date < todayDateStr) return false;
+        if (cls.date === todayDateStr && cls.period_index < currentPeriodIndex) return false;
+        return true;
+      });
+
+      return Response.json({ success: true, classes: results });
     }
     
     if (request.method === 'DELETE') {

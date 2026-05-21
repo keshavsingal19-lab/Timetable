@@ -100,7 +100,28 @@ export async function onRequestGet(context) {
       `).bind(profile.course, profile.semester, profile.section).all();
 
       if (makeupSlots && makeupSlots.results) {
+        const now = new Date();
+        const istString = now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+        const istDate = new Date(istString);
+        const todayDateStr = istDate.getFullYear() + "-" + String(istDate.getMonth() + 1).padStart(2, '0') + "-" + String(istDate.getDate()).padStart(2, '0');
+        
+        const timeMins = istDate.getHours() * 60 + istDate.getMinutes();
+        let currentPeriodIndex = -1;
+        if (timeMins >= 8*60+30 && timeMins < 9*60+30) currentPeriodIndex = 0;
+        else if (timeMins >= 9*60+30 && timeMins < 10*60+30) currentPeriodIndex = 1;
+        else if (timeMins >= 10*60+30 && timeMins < 11*60+30) currentPeriodIndex = 2;
+        else if (timeMins >= 11*60+30 && timeMins < 12*60+30) currentPeriodIndex = 3;
+        else if (timeMins >= 12*60+30 && timeMins < 13*60+30) currentPeriodIndex = 4;
+        else if (timeMins >= 14*60 && timeMins < 15*60) currentPeriodIndex = 5;
+        else if (timeMins >= 15*60 && timeMins < 16*60) currentPeriodIndex = 6;
+        else if (timeMins >= 16*60 && timeMins < 17*60) currentPeriodIndex = 7;
+        else if (timeMins >= 17*60 && timeMins < 18*60) currentPeriodIndex = 8;
+        else if (timeMins >= 18*60) currentPeriodIndex = 9;
+
         for (const slot of makeupSlots.results) {
+          if (slot.date < todayDateStr) continue;
+          if (slot.date === todayDateStr && slot.period_index < currentPeriodIndex) continue;
+
           if (schedule[slot.day_of_week]) {
             // Check if there is already a makeup class or normal class here.
             // For now, we'll just push it and maybe the frontend can show both or highlight the makeup class.
@@ -108,7 +129,7 @@ export async function onRequestGet(context) {
               periodIndex: slot.period_index,
               subject: slot.subject,
               room: slot.room,
-              type: 'Makeup',
+              type: 'Extra',
               teacher: slot.teacher_id,
               date: slot.date // Helpful for frontend to show the specific date
             });

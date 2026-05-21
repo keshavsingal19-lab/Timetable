@@ -48,8 +48,12 @@ export async function onRequestGet(context) {
     `;
     const teacherSlots = await db.prepare(teacherQuery).bind(teacherId).all();
 
-    // 3. Get makeup classes already scheduled for this section or teacher (to prevent overlapping makeups)
-    // Create table if not exists first, otherwise query might fail
+    // 3. Get makeup classes already scheduled for this section or teacher
+    // We only care about future makeup classes
+    const today = new Date();
+    // Convert to IST safely or just use generic ISO
+    const todayStr = today.toISOString().split('T')[0];
+
     await db.prepare(`
       CREATE TABLE IF NOT EXISTS makeup_classes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,50 +71,74 @@ export async function onRequestGet(context) {
     `).run();
 
     const makeupQuery = `
-      SELECT day_of_week, period_index 
+      SELECT date, period_index 
       FROM makeup_classes
-      WHERE (course = ? AND semester = ? AND section = ?) OR teacher_id = ?
+      WHERE ((course = ? AND semester = ? AND section = ?) OR teacher_id = ?)
+      AND date >= ?
     `;
-    const makeupSlots = await db.prepare(makeupQuery).bind(course, semester, section, teacherId).all();
+    const makeupSlots = await db.prepare(makeupQuery).bind(course, semester, section, teacherId, todayStr).all();
 
-    // Combine all blocked slots into a set for fast lookup
-    // format: "Monday_3"
-    const blockedSlots = new Set();
-    
-    if (sectionSlots.results) {
-      sectionSlots.results.forEach(s => blockedSlots.add(`${s.day_of_week}_${s.period_index}`));
-    }
-    if (teacherSlots.results) {
-      teacherSlots.results.forEach(s => blockedSlots.add(`${s.day_of_week}_${s.period_index}`));
-    }
-    if (makeupSlots.results) {
-      makeupSlots.results.forEach(s => blockedSlots.add(`${s.day_of_week}_${s.period_index}`));
+    // Fast lookup for regular timetable blocks
+    const regularBlockedSlots = new Set();
+    if (sectionSlots.results) sectionSlots.results.forEach(s => regularBlockedSlots.add(`${s.day_of_week}_${s.period_index}`));
+    if (teacherSlots.results) teacherSlots.results.forEach(s => regularBlockedSlots.add(`${s.day_of_week}_${s.period_index}`));
+
+    // Fast lookup for makeup blocks for this section/teacher
+    const makeupBlockedSlots = new Set();
+    if (makeupSlots.results) makeupSlots.results.forEach(s => makeupBlockedSlots.add(`${s.date}_${s.period_index}`));
+
+    // 4. Get ALL future makeup classes to exclude their rooms!
+    const allMakeupRooms = await db.prepare(`SELECT room, date, period_index FROM makeup_classes WHERE date >= ?`).bind(todayStr).all();
+    const bookedRoomsMap = {}; // { 'YYYY-MM-DD_periodIndex': Set(['R12', 'PB4']) }
+    if (allMakeupRooms.results) {
+      allMakeupRooms.results.forEach(m => {
+        const key = `${m.date}_${m.period_index}`;
+        if (!bookedRoomsMap[key]) bookedRoomsMap[key] = new Set();
+        bookedRoomsMap[key].add(m.room);
+      });
     }
 
-    // 4. Find vacant rooms for all available slots
-    // We check a standard 6 days x 8 periods grid
+    // Helper to calculate target dates for the next week
+    const getNextDateForDay = (dayName) => {
+      const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const targetDayIndex = daysOfWeek.indexOf(dayName);
+      const currentDayIndex = today.getDay();
+      let daysToAdd = targetDayIndex - currentDayIndex;
+      if (daysToAdd <= 0) daysToAdd += 7; 
+      const targetDate = new Date(today);
+      targetDate.setDate(today.getDate() + daysToAdd);
+      return targetDate.toISOString().split('T')[0];
+    };
+
+    // 5. Find vacant rooms for all available slots
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const periods = [0, 1, 2, 3, 4, 5, 6, 7, 8]; // 9 periods
+    const periods = [0, 1, 2, 3, 4]; // Only slots before 1:30 PM
 
     let dbRooms = [];
     try {
       const roomRes = await db.prepare("SELECT id, name, type, emptySlots FROM campus_rooms").all();
       dbRooms = roomRes.results || [];
-    } catch(e) {
-      // Room table might be empty or missing
-    }
+    } catch(e) {}
 
     const availableSlots = [];
 
     for (const day of days) {
+      const targetDateStr = getNextDateForDay(day);
+      
       for (const period of periods) {
-        const slotKey = `${day}_${period}`;
+        const regularKey = `${day}_${period}`;
+        const makeupKey = `${targetDateStr}_${period}`;
         
         // If the slot is completely free for both students and teacher
-        if (!blockedSlots.has(slotKey)) {
-          // Find rooms that are empty on this day at this period
+        if (!regularBlockedSlots.has(regularKey) && !makeupBlockedSlots.has(makeupKey)) {
           const emptyRooms = [];
+          
           for (const room of dbRooms) {
+            // Room is already booked by ANOTHER extra class on this specific date and time?
+            if (bookedRoomsMap[makeupKey] && bookedRoomsMap[makeupKey].has(room.name)) {
+              continue;
+            }
+
             try {
               const emptySlotsObj = JSON.parse(room.emptySlots || '{}');
               const dayEmptySlots = emptySlotsObj[day] || [];
@@ -120,10 +148,10 @@ export async function onRequestGet(context) {
             } catch(e) {}
           }
 
-          // Only suggest the slot if there's at least one room available
           if (emptyRooms.length > 0) {
             availableSlots.push({
               day,
+              dateStr: targetDateStr,
               periodIndex: period,
               availableRooms: emptyRooms
             });
@@ -132,13 +160,10 @@ export async function onRequestGet(context) {
       }
     }
 
-    // Map days to sort indices
-    const dayIndices = { 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6 };
-
-    // Sort chronologically (by day then period)
+    // Sort chronologically (by actual date string, then period)
     availableSlots.sort((a, b) => {
-      if (dayIndices[a.day] !== dayIndices[b.day]) {
-        return dayIndices[a.day] - dayIndices[b.day];
+      if (a.dateStr !== b.dateStr) {
+        return a.dateStr.localeCompare(b.dateStr);
       }
       return a.periodIndex - b.periodIndex;
     });

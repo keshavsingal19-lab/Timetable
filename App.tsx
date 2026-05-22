@@ -1116,7 +1116,7 @@ function App() {
       return { status: `In ${locatedRoomName}`, color: 'blue', icon: MapPin, detail: 'Scheduled Lecture' };
     }
 
-    return { status: 'Free', color: 'green', icon: CheckCircle, detail: 'Staff Room / Free' };
+    return { status: 'Free', color: 'green', icon: CheckCircle, detail: 'No Class Scheduled' };
   };
 
   const visibleEntities = useMemo(() => {
@@ -2246,8 +2246,8 @@ function App() {
                       <div className="bg-srcc-portalNavy/10 p-2.5 rounded-xl text-srcc-portalNavy group-hover:bg-srcc-portalNavy group-hover:text-srcc-yellow transition-colors">
                         <GraduationCap className="w-6 h-6" />
                       </div>
-                      <div className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 ${statusInfo.color === 'red' ? 'bg-red-50 text-red-700' : statusInfo.color === 'blue' ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'}`}>
-                        <StatusIcon className="w-3 h-3" /> {statusInfo.status}
+                      <div className={`px-3.5 py-1.5 rounded-lg text-sm font-black flex items-center gap-1.5 shadow-sm ${statusInfo.color === 'red' ? 'bg-red-50 text-red-700' : statusInfo.color === 'blue' ? 'bg-blue-100 text-blue-800 ring-1 ring-blue-200' : 'bg-green-50 text-green-700'}`}>
+                        <StatusIcon className="w-4 h-4" /> {statusInfo.status}
                       </div>
                     </div>
                     <h3 className="font-bold text-gray-900 text-lg leading-tight">{entity.name}</h3>

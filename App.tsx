@@ -424,6 +424,17 @@ function App() {
       }
     }
 
+    // Handle redirect from Attendance OAuth
+    if (urlParams.get('view') === 'attendance') {
+      setActiveTab('attendance_tracker');
+      window.history.replaceState({}, document.title, "/");
+    }
+
+    // Restore Admin login for local dev/reloads
+    if (sessionStorage.getItem('adminLoggedIn') === 'true') {
+      setIsLoggedIn(true);
+    }
+
     // Fetch Dynamic Events
     fetch('/api/events')
       .then(res => res.json())
@@ -750,6 +761,7 @@ function App() {
       const data = await response.json();
       if (response.ok) {
         setIsLoggedIn(true);
+        sessionStorage.setItem('adminLoggedIn', 'true');
         setLoginError('');
         fetchAdminEvents();
       } else {

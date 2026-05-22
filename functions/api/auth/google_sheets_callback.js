@@ -61,7 +61,8 @@ export async function onRequestGet(context) {
     if (!spreadsheetId) {
       // Not in DB or inaccessible. Let's search Google Drive to see if the file exists.
       const queryName = `SRCC Attendance Tracker — ${rollNo}`;
-      const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${encodeURIComponent(queryName)}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false&fields=files(id,webViewLink)`, {
+      const queryStr = `name='${queryName}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`;
+      const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(queryStr)}&fields=files(id,webViewLink)`, {
         headers: { Authorization: `Bearer ${access_token}` }
       });
       const searchData = await searchRes.json();

@@ -11,7 +11,7 @@ import {
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
 // --- CONSTANTS & CONFIG ---
-const IS_MAINTENANCE = false;
+const IS_MAINTENANCE = true;
 const getDayName = (day: DayOfWeek): string => day;
 
 function App() {

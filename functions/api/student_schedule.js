@@ -92,9 +92,21 @@ export async function onRequestGet(context) {
     
     for (const slot of filteredSlots) {
         if (schedule[slot.day_of_week]) {
+          let displaySubject = slot.subject;
+          
+          if (slot.course === 'Joint') {
+            if (slot.group_id === profile.sec_group && profile.sec_subject) {
+              displaySubject = profile.sec_subject;
+            } else if (slot.group_id === profile.vac_group && profile.vac_subject) {
+              displaySubject = profile.vac_subject;
+            } else if ((slot.group_id === profile.aec_group || slot.group_id === profile.aec_code) && profile.aec_subject) {
+              displaySubject = profile.aec_subject;
+            }
+          }
+
           schedule[slot.day_of_week].push({
             periodIndex: slot.period_index,
-            subject: slot.subject,
+            subject: displaySubject,
             room: slot.room,
             type: slot.class_type,
             teacher: slot.teacher_code

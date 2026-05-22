@@ -15,7 +15,10 @@ export async function onRequestPost(context) {
   if (!rollNo) return new Response(JSON.stringify({ error: "Missing roll no" }), { status: 400 });
 
   try {
-    await env.DB.prepare('DELETE FROM student_sheets WHERE roll_no = ?').bind(rollNo).run();
+    // Only clear auth tokens — keep spreadsheet_id and spreadsheet_url so reconnection can reuse the existing sheet
+    await env.DB.prepare(
+      'UPDATE student_sheets SET access_token = NULL, refresh_token = NULL, token_expiry = 0, updated_at = datetime("now") WHERE roll_no = ?'
+    ).bind(rollNo).run();
     return new Response(JSON.stringify({ success: true }), { status: 200 });
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });

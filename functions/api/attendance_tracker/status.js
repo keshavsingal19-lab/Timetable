@@ -15,9 +15,9 @@ export async function onRequestGet(context) {
 
   if (!rollNo) return new Response(JSON.stringify({ error: "Missing roll no" }), { status: 400 });
 
-  const row = await env.DB.prepare('SELECT spreadsheet_url, google_email FROM student_sheets WHERE roll_no = ?').bind(rollNo).first();
+  const row = await env.DB.prepare('SELECT spreadsheet_url, google_email, access_token FROM student_sheets WHERE roll_no = ?').bind(rollNo).first();
 
-  if (row) {
+  if (row && row.access_token) {
     return new Response(JSON.stringify({
       connected: true,
       spreadsheetUrl: row.spreadsheet_url,

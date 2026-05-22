@@ -13,9 +13,11 @@ export async function onRequestPost(context) {
   const { payload } = jwt.decode(token);
   const email = payload.email;
 
-  // 2. Extract roll number from email
-  const verifiedRollNo = email.split('@')[0].toUpperCase();
-
+  // 2. Extract roll number from payload
+  const verifiedRollNo = payload.rollNo;
+  if (!verifiedRollNo) {
+    return new Response(JSON.stringify({ error: "No roll number found in session token." }), { status: 400 });
+  }
   const db = env.DB;
 
   try {

@@ -430,6 +430,12 @@ function App() {
       window.history.replaceState({}, document.title, "/");
     }
 
+    const authError = urlParams.get('error');
+    if (authError === 'missing_token' || authError === 'invalid_token') {
+      alert("Your session has expired or is missing. Please log out of the student portal and log back in to connect your Google Sheets.");
+      window.history.replaceState({}, document.title, "/");
+    }
+
     // Restore Admin login for local dev/reloads
     if (sessionStorage.getItem('adminLoggedIn') === 'true') {
       setIsLoggedIn(true);
@@ -604,19 +610,6 @@ function App() {
     if (!manualRollNo || !manualPasscode) return setPortalError('Enter Roll No and Access Code.');
 
     setIsPortalLoading(true);
-    
-    // --- LOCAL DEV BYPASS ---
-    if (import.meta.env.DEV) {
-      setTimeout(() => {
-        const dummyUser = { fillName: "Demo Student", rollNo: manualRollNo.toUpperCase(), semester: "IV", section: "A" };
-        completeLogin(dummyUser);
-        localStorage.setItem("studentUser", JSON.stringify(dummyUser));
-        setManualPasscode('');
-        setIsPortalLoading(false);
-      }, 800);
-      return;
-    }
-    // ------------------------
 
     try {
       const res = await fetch('/api/student_login', {

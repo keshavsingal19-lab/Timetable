@@ -20,49 +20,77 @@ export async function onRequestGet(context) {
       profile.tut_group,
       profile.prac_group,
       profile.sec_group,
-      profile.vac_group
+      profile.vac_group,
+      profile.aec_group,
+      profile.aec_code // some AEC options (like AEC-1) are group IDs in Joint timetable
     ].filter(Boolean);
 
-    // 3. Query section_slots matching this student's course/sem/section
-    //    Include: slots with no group (section-wide) OR matching any of student's groups
-    let slots;
+    // 3. Fetch Core Subjects
+    const coreRows = await env.DB.prepare(
+      'SELECT subject_code FROM core_subject_config WHERE course = ? AND semester = ?'
+    ).bind(profile.course, profile.semester).all();
+    const coreSubjects = new Set(coreRows.results.map(r => r.subject_code));
+
+    // 4. Fetch all slots for this section
+    const sectionSlots = await env.DB.prepare(
+      'SELECT * FROM section_slots WHERE course = ? AND semester = ? AND section = ?'
+    ).bind(profile.course, profile.semester, profile.section).all();
+
+    // 5. Fetch Joint slots for this student
+    let jointSlots = { results: [] };
     if (groups.length > 0) {
       const placeholders = groups.map(() => '?').join(',');
-      const query = `
-        SELECT * FROM section_slots 
-        WHERE course = ? AND semester = ? AND section = ?
-        AND (group_id IS NULL OR group_id IN (${placeholders}))
-        ORDER BY 
-          CASE day_of_week 
-            WHEN 'Monday' THEN 1 WHEN 'Tuesday' THEN 2 
-            WHEN 'Wednesday' THEN 3 WHEN 'Thursday' THEN 4 
-            WHEN 'Friday' THEN 5 WHEN 'Saturday' THEN 6 
-          END,
-          period_index
-      `;
-      const bindParams = [profile.course, profile.semester, profile.section, ...groups];
-      slots = await env.DB.prepare(query).bind(...bindParams).all();
-    } else {
-      const query = `
-        SELECT * FROM section_slots 
-        WHERE course = ? AND semester = ? AND section = ?
-        AND group_id IS NULL
-        ORDER BY 
-          CASE day_of_week 
-            WHEN 'Monday' THEN 1 WHEN 'Tuesday' THEN 2 
-            WHEN 'Wednesday' THEN 3 WHEN 'Thursday' THEN 4 
-            WHEN 'Friday' THEN 5 WHEN 'Saturday' THEN 6 
-          END,
-          period_index
-      `;
-      slots = await env.DB.prepare(query).bind(profile.course, profile.semester, profile.section).all();
+      jointSlots = await env.DB.prepare(
+        `SELECT * FROM section_slots WHERE course = 'Joint' AND semester = ? AND group_id IN (${placeholders})`
+      ).bind(profile.semester, ...groups).all();
     }
 
-    // 4. Transform to the ClassSession format expected by App.tsx
+    // 6. Filter and Merge Slots
+    const allSlots = [...(sectionSlots.results || []), ...(jointSlots.results || [])];
+    
+    // The student's valid elective subjects
+    const electives = [profile.dse_ge_code, profile.dse_code, profile.ge_code, profile.aec_code].filter(Boolean);
+    const validSubjects = new Set([...coreSubjects, ...electives]);
+
+    // First pass: find subjects where the student is in a specific group (e.g. they have a Tutorial for subject X)
+    for (const slot of allSlots) {
+      if (slot.group_id && groups.includes(slot.group_id)) {
+        validSubjects.add(slot.subject);
+      }
+    }
+
+    // Second pass: filter slots
+    const filteredSlots = allSlots.filter(slot => {
+      // Keep joint slots (already filtered by group_id in SQL)
+      if (slot.course === 'Joint') return true;
+
+      // Keep section slots matching a group
+      if (slot.group_id) {
+        return groups.includes(slot.group_id);
+      }
+
+      // For section-wide slots (group_id IS NULL)
+      if (slot.class_type === 'Lecture') {
+        // Only keep if the subject is in our valid set
+        return validSubjects.has(slot.subject);
+      }
+
+      return true; // Keep other section-wide stuff (like generic Assemblies if any)
+    });
+
+    // 7. Sort slots
+    filteredSlots.sort((a, b) => {
+      const dayOrder = { 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6 };
+      if (dayOrder[a.day_of_week] !== dayOrder[b.day_of_week]) {
+        return dayOrder[a.day_of_week] - dayOrder[b.day_of_week];
+      }
+      return a.period_index - b.period_index;
+    });
+
+    // Transform to the ClassSession format expected by App.tsx
     const schedule = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [] };
     
-    if (slots && slots.results) {
-      for (const slot of slots.results) {
+    for (const slot of filteredSlots) {
         if (schedule[slot.day_of_week]) {
           schedule[slot.day_of_week].push({
             periodIndex: slot.period_index,
@@ -71,10 +99,8 @@ export async function onRequestGet(context) {
             type: slot.class_type,
             teacher: slot.teacher_code
           });
-        }
       }
     }
-
     // 4.5 Fetch Make-up classes
     try {
       // Create table if not exists just in case

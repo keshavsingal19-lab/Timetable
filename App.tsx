@@ -10,50 +10,7 @@ import {
 } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
-// import { TEACHER_SCHEDULES } from './teacherData';
-import { SEM2_STUDENT_SCHEDULES } from './Sem2';
-import { SEM4_STUDENT_SCHEDULES } from './Sem4';
-import { sem6StudentData } from './Sem6';
-
 // --- CONSTANTS & CONFIG ---
-const IS_MAINTENANCE = true; // Set to false to re-enable the portal
-
-// Helper function to dynamically fix Sem 6 formatting
-const convertSem6Data = (data: any) => {
-  const converted: Record<string, any> = {};
-  const timeMap: Record<string, number> = {
-    "8:30 AM to 9:30 AM": 0, "9:30 AM to 10:30 AM": 1,
-    "10:30 AM to 11:30 AM": 2, "11:30 AM to 12:30 PM": 3,
-    "12:30 PM to 1:30 PM": 4, "2:00 PM to 3:00 PM": 5,
-    "3:00 PM to 4:00 PM": 6, "4:00 PM to 5:00 PM": 7,
-    "5:00 PM to 6:00 PM": 8
-  };
-  const typeMap: Record<string, string> = { "L": "Lecture", "T": "Tutorial", "LAB": "Practical" };
-
-  for (const [rollNo, classes] of Object.entries(data)) {
-    converted[rollNo] = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [] };
-    (classes as any[]).forEach((cls) => {
-      const periodIndex = timeMap[cls.time];
-      if (periodIndex !== undefined && converted[rollNo][cls.day]) {
-        converted[rollNo][cls.day].push({
-          periodIndex,
-          subject: cls.subject,
-          room: cls.room,
-          type: typeMap[cls.type] || cls.type,
-          teacher: cls.teacher
-        });
-      }
-    });
-  }
-  return converted;
-};
-
-// Combined all semesters with safety wrapper
-const ALL_STUDENT_SCHEDULES = {
-  ...(SEM2_STUDENT_SCHEDULES || {}),
-  ...(SEM4_STUDENT_SCHEDULES || {}),
-  ...convertSem6Data(sem6StudentData)
-};
 
 const getDayName = (day: DayOfWeek): string => day;
 
@@ -268,8 +225,17 @@ function App() {
 
   const [authToken, setAuthToken] = useState('');
   const [setupRollNo, setSetupRollNo] = useState('');
-  const [setupSemester, setSetupSemester] = useState('Sem 2');
-  const [setupSection, setSetupSection] = useState('');
+  const [onboardingProfile, setOnboardingProfile] = useState<any>(null);
+  const [dseGeOptions, setDseGeOptions] = useState<string[]>([]);
+  const [aecOptions, setAecOptions] = useState<string[]>([]);
+  const [dseGeCode, setDseGeCode] = useState('');
+  const [dseCode, setDseCode] = useState('');
+  const [geCode, setGeCode] = useState('');
+  const [aecCode, setAecCode] = useState('');
+  const [isSem1to4, setIsSem1to4] = useState(false);
+  const [isSem5or6, setIsSem5or6] = useState(false);
+  const [dseGeRequired, setDseGeRequired] = useState(false);
+  const [aecRequired, setAecRequired] = useState(false);
   const [newAccessCode, setNewAccessCode] = useState('');
   const [studentPasscode, setStudentPasscode] = useState('');
   const [portalError, setPortalError] = useState('');
@@ -345,14 +311,35 @@ function App() {
 
         if (payload.isNewUser) {
           setPortalMode('setup_access');
-          // --- AUTOMATIC EXTRACTION ---
           if (payload.email) {
             const extractedRoll = payload.email.split('@')[0].toUpperCase();
             setSetupRollNo(extractedRoll);
+            
+            // Fetch onboarding options for the new user
+            setIsPortalLoading(true);
+            fetch(`/api/onboarding_options?rollNo=${encodeURIComponent(extractedRoll)}`)
+              .then(res => res.json())
+              .then(data => {
+                setIsPortalLoading(false);
+                if (data.success) {
+                  setOnboardingProfile(data.profile);
+                  setIsSem1to4(data.isSem1to4);
+                  setIsSem5or6(data.isSem5or6);
+                  setDseGeOptions(data.dseGeOptions);
+                  setAecOptions(data.aecOptions);
+                  setDseGeRequired(data.dseGeRequired);
+                  setAecRequired(data.aecRequired);
+                } else {
+                  setPortalError(data.error || "Failed to load profile. Contact Admin.");
+                }
+              })
+              .catch(err => {
+                setIsPortalLoading(false);
+                setPortalError("Network error fetching profile details.");
+              });
           }
         } else {
           setPortalMode('change_access');
-          // Even for existing users, sync the Roll No to their email prefix
           const syncRoll = payload.email ? payload.email.split('@')[0].toUpperCase() : (payload.rollNo || '');
           setSetupRollNo(syncRoll);
         }
@@ -419,10 +406,7 @@ function App() {
     setStudentUser(user);
     fetchFriendsData(user.rollNo);
 
-    // TEMPORARILY DISABLED STATIC FALLBACK FOR TESTING
-    // const sData = ALL_STUDENT_SCHEDULES[user.rollNo.toUpperCase() as keyof typeof ALL_STUDENT_SCHEDULES];
-    // if (sData) setMyTimetableData(sData);
-    setMyTimetableData({ Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [] }); // Start empty
+    setMyTimetableData({ Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [] });
     setPortalMode('login');
 
     // Fetch dynamic DB-driven schedule
@@ -581,7 +565,13 @@ function App() {
     e.preventDefault();
     setPortalError('');
     if (!newAccessCode) return setPortalError("Please enter an access code.");
-    if (portalMode === 'setup_access' && (!setupRollNo || !setupSection)) return setPortalError("All fields are required.");
+    
+    if (portalMode === 'setup_access') {
+      if (!onboardingProfile) return setPortalError("Profile not loaded. Cannot proceed.");
+      if (dseGeRequired && !dseGeCode && isSem1to4) return setPortalError("Please select your DSE/GE Subject.");
+      if (dseGeRequired && (!dseCode || !geCode) && isSem5or6) return setPortalError("Please select both DSE and GE Subjects.");
+      if (aecRequired && !aecCode) return setPortalError("Please select your AEC Option.");
+    }
 
     setIsPortalLoading(true);
     try {
@@ -591,9 +581,10 @@ function App() {
         body: JSON.stringify({
           token: authToken,
           accessCode: newAccessCode,
-          rollNo: setupRollNo.toUpperCase(),
-          semester: setupSemester,
-          section: setupSection
+          dseGeCode,
+          dseCode,
+          geCode,
+          aecCode
         })
       });
       const data = await res.json();
@@ -1564,34 +1555,86 @@ function App() {
                 )}
                 
                 <form onSubmit={handleSetAccessCode} className="space-y-4">
-                  <input
-                    type="text"
-                    value={setupRollNo}
-                    readOnly
-                    placeholder="College Roll No"
-                    className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-center uppercase"
-                    required
-                  />
+                  {onboardingProfile ? (
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-left mb-4">
+                      <div className="flex justify-between items-start border-b border-gray-200 pb-2 mb-2">
+                        <div>
+                          <p className="font-bold text-gray-900">{onboardingProfile.name}</p>
+                          <p className="text-sm font-medium text-gray-600">{onboardingProfile.rollNo}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded">Sem {onboardingProfile.semester}</p>
+                          <p className="text-xs font-bold text-gray-500 mt-1">Sec {onboardingProfile.section}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 font-medium">
+                        {onboardingProfile.course} • Tut: {onboardingProfile.tutGroup || 'None'} • Prac: {onboardingProfile.pracGroup || 'None'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center text-sm font-bold text-gray-500 mb-4 animate-pulse">
+                      Loading profile...
+                    </div>
+                  )}
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <select
-                      value={setupSemester}
-                      onChange={e => setSetupSemester(e.target.value)}
-                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl"
-                    >
-                      <option value="Sem 2">Sem 2</option>
-                      <option value="Sem 4">Sem 4</option>
-                      <option value="Sem 6">Sem 6</option>
-                    </select>
-                    <input
-                      type="text"
-                      value={setupSection}
-                      onChange={e => setSetupSection(e.target.value.toUpperCase())}
-                      placeholder="Section (e.g. A)"
-                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl uppercase text-center"
-                      required
-                    />
-                  </div>
+                  {dseGeRequired && isSem1to4 && (
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-2 text-center">Select your DSE/GE Subject</label>
+                      <select
+                        value={dseGeCode}
+                        onChange={e => setDseGeCode(e.target.value)}
+                        className="w-full p-3 bg-white border border-gray-200 rounded-xl outline-none"
+                        required
+                      >
+                        <option value="">-- Choose Option --</option>
+                        {dseGeOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                      </select>
+                    </div>
+                  )}
+
+                  {dseGeRequired && isSem5or6 && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2 text-center">Select DSE</label>
+                        <select
+                          value={dseCode}
+                          onChange={e => setDseCode(e.target.value)}
+                          className="w-full p-3 bg-white border border-gray-200 rounded-xl outline-none"
+                          required
+                        >
+                          <option value="">-- DSE --</option>
+                          {dseGeOptions.filter(opt => opt !== geCode).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2 text-center">Select GE</label>
+                        <select
+                          value={geCode}
+                          onChange={e => setGeCode(e.target.value)}
+                          className="w-full p-3 bg-white border border-gray-200 rounded-xl outline-none"
+                          required
+                        >
+                          <option value="">-- GE --</option>
+                          {dseGeOptions.filter(opt => opt !== dseCode).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {aecRequired && isSem1to4 && (
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-2 text-center">Select your AEC</label>
+                      <select
+                        value={aecCode}
+                        onChange={e => setAecCode(e.target.value)}
+                        className="w-full p-3 bg-white border border-gray-200 rounded-xl outline-none"
+                        required
+                      >
+                        <option value="">-- Choose Option --</option>
+                        {aecOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                      </select>
+                    </div>
+                  )}
                   <div className="pt-4 border-t border-gray-100">
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-2 text-center">Set Your Access Code</label>
                     <input

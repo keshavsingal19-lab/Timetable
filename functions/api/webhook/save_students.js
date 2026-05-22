@@ -35,8 +35,22 @@ export async function onRequestPost(context) {
       aec_group TEXT,
       cluster_semester TEXT,
       aec_course_cluster TEXT,
+      dse_ge_code TEXT,
+      dse_code TEXT,
+      ge_code TEXT,
+      aec_code TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`).run();
+
+    // Add columns if they don't exist (graceful migration)
+    const columnsToAdd = ['dse_ge_code', 'dse_code', 'ge_code', 'aec_code'];
+    for (const col of columnsToAdd) {
+      try {
+        await env.DB.prepare(`ALTER TABLE student_profiles ADD COLUMN ${col} TEXT`).run();
+      } catch (e) {
+        // Ignore "column already exists" errors
+      }
+    }
 
     // Insert or update student profile data (preserves the auth `students` table)
     const insertStmt = env.DB.prepare(`

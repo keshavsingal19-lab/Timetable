@@ -6,7 +6,7 @@ import {
   ArrowRight, MessageCircle, Star, Timer, Megaphone, Mail, Home,
   BookOpen, User, UserPlus, Key, Settings, Menu, ShieldCheck, ChevronRight, ChevronLeft,
   Eye, MousePointerClick, Edit, Trash2, LayoutDashboard, Contact, CalendarOff, Globe, Map as LucideMap,
-  RefreshCw, Layers, X, Copy
+  RefreshCw, Layers, X, Copy, ClipboardCheck
 } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
@@ -17,7 +17,7 @@ const getDayName = (day: DayOfWeek): string => day;
 function App() {
   // --- NAVIGATION & GLOBAL STATES ---
   
-    const [activeTab, setActiveTab] = useState<'menu' | 'rooms' | 'teachers' | 'societies' | 'timetable' | 'leave' | 'student_portal'>('student_portal');
+    const [activeTab, setActiveTab] = useState<'menu' | 'rooms' | 'teachers' | 'societies' | 'timetable' | 'leave' | 'student_portal' | 'attendance_tracker'>('student_portal');
     
     const [selectedDay, setSelectedDay] = useState<DayOfWeek>(DayOfWeek.Monday);
     const [selectedTimeIndex, setSelectedTimeIndex] = useState<number>(0);
@@ -247,6 +247,16 @@ function App() {
   const [myTimetableData, setMyTimetableData] = useState<any>(null);
   const [myScheduleDay, setMyScheduleDay] = useState<DayOfWeek>(DayOfWeek.Monday);
 
+  // --- ATTENDANCE TRACKER STATES ---
+  const [attendanceConnected, setAttendanceConnected] = useState(false);
+  const [attendanceEmail, setAttendanceEmail] = useState('');
+  const [attendanceSheetUrl, setAttendanceSheetUrl] = useState('');
+  const [attendanceDashboard, setAttendanceDashboard] = useState<any>(null);
+  const [isAttendanceLoading, setIsAttendanceLoading] = useState(false);
+  const [attendanceMarking, setAttendanceMarking] = useState<any>(null);
+  const [todayMarkedSlots, setTodayMarkedSlots] = useState<Record<number, string>>({});
+  const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
+
   // --- SOCIETY EVENTS STATES ---
   const [societyEvents, setSocietyEvents] = useState<any[]>([]);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
@@ -269,6 +279,58 @@ function App() {
   const formattedDate = todayDateObj.toLocaleDateString('en-GB', {
     day: 'numeric', month: 'long', year: 'numeric', weekday: 'long'
   });
+
+  // --- ATTENDANCE TRACKER EFFECTS ---
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('view') === 'attendance') {
+      setActiveTab('attendance_tracker');
+      // Replace state to clean URL but keep it simple
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  useEffect(() => {
+    if ((activeTab === 'attendance_tracker' || activeTab === 'student_portal') && isStudentLoggedIn && authToken && !attendanceConnected) {
+      setIsAttendanceLoading(true);
+      fetch('/api/attendance_tracker/status', {
+        headers: { Authorization: `Bearer ${authToken}` }
+      }).then(res => res.json()).then(data => {
+        if (data.connected) {
+          setAttendanceConnected(true);
+          setAttendanceSheetUrl(data.spreadsheetUrl);
+          setAttendanceEmail(data.email);
+          
+          fetch('/api/attendance_tracker/dashboard', {
+            headers: { Authorization: `Bearer ${authToken}` }
+          }).then(r => r.json()).then(dash => {
+            setAttendanceDashboard(dash);
+            
+            // Parse today's marked slots
+            if (dash.recentEntries) {
+              const todayStr = new Date().toISOString().split('T')[0];
+              const todaySlots: {[key: number]: string} = {};
+              dash.recentEntries.forEach((entry: any) => {
+                if (entry.date === todayStr) {
+                  const pIndex = TIME_SLOTS.indexOf(entry.timeSlot);
+                  if (pIndex !== -1) {
+                    todaySlots[pIndex] = entry.status;
+                  }
+                }
+              });
+              setTodayMarkedSlots(todaySlots);
+            }
+          });
+        } else {
+          setAttendanceConnected(false);
+        }
+      }).catch(() => {
+        setAttendanceConnected(false);
+      }).finally(() => {
+        setIsAttendanceLoading(false);
+      });
+    }
+  }, [activeTab, isStudentLoggedIn, authToken, attendanceConnected]);
 
   // --- 1. INITIAL CHECKS (Run on Load) ---
   useEffect(() => {
@@ -1274,13 +1336,31 @@ function App() {
 
       const isCurrentlyActive = (day === currentDayName) && (index === selectedTimeIndex);
 
+      const markedStatus = todayMarkedSlots[index];
+
       return (
-        <div key={index} className={`relative flex gap-4 p-3 rounded-xl border transition-all ${hasClass ? 'bg-white shadow-sm' : 'bg-gray-50 border-gray-100 border-dashed opacity-60'
-          } ${isCurrentlyActive && hasClass ? 'border-indigo-400 ring-1 ring-indigo-400 scale-[1.01]' : hasClass ? 'border-gray-200' : ''}`}>
+        <div 
+          key={index} 
+          onClick={() => {
+            // Only allow marking for today's classes if logged in and connected
+            if (hasClass && isStudentLoggedIn && attendanceConnected && activeTab === 'student_portal' && day === currentDayName) {
+              setAttendanceMarking({ ...classData, periodIndex: index, timeSlot: timeLabel, date: todayDateObj.toISOString().split('T')[0], day: day });
+            }
+          }}
+          className={`relative flex gap-4 p-3 rounded-xl border transition-all ${hasClass ? 'bg-white shadow-sm' : 'bg-gray-50 border-gray-100 border-dashed opacity-60'
+          } ${isCurrentlyActive && hasClass ? 'border-indigo-400 ring-1 ring-indigo-400 scale-[1.01]' : hasClass ? 'border-gray-200 hover:border-indigo-200 hover:bg-indigo-50/10 cursor-pointer' : ''}`}>
 
           {isCurrentlyActive && hasClass && (
             <div className="absolute top-1 right-2 flex items-center gap-1 text-[10px] font-bold text-indigo-600 uppercase tracking-widest">
               <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>Live
+            </div>
+          )}
+
+          {markedStatus && (
+            <div className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-white shadow-sm border border-gray-200 flex items-center justify-center z-10">
+              {markedStatus === 'Present' && <CheckCircle className="w-4 h-4 text-green-500" />}
+              {markedStatus === 'Absent' && <XCircle className="w-4 h-4 text-red-500" />}
+              {markedStatus === 'Cancelled' && <CalendarOff className="w-4 h-4 text-gray-500" />}
             </div>
           )}
 
@@ -1289,7 +1369,7 @@ function App() {
             <span className="text-[10px] text-gray-400 uppercase">{timeLabel.split(' ')[1]}</span>
           </div>
 
-          <div className="flex-1 flex flex-col justify-center">
+          <div className="flex-1 flex flex-col justify-center relative">
             {hasClass ? (
               <>
                 <div className="flex justify-between items-start mb-1">
@@ -1449,6 +1529,10 @@ function App() {
              <CalendarOff className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'leave' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
              <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>On Leave</span>
            </button>
+           <button onClick={() => { setActiveTab('attendance_tracker'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'attendance_tracker' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
+             <ClipboardCheck className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'attendance_tracker' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
+             <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>Attendance</span>
+           </button>
            <button onClick={() => { setActiveTab('societies'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start px-4'} gap-3 py-3 rounded-[5px] font-bold transition-all group ${activeTab === 'societies' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}>
              <Globe className={`w-5 h-5 shrink-0 ${isSidebarCollapsed && activeTab !== 'societies' ? 'group-hover:text-white group-hover:scale-110 transition-transform' : ''}`} /> 
              <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>Societies</span>
@@ -1499,6 +1583,9 @@ function App() {
                <button onClick={() => { setActiveTab('leave'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'leave' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300'}`}>
                  <CalendarOff className="w-5 h-5 shrink-0" /> <span>On Leave</span>
                </button>
+               <button onClick={() => { setActiveTab('attendance_tracker'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'attendance_tracker' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300'}`}>
+                 <ClipboardCheck className="w-5 h-5 shrink-0" /> <span>Attendance</span>
+               </button>
                <button onClick={() => { setActiveTab('societies'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center justify-start px-4 gap-3 py-3 rounded-[5px] font-bold transition-all ${activeTab === 'societies' ? 'bg-srcc-yellow text-gray-100' : 'text-gray-300'}`}>
                  <Globe className="w-5 h-5 shrink-0" /> <span>Societies</span>
                </button>
@@ -1534,6 +1621,164 @@ function App() {
             <div className="fixed inset-0 bg-srcc-portalNavy/25 pointer-events-none z-0" />
           )}
           <div className={activeTab === 'student_portal' && !isStudentLoggedIn && portalMode === 'login' ? "relative z-10 w-full min-h-full flex flex-col items-center justify-center" : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-32"}>
+
+        {/* --- ATTENDANCE TRACKER TAB --- */}
+        {activeTab === 'attendance_tracker' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 pt-[env(safe-area-inset-top)] mt-12 md:mt-0">
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-srcc-yellow/20 text-srcc-portalNavy rounded-full text-xs font-bold uppercase tracking-wider mb-3">
+                  <ClipboardCheck className="w-4 h-4" /> Attendance Tracker
+                </div>
+                <h1 className="text-3xl md:text-4xl font-serif font-bold text-gray-900 tracking-tight leading-tight">
+                  Track Your <span className="text-srcc-portalNavy">Presence</span>
+                </h1>
+                <p className="text-gray-500 mt-2 max-w-xl text-sm leading-relaxed">
+                  Connect your Google Sheets to securely track and manage your attendance.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setIsInstructionsOpen(true)} className="p-2 bg-white text-gray-600 rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors">
+                  <AlertCircle className="w-5 h-5" />
+                </button>
+                {attendanceConnected && (
+                  <a href={attendanceSheetUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 font-bold text-sm rounded-lg hover:bg-green-100 transition-colors border border-green-200 shadow-sm">
+                    <LucideMap className="w-4 h-4" /> Open Sheet
+                  </a>
+                )}
+                {attendanceConnected && (
+                  <button onClick={() => {
+                    if (window.confirm('Disconnect Google Sheets? This will stop syncing your attendance. Your spreadsheet will not be deleted.')) {
+                      fetch('/api/attendance_tracker/disconnect', { method: 'POST', headers: { Authorization: `Bearer ${authToken}` } }).then(() => setAttendanceConnected(false));
+                    }
+                  }} className="p-2 bg-red-50 text-red-600 rounded-lg shadow-sm border border-red-100 hover:bg-red-100 transition-colors">
+                    <LogOut className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {!isStudentLoggedIn ? (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center max-w-md mx-auto mt-12">
+                <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto flex items-center justify-center mb-4">
+                  <Lock className="w-8 h-8 text-gray-400" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900 mb-2">Student Login Required</h2>
+                <p className="text-gray-500 mb-6 text-sm">You need to log into your student portal to track your attendance.</p>
+                <button onClick={() => setActiveTab('student_portal')} className="w-full py-3 bg-srcc-portalNavy text-white font-bold rounded-xl hover:bg-srcc-portalNavy/90 transition-colors">
+                  Go to Login
+                </button>
+              </div>
+            ) : isAttendanceLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+                <RefreshCw className="w-8 h-8 animate-spin mb-4" />
+                <p>Loading attendance tracker...</p>
+              </div>
+            ) : !attendanceConnected ? (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center max-w-lg mx-auto mt-12 overflow-hidden relative">
+                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 via-srcc-yellow to-green-400"></div>
+                <div className="w-20 h-20 bg-blue-50 rounded-full mx-auto flex items-center justify-center mb-6">
+                  <ClipboardCheck className="w-10 h-10 text-blue-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-3">Connect Google Sheets</h2>
+                <p className="text-gray-500 mb-8 leading-relaxed text-sm">
+                  Track your attendance effortlessly. Connect your Google account to automatically create a personal attendance spreadsheet in your Google Drive. 
+                  <br/><br/>
+                  <span className="font-medium text-gray-700">Your data stays in YOUR Google Drive. We only create one spreadsheet and do not read your other files.</span>
+                </p>
+                <a href={`/api/auth/google_sheets?token=${authToken}`} className="inline-flex items-center justify-center gap-3 w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-md hover:shadow-lg active:scale-95">
+                  <svg className="w-5 h-5 bg-white rounded-full p-1 text-blue-600" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.2,4.73C15.29,4.73 17.1,6.7 17.1,6.7L19,4.72C19,4.72 16.56,2 12.1,2C6.42,2 2.03,6.8 2.03,12C2.03,17.05 6.16,22 12.25,22C17.6,22 21.5,18.33 21.5,12.91C21.5,11.76 21.35,11.1 21.35,11.1V11.1Z" /></svg>
+                  Connect with Google
+                </a>
+              </div>
+            ) : attendanceDashboard ? (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500 font-medium mb-1">Overall Attendance</p>
+                      <h3 className="text-3xl font-bold text-gray-900">{attendanceDashboard.overallPercentage}%</h3>
+                    </div>
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${parseFloat(attendanceDashboard.overallPercentage) >= 66.6 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                      <CheckCircle className="w-6 h-6" />
+                    </div>
+                  </div>
+                  <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500 font-medium mb-1">Classes Attended</p>
+                      <h3 className="text-3xl font-bold text-gray-900">{attendanceDashboard.present} <span className="text-lg text-gray-400 font-medium">/ {attendanceDashboard.totalClasses - attendanceDashboard.cancelled}</span></h3>
+                    </div>
+                    <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                      <Users className="w-6 h-6" />
+                    </div>
+                  </div>
+                  <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500 font-medium mb-1">Classes Missed</p>
+                      <h3 className="text-3xl font-bold text-gray-900">{attendanceDashboard.absent}</h3>
+                    </div>
+                    <div className="w-12 h-12 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center">
+                      <XCircle className="w-6 h-6" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                      <h3 className="font-bold text-gray-900 flex items-center gap-2"><BookOpen className="w-4 h-4 text-srcc-portalNavy" /> Subject Breakdown</h3>
+                    </div>
+                    <div className="p-6 space-y-5">
+                      {attendanceDashboard.subjects.length === 0 ? (
+                        <p className="text-gray-500 text-center py-4 text-sm">No attendance data yet. Go to your Dashboard and tap on a class to mark attendance!</p>
+                      ) : attendanceDashboard.subjects.map((subj: any, i: number) => (
+                        <div key={i}>
+                          <div className="flex justify-between items-end mb-2">
+                            <div>
+                              <p className="font-medium text-gray-900 line-clamp-1">{subj.name}</p>
+                              <p className="text-xs text-gray-500">{subj.present} of {subj.total - subj.cancelled} classes</p>
+                            </div>
+                            <span className={`text-sm font-bold ${parseFloat(subj.percentage) >= 66.6 ? 'text-green-600' : 'text-red-600'}`}>
+                              {subj.percentage}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                            <div className={`h-2.5 rounded-full ${parseFloat(subj.percentage) >= 66.6 ? 'bg-green-500' : 'bg-red-500'}`} style={{ width: `${Math.min(100, parseFloat(subj.percentage))}%` }}></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                      <h3 className="font-bold text-gray-900 flex items-center gap-2"><Clock className="w-4 h-4 text-srcc-portalNavy" /> Recent Entries</h3>
+                    </div>
+                    <div className="p-0">
+                      {attendanceDashboard.recentEntries.length === 0 ? (
+                        <div className="p-6 text-center text-gray-500 text-sm">No entries found.</div>
+                      ) : (
+                        <ul className="divide-y divide-gray-100">
+                          {attendanceDashboard.recentEntries.map((entry: any, i: number) => (
+                            <li key={i} className="p-4 hover:bg-gray-50 transition-colors flex items-center justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-gray-900 truncate">{entry.subject}</p>
+                                <p className="text-xs text-gray-500">{new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • {entry.timeSlot}</p>
+                              </div>
+                              {entry.status === 'Present' && <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">Present</span>}
+                              {entry.status === 'Absent' && <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">Absent</span>}
+                              {entry.status === 'Cancelled' && <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">Cancelled</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
 
         {/* --- STUDENT PORTAL TAB --- */}
         {activeTab === 'student_portal' && (
@@ -2914,6 +3159,117 @@ function App() {
 
       {/* --- MODAL: TEACHER CONTACT --- */}
       <TeacherContactModal />
+
+      {/* --- MODAL: ATTENDANCE MARKING --- */}
+      {attendanceMarking && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-end sm:items-center justify-center sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col relative animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0">
+            <div className="p-6 bg-srcc-portalNavy text-white">
+              <button 
+                onClick={() => setAttendanceMarking(null)}
+                className="absolute top-4 right-4 bg-white/10 p-2 rounded-full hover:bg-white/20 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <h2 className="text-xl font-black mb-1">{attendanceMarking.subject}</h2>
+              <p className="text-srcc-yellow font-bold text-xs uppercase tracking-widest">{attendanceMarking.timeSlot} • Room {attendanceMarking.room}</p>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-500 font-medium text-sm mb-4 text-center">Mark your attendance for this class.</p>
+              <div className="grid grid-cols-3 gap-3">
+                <button 
+                  onClick={() => {
+                    const payload = { ...attendanceMarking, status: 'Present', rollNo: studentUser?.rollNo };
+                    setTodayMarkedSlots(prev => ({ ...prev, [attendanceMarking.periodIndex]: 'Present' }));
+                    setAttendanceMarking(null);
+                    fetch('/api/attendance_tracker/mark', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+                      body: JSON.stringify(payload)
+                    });
+                  }}
+                  className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-green-100 bg-green-50 hover:bg-green-100 hover:border-green-300 transition-all active:scale-95"
+                >
+                  <CheckCircle className="w-8 h-8 text-green-500" />
+                  <span className="font-bold text-green-700 text-sm">Present</span>
+                </button>
+                <button 
+                  onClick={() => {
+                    const payload = { ...attendanceMarking, status: 'Absent', rollNo: studentUser?.rollNo };
+                    setTodayMarkedSlots(prev => ({ ...prev, [attendanceMarking.periodIndex]: 'Absent' }));
+                    setAttendanceMarking(null);
+                    fetch('/api/attendance_tracker/mark', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+                      body: JSON.stringify(payload)
+                    });
+                  }}
+                  className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-red-100 bg-red-50 hover:bg-red-100 hover:border-red-300 transition-all active:scale-95"
+                >
+                  <XCircle className="w-8 h-8 text-red-500" />
+                  <span className="font-bold text-red-700 text-sm">Absent</span>
+                </button>
+                <button 
+                  onClick={() => {
+                    const payload = { ...attendanceMarking, status: 'Cancelled', rollNo: studentUser?.rollNo };
+                    setTodayMarkedSlots(prev => ({ ...prev, [attendanceMarking.periodIndex]: 'Cancelled' }));
+                    setAttendanceMarking(null);
+                    fetch('/api/attendance_tracker/mark', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+                      body: JSON.stringify(payload)
+                    });
+                  }}
+                  className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-gray-100 bg-gray-50 hover:bg-gray-100 hover:border-gray-300 transition-all active:scale-95"
+                >
+                  <CalendarOff className="w-8 h-8 text-gray-500" />
+                  <span className="font-bold text-gray-700 text-xs text-center leading-tight">Class Cancelled</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL: ATTENDANCE INSTRUCTIONS --- */}
+      {isInstructionsOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col relative">
+            <div className="p-6 bg-blue-600 text-white">
+              <button onClick={() => setIsInstructionsOpen(false)} className="absolute top-4 right-4 bg-white/10 p-2 rounded-full hover:bg-white/20 transition-all">
+                <X className="w-5 h-5" />
+              </button>
+              <h2 className="text-xl font-black mb-1 flex items-center gap-2"><ClipboardCheck className="w-6 h-6" /> How to use Tracker</h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex gap-3">
+                <div className="w-8 h-8 shrink-0 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black">1</div>
+                <div>
+                  <p className="font-bold text-gray-900">Go to your Dashboard</p>
+                  <p className="text-sm text-gray-500 mt-0.5">Open the "Student Portal" tab to view your live weekly schedule.</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <div className="w-8 h-8 shrink-0 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black">2</div>
+                <div>
+                  <p className="font-bold text-gray-900">Tap on any class today</p>
+                  <p className="text-sm text-gray-500 mt-0.5">Classes that are scheduled for today can be tapped. A prompt will appear asking you to mark your status.</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <div className="w-8 h-8 shrink-0 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black">3</div>
+                <div>
+                  <p className="font-bold text-gray-900">Data goes to Google Sheets</p>
+                  <p className="text-sm text-gray-500 mt-0.5">Your attendance is saved in your connected Google Spreadsheet. You can open it anytime to make manual edits!</p>
+                </div>
+              </div>
+              <button onClick={() => setIsInstructionsOpen(false)} className="w-full mt-4 bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold py-3 rounded-xl transition-colors">
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

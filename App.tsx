@@ -370,6 +370,7 @@ function App() {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         setAuthToken(token);
+        localStorage.setItem("authToken", token);
 
         if (payload.isMaster) {
           setPortalMode('master_access');
@@ -414,8 +415,12 @@ function App() {
       }
     } else {
       const savedUser = localStorage.getItem("studentUser");
+      const savedToken = localStorage.getItem("authToken");
       if (savedUser) {
-        try { completeLogin(JSON.parse(savedUser)); } catch (e) { }
+        try { 
+          completeLogin(JSON.parse(savedUser)); 
+          if (savedToken) setAuthToken(savedToken);
+        } catch (e) { }
       }
     }
 
@@ -612,6 +617,10 @@ function App() {
       if (res.ok) {
         completeLogin(data.user);
         localStorage.setItem("studentUser", JSON.stringify(data.user));
+        if (data.token) {
+          localStorage.setItem("authToken", data.token);
+          setAuthToken(data.token);
+        }
         setManualPasscode('');
       } else {
         if (res.status === 403) {
@@ -654,6 +663,10 @@ function App() {
       const data = await res.json();
       if (res.ok) {
         localStorage.setItem("studentUser", JSON.stringify(data.user));
+        if (data.token) {
+          localStorage.setItem("authToken", data.token);
+          setAuthToken(data.token);
+        }
         completeLogin(data.user);
         setPortalMsg("Access Code Set Successfully!");
         setPortalMode('login');
@@ -693,7 +706,9 @@ function App() {
     setIsStudentLoggedIn(false);
     setStudentUser(null);
     setMyTimetableData(null);
+    setAuthToken('');
     localStorage.removeItem("studentUser");
+    localStorage.removeItem("authToken");
     setPortalMode('login');
   };
 

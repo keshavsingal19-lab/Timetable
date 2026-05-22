@@ -46,8 +46,17 @@ export async function onRequestPost(context) {
         "INSERT INTO students (roll_no, email, semester, section, password) VALUES (?, ?, ?, ?, ?)"
       ).bind(verifiedRollNo, email, profile.semester, profile.section, accessCode).run();
 
+      const sessionToken = await jwt.sign({ 
+        email: email, 
+        isNewUser: false,
+        rollNo: verifiedRollNo,
+        isMaster: false,
+        exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60)
+      }, env.JWT_SECRET || 'secret-key-fallback');
+
       return new Response(JSON.stringify({ 
         success: true, 
+        token: sessionToken,
         user: { rollNo: verifiedRollNo, email, semester: profile.semester, section: profile.section, password: accessCode } 
       }), { status: 200 });
 
@@ -57,10 +66,19 @@ export async function onRequestPost(context) {
         "UPDATE students SET password = ? WHERE email = ?"
       ).bind(accessCode, email).run();
 
+      const sessionToken = await jwt.sign({ 
+        email: email, 
+        isNewUser: false,
+        rollNo: verifiedRollNo,
+        isMaster: false,
+        exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60)
+      }, env.JWT_SECRET || 'secret-key-fallback');
+
       // Retrieve full user for frontend
       const user = await db.prepare("SELECT * FROM students WHERE email = ?").bind(email).first();
       return new Response(JSON.stringify({ 
         success: true, 
+        token: sessionToken,
         user: { rollNo: user.roll_no, email, semester: user.semester, section: user.section, password: accessCode } 
       }), { status: 200 });
     }

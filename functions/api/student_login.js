@@ -1,3 +1,5 @@
+import jwt from '@tsndr/cloudflare-worker-jwt';
+
 export async function onRequestPost(context) {
   try {
     const { request, env } = context;
@@ -16,8 +18,17 @@ export async function onRequestPost(context) {
       }), { status: 401 });
     }
 
+    const sessionToken = await jwt.sign({ 
+      email: user.email, 
+      isNewUser: false,
+      rollNo: user.roll_no,
+      isMaster: false,
+      exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
+    }, env.JWT_SECRET || 'secret-key-fallback');
+
     return new Response(JSON.stringify({ 
       success: true, 
+      token: sessionToken,
       user: { rollNo: user.roll_no, email: user.email, semester: user.semester, section: user.section } 
     }), { status: 200 });
 

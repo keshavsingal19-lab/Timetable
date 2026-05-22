@@ -18,6 +18,11 @@ export async function onRequestGet(context) {
   try {
     const { accessToken, spreadsheetId } = await getValidToken(env, rollNo);
 
+    // Read semester dates from query params (frontend stores in localStorage)
+    const url = new URL(request.url);
+    const semesterStart = url.searchParams.get('semesterStart') || null;
+    const semesterEnd = url.searchParams.get('semesterEnd') || null;
+
     // Get all rows from Attendance Log
     const getRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Attendance%20Log!A:I`, {
       headers: { Authorization: `Bearer ${accessToken}` }
@@ -37,6 +42,7 @@ export async function onRequestGet(context) {
     let absent = 0;
     let cancelled = 0;
     
+    // Group by "Subject (Type)" — e.g., "IB (Lecture)", "IB (Tutorial)"
     const subjectStats = {};
     const monthlyStats = {};
     const allEntries = [];
@@ -48,7 +54,7 @@ export async function onRequestGet(context) {
       const subj = row[3] || '';
       const room = row[4] || '';
       const teacher = row[5] || '';
-      const classType = row[6] || '';
+      const classType = row[6] || 'Lecture';
       const stat = row[7] || '';
       const markedAt = row[8] || '';
       
@@ -56,13 +62,14 @@ export async function onRequestGet(context) {
       if (stat === 'Absent') absent++;
       if (stat === 'Cancelled') cancelled++;
 
-      // Subject-wise stats
+      // Subject+Type differentiation
       if (subj) {
-        if (!subjectStats[subj]) subjectStats[subj] = { name: subj, total: 0, present: 0, absent: 0, cancelled: 0 };
-        subjectStats[subj].total++;
-        if (stat === 'Present') subjectStats[subj].present++;
-        if (stat === 'Absent') subjectStats[subj].absent++;
-        if (stat === 'Cancelled') subjectStats[subj].cancelled++;
+        const key = `${subj} (${classType})`;
+        if (!subjectStats[key]) subjectStats[key] = { name: key, subject: subj, classType, total: 0, present: 0, absent: 0, cancelled: 0 };
+        subjectStats[key].total++;
+        if (stat === 'Present') subjectStats[key].present++;
+        if (stat === 'Absent') subjectStats[key].absent++;
+        if (stat === 'Cancelled') subjectStats[key].cancelled++;
       }
 
       // Monthly breakdown
@@ -88,6 +95,7 @@ export async function onRequestGet(context) {
         timeSlot: dataRows[i][2] || '',
         subject: dataRows[i][3] || '',
         room: dataRows[i][4] || '',
+        classType: dataRows[i][6] || 'Lecture',
         status: dataRows[i][7] || ''
       });
     }
@@ -105,29 +113,47 @@ export async function onRequestGet(context) {
     const validTotal = present + absent; // excluding cancelled
     const overallPercentage = validTotal > 0 ? parseFloat(((present / validTotal) * 100).toFixed(1)) : 0;
 
-    // ── Projections: estimate session total and compute "must attend" for 66.67% ──
-    // Estimate: ~4 months (16 weeks), calculate classes per subject per week from existing data
+    // ── Projections ──
     const TARGET_PERCENT = 66.67;
-    const WEEKS_IN_SESSION = 16;
+    const NON_WORKING_WEEKS = 2;
     
-    // Figure out how many weeks of data we have
-    const allDates = dataRows.map(r => r[0]).filter(Boolean);
+    let totalWeeksInSession = 16; // default fallback
+    let workingWeeks = 14; // default: 16 - 2
     let weeksElapsed = 1;
-    if (allDates.length > 1) {
-      const sorted = [...new Set(allDates)].sort();
-      const first = new Date(sorted[0]);
-      const last = new Date(sorted[sorted.length - 1]);
-      const diffMs = last - first;
-      weeksElapsed = Math.max(1, Math.ceil(diffMs / (7 * 24 * 60 * 60 * 1000)));
+    let weeksRemaining = 13;
+
+    if (semesterStart && semesterEnd) {
+      const startDate = new Date(semesterStart);
+      const endDate = new Date(semesterEnd);
+      const diffMs = endDate - startDate;
+      totalWeeksInSession = Math.max(1, Math.round(diffMs / (7 * 24 * 60 * 60 * 1000)));
+      workingWeeks = Math.max(1, totalWeeksInSession - NON_WORKING_WEEKS);
+
+      const now = new Date();
+      const elapsedMs = Math.min(now, endDate) - startDate;
+      weeksElapsed = Math.max(1, Math.round(elapsedMs / (7 * 24 * 60 * 60 * 1000)));
+      weeksRemaining = Math.max(0, workingWeeks - weeksElapsed);
+    } else {
+      // Fallback: estimate from log data
+      const allDates = dataRows.map(r => r[0]).filter(Boolean);
+      if (allDates.length > 1) {
+        const sorted = [...new Set(allDates)].sort();
+        const first = new Date(sorted[0]);
+        const last = new Date(sorted[sorted.length - 1]);
+        const diffMs = last - first;
+        weeksElapsed = Math.max(1, Math.ceil(diffMs / (7 * 24 * 60 * 60 * 1000)));
+      }
+      workingWeeks = totalWeeksInSession - NON_WORKING_WEEKS;
+      weeksRemaining = Math.max(0, workingWeeks - weeksElapsed);
     }
 
     const subjectProjections = subjects.map(s => {
+      // Estimate classes per week for this subject+type from logged data
       const classesPerWeek = Math.max(1, Math.round(s.total / weeksElapsed));
-      const sessionTotal = classesPerWeek * WEEKS_IN_SESSION;
+      const sessionTotal = classesPerWeek * workingWeeks;
       const remaining = Math.max(0, sessionTotal - s.total);
       
-      // To achieve 66.67%: (present + mustAttend) / (sessionTotal - cancelled_so_far - future_cancels) >= 0.6667
-      // Simplified: mustAttend = ceil(0.6667 * (sessionTotal - s.cancelled) - s.present)
+      // To achieve 66.67%: mustAttend = ceil(0.6667 * effectiveTotal - present)
       const effectiveTotal = sessionTotal - s.cancelled;
       const mustAttend = Math.max(0, Math.ceil(TARGET_PERCENT / 100 * effectiveTotal - s.present));
       const canSkip = Math.max(0, remaining - mustAttend);
@@ -135,7 +161,10 @@ export async function onRequestGet(context) {
 
       return {
         subject: s.name,
+        rawSubject: s.subject,
+        classType: s.classType,
         currentPercentage: s.percentage,
+        classesPerWeek,
         sessionTotal,
         attended: s.present,
         remaining,
@@ -172,13 +201,17 @@ export async function onRequestGet(context) {
       monthlyBreakdown,
       projections: {
         targetPercent: TARGET_PERCENT,
+        totalWeeksInSession,
+        workingWeeks,
+        nonWorkingWeeks: NON_WORKING_WEEKS,
         sessionTotalEstimate: totalSessionEstimate,
         weeksElapsed,
-        weeksRemaining: Math.max(0, WEEKS_IN_SESSION - weeksElapsed),
+        weeksRemaining,
         remainingClasses: totalRemaining,
         classesNeededFor67: totalMustAttend,
         canSkip: totalCanSkip,
-        status: totalMustAttend <= totalRemaining ? 'safe' : 'at_risk'
+        status: totalMustAttend <= totalRemaining ? 'safe' : 'at_risk',
+        hasSemesterDates: !!(semesterStart && semesterEnd)
       }
     }), { status: 200 });
 

@@ -33,7 +33,7 @@ export async function onRequestPost(context) {
     const values = sheetData.values || [];
 
     let rowIdx = -1;
-    // skip header row — find existing entry for same date + timeSlot
+    // skip header row — find existing entry for same date + timeSlot + subject
     for (let i = 1; i < values.length; i++) {
       const row = values[i];
       if (row[0] === date && row[2] === timeSlot) {
@@ -43,7 +43,8 @@ export async function onRequestPost(context) {
     }
 
     const nowStr = new Date().toISOString();
-    const rowValues = [date, day, timeSlot, subject, room, teacher || '', classType || '', status, nowStr];
+    const effectiveType = classType || 'Lecture';
+    const rowValues = [date, day, timeSlot, subject, room, teacher || '', effectiveType, status, nowStr];
 
     if (rowIdx > 0) {
       // Update existing row
@@ -68,32 +69,43 @@ export async function onRequestPost(context) {
     }
 
     // 2. Rebuild the Subject Summary tab with live formulas
-    // First, re-read the updated data to get unique subjects
-    const updatedRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Attendance%20Log!D2:D`, {
+    // Get unique subject+type pairs from the log
+    const updatedRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Attendance%20Log!D2:G`, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     const updatedData = await updatedRes.json();
-    const allSubjects = [...new Set((updatedData.values || []).map(r => r[0]).filter(Boolean))].sort();
+    const pairsMap = new Map();
+    for (const row of (updatedData.values || [])) {
+      const subj = row[0];
+      const type = row[3] || 'Lecture'; // Column G is index 3 relative to D
+      if (subj) {
+        const key = `${subj}|${type}`;
+        if (!pairsMap.has(key)) pairsMap.set(key, { subject: subj, type });
+      }
+    }
+    const allPairs = [...pairsMap.values()].sort((a, b) => `${a.subject} ${a.type}`.localeCompare(`${b.subject} ${b.type}`));
 
-    // Build Subject Summary rows with formulas
+    // Build Subject Summary rows with formulas — now grouped by Subject + Type
     const summaryRows = [
-      ['Subject', 'Total', 'Present', 'Absent', 'Cancelled', 'Attendance %', 'Status']
+      ['Subject', 'Type', 'Total', 'Present', 'Absent', 'Cancelled', 'Attendance %', 'Status']
     ];
     
-    allSubjects.forEach(subj => {
+    allPairs.forEach(pair => {
+      const rowNum = summaryRows.length + 1;
       summaryRows.push([
-        subj,
-        `=COUNTIF('Attendance Log'!D:D, "${subj}")`,
-        `=COUNTIFS('Attendance Log'!D:D, "${subj}", 'Attendance Log'!H:H, "Present")`,
-        `=COUNTIFS('Attendance Log'!D:D, "${subj}", 'Attendance Log'!H:H, "Absent")`,
-        `=COUNTIFS('Attendance Log'!D:D, "${subj}", 'Attendance Log'!H:H, "Cancelled")`,
-        `=IF((B${summaryRows.length + 1}-E${summaryRows.length + 1})>0, ROUND(C${summaryRows.length + 1}/(B${summaryRows.length + 1}-E${summaryRows.length + 1})*100, 1)&"%", "N/A")`,
-        `=IF(VALUE(SUBSTITUTE(F${summaryRows.length + 1}, "%", ""))>=66.67, "✅ On Track", "⚠️ Below Target")`
+        pair.subject,
+        pair.type,
+        `=COUNTIFS('Attendance Log'!D:D, "${pair.subject}", 'Attendance Log'!G:G, "${pair.type}")`,
+        `=COUNTIFS('Attendance Log'!D:D, "${pair.subject}", 'Attendance Log'!G:G, "${pair.type}", 'Attendance Log'!H:H, "Present")`,
+        `=COUNTIFS('Attendance Log'!D:D, "${pair.subject}", 'Attendance Log'!G:G, "${pair.type}", 'Attendance Log'!H:H, "Absent")`,
+        `=COUNTIFS('Attendance Log'!D:D, "${pair.subject}", 'Attendance Log'!G:G, "${pair.type}", 'Attendance Log'!H:H, "Cancelled")`,
+        `=IF((C${rowNum}-F${rowNum})>0, ROUND(D${rowNum}/(C${rowNum}-F${rowNum})*100, 1)&"%", "N/A")`,
+        `=IF(VALUE(SUBSTITUTE(G${rowNum}, "%", ""))>=66.67, "✅ On Track", "⚠️ Below Target")`
       ]);
     });
 
     // Clear and write Subject Summary
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Subject%20Summary!A:G:clear`, {
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Subject%20Summary!A:H:clear`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({})
@@ -106,7 +118,6 @@ export async function onRequestPost(context) {
     });
 
     // 3. Rebuild Projections tab
-    const WEEKS_IN_SESSION = 16;
     // Calculate weeks elapsed from the data
     const allDatesRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Attendance%20Log!A2:A`, {
       headers: { Authorization: `Bearer ${accessToken}` }
@@ -121,26 +132,32 @@ export async function onRequestPost(context) {
       weeksElapsed = Math.max(1, Math.ceil((last - first) / (7 * 24 * 60 * 60 * 1000)));
     }
 
+    // Default: 16 total weeks, 14 working weeks (minus 2 non-working)
+    const WORKING_WEEKS = 14;
+
     const projRows = [
-      ['Subject', 'Current %', 'Total (Session Est.)', 'Attended', 'Remaining', 'Must Attend (for 66.67%)', 'Can Skip', 'Verdict']
+      ['Subject', 'Type', 'Current %', 'Freq/Wk', 'Total (Est.)', 'Attended', 'Remaining', 'Must Attend (66.67%)', 'Can Skip', 'Verdict']
     ];
 
-    allSubjects.forEach((subj, idx) => {
-      const row = idx + 2; // row number in the summary sheet
+    allPairs.forEach((pair, idx) => {
+      const summaryRow = idx + 2; // row number in the summary sheet
+      const projRow = projRows.length + 1;
       projRows.push([
-        subj,
-        `='Subject Summary'!F${row}`,
-        `=MAX(1, ROUND('Subject Summary'!B${row}/${weeksElapsed}, 0))*${WEEKS_IN_SESSION}`,
-        `='Subject Summary'!C${row}`,
-        `=MAX(0, C${projRows.length + 1}-D${projRows.length + 1})`,
-        `=MAX(0, CEILING(0.6667*(C${projRows.length + 1}-'Subject Summary'!E${row})-D${projRows.length + 1}, 1))`,
-        `=MAX(0, E${projRows.length + 1}-F${projRows.length + 1})`,
-        `=IF(F${projRows.length + 1}<=E${projRows.length + 1}, "✅ Safe", "⚠️ At Risk")`
+        pair.subject,
+        pair.type,
+        `='Subject Summary'!G${summaryRow}`,
+        `=MAX(1, ROUND('Subject Summary'!C${summaryRow}/${weeksElapsed}, 0))`,
+        `=D${projRow}*${WORKING_WEEKS}`,
+        `='Subject Summary'!D${summaryRow}`,
+        `=MAX(0, E${projRow}-F${projRow})`,
+        `=MAX(0, CEILING(0.6667*(E${projRow}-'Subject Summary'!F${summaryRow})-F${projRow}, 1))`,
+        `=MAX(0, G${projRow}-H${projRow})`,
+        `=IF(H${projRow}<=G${projRow}, "✅ Safe", "⚠️ At Risk")`
       ]);
     });
 
     // Clear and write Projections
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Projections!A:H:clear`, {
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Projections!A:J:clear`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({})

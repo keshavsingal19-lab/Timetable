@@ -259,6 +259,8 @@ function App() {
   const [attendanceTab, setAttendanceTab] = useState<'overview' | 'subjects' | 'calendar' | 'projections'>('overview');
   const [calendarDate, setCalendarDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [calendarMonth, setCalendarMonth] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; });
+  const [semesterStart, setSemesterStart] = useState<string>(localStorage.getItem('semesterStart') || '');
+  const [semesterEnd, setSemesterEnd] = useState<string>(localStorage.getItem('semesterEnd') || '');
 
   // --- SOCIETY EVENTS STATES ---
   const [societyEvents, setSocietyEvents] = useState<any[]>([]);
@@ -304,7 +306,13 @@ function App() {
           setAttendanceSheetUrl(data.spreadsheetUrl);
           setAttendanceEmail(data.email);
           
-          fetch('/api/attendance_tracker/dashboard', {
+          const dashParams = new URLSearchParams();
+          const storedStart = localStorage.getItem('semesterStart');
+          const storedEnd = localStorage.getItem('semesterEnd');
+          if (storedStart) dashParams.set('semesterStart', storedStart);
+          if (storedEnd) dashParams.set('semesterEnd', storedEnd);
+          const dashUrl = `/api/attendance_tracker/dashboard${dashParams.toString() ? '?' + dashParams.toString() : ''}`;
+          fetch(dashUrl, {
             headers: { Authorization: `Bearer ${authToken}` }
           }).then(r => r.json()).then(dash => {
             setAttendanceDashboard(dash);
@@ -1682,21 +1690,6 @@ function App() {
                     <Trash2 className="w-5 h-5" />
                   </button>
                 )}
-                {attendanceConnected && (
-                  <button onClick={() => {
-                    if (window.confirm('Disconnect Google Sheets? This will stop syncing your attendance. Your spreadsheet will not be deleted.')) {
-                      fetch('/api/attendance_tracker/disconnect', { method: 'POST', headers: { Authorization: `Bearer ${authToken}` } }).then(() => {
-                        setAttendanceConnected(false);
-                        setAttendanceDashboard(null);
-                        setAttendanceEmail('');
-                        setAttendanceSheetUrl('');
-                        setTodayMarkedSlots({});
-                      });
-                    }
-                  }} className="p-2 bg-red-50 text-red-600 rounded-lg shadow-sm border border-red-100 hover:bg-red-100 transition-colors" title="Disconnect Google Sheets">
-                    <LogOut className="w-5 h-5" />
-                  </button>
-                )}
               </div>
             </div>
 
@@ -1750,6 +1743,58 @@ function App() {
                   <button onClick={() => setAttendanceTab('calendar')} className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold transition-all ${attendanceTab === 'calendar' ? 'bg-srcc-portalNavy text-white shadow-md' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}>
                     <Calendar className="w-4 h-4" /> Calendar
                   </button>
+                </div>
+
+                {/* SEMESTER DATES CONFIG */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <CalendarDays className="w-5 h-5 text-srcc-portalNavy" />
+                      <h4 className="font-bold text-gray-900 text-sm">Semester Tenure</h4>
+                    </div>
+                    <div className="flex flex-1 flex-col sm:flex-row gap-3">
+                      <div className="flex-1">
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Start Date</label>
+                        <input 
+                          type="date" value={semesterStart}
+                          onChange={(e) => { setSemesterStart(e.target.value); localStorage.setItem('semesterStart', e.target.value); }}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">End Date</label>
+                        <input 
+                          type="date" value={semesterEnd}
+                          onChange={(e) => { setSemesterEnd(e.target.value); localStorage.setItem('semesterEnd', e.target.value); }}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        />
+                      </div>
+                      {semesterStart && semesterEnd && (
+                        <button 
+                          onClick={() => {
+                            // Re-fetch dashboard with the new dates
+                            setIsAttendanceLoading(true);
+                            const dp = new URLSearchParams();
+                            dp.set('semesterStart', semesterStart);
+                            dp.set('semesterEnd', semesterEnd);
+                            fetch(`/api/attendance_tracker/dashboard?${dp.toString()}`, {
+                              headers: { Authorization: `Bearer ${authToken}` }
+                            }).then(r => r.json()).then(dash => {
+                              setAttendanceDashboard(dash);
+                            }).finally(() => setIsAttendanceLoading(false));
+                          }}
+                          className="self-end px-4 py-2 bg-srcc-portalNavy text-white font-bold text-sm rounded-xl hover:bg-srcc-portalNavy/90 transition-colors shadow-sm whitespace-nowrap"
+                        >
+                          <RefreshCw className="w-4 h-4 inline mr-1" /> Apply
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {semesterStart && semesterEnd && attendanceDashboard?.projections?.hasSemesterDates && (
+                    <p className="text-[11px] text-gray-400 mt-3 font-medium">
+                      📅 {attendanceDashboard.projections.totalWeeksInSession} total weeks · {attendanceDashboard.projections.workingWeeks} working weeks (excluding {attendanceDashboard.projections.nonWorkingWeeks} assumed non-working weeks) · {attendanceDashboard.projections.weeksElapsed} elapsed · {attendanceDashboard.projections.weeksRemaining} remaining
+                    </p>
+                  )}
                 </div>
 
                 {/* TAB CONTENT: OVERVIEW */}
@@ -1915,6 +1960,7 @@ function App() {
                           <thead>
                             <tr className="bg-gray-50 text-xs uppercase tracking-wider text-gray-500 border-b border-gray-100">
                               <th className="p-4 font-bold">Subject</th>
+                              <th className="p-4 font-bold text-center">Total (Est.)</th>
                               <th className="p-4 font-bold text-center">Remaining</th>
                               <th className="p-4 font-bold text-center text-srcc-portalNavy">Must Attend</th>
                               <th className="p-4 font-bold text-center text-green-600">Can Skip</th>
@@ -1925,6 +1971,7 @@ function App() {
                             {attendanceDashboard.subjectProjections?.map((proj: any, i: number) => (
                               <tr key={i} className="hover:bg-gray-50 transition-colors">
                                 <td className="p-4 font-medium text-gray-900 text-sm">{proj.subject}</td>
+                                <td className="p-4 text-center text-sm font-bold text-gray-400">{proj.sessionTotal}</td>
                                 <td className="p-4 text-center text-sm font-bold text-gray-500">{proj.remaining}</td>
                                 <td className="p-4 text-center text-sm font-black text-srcc-portalNavy">{proj.mustAttend}</td>
                                 <td className="p-4 text-center text-sm font-black text-green-600">{proj.canSkip}</td>
@@ -1971,12 +2018,11 @@ function App() {
                         <div className="bg-green-50 rounded-xl p-4 border border-green-200 flex flex-col justify-center items-start sm:items-end sm:text-right">
                           <button 
                             onClick={() => {
-                              setAttendanceMarking({ 
-                                subject: 'Select Subject', type: 'Extra', 
-                                timeSlot: `Extra-${Date.now()}`, 
-                                room: '', teacher: '',
-                                targetDate: calendarDate, targetDay: new Date(calendarDate).toLocaleDateString('en-US', { weekday: 'long' })
-                              });
+                              setAttendanceMarking({
+                              subject: '', type: 'Lecture', periodIndex: -1, timeSlot: `Extra-${Date.now()}`,
+                              targetDate: calendarDate, targetDay: new Date(calendarDate).toLocaleDateString('en-US', { weekday: 'long' }),
+                              isExtra: true
+                            });
                             }}
                             className="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors shadow-sm text-sm"
                           >
@@ -3459,15 +3505,19 @@ function App() {
               >
                 <X className="w-5 h-5" />
               </button>
-              {attendanceMarking.type === 'Extra' ? (
+              {attendanceMarking.isExtra ? (
                 <div className="mb-2">
                   <select 
                     className="text-gray-900 bg-white font-bold w-full p-2 rounded-xl outline-none border border-gray-200 text-sm"
-                    value={attendanceMarking.subject}
-                    onChange={(e) => setAttendanceMarking({...attendanceMarking, subject: e.target.value})}
+                    value={attendanceMarking.subject ? JSON.stringify({subject: attendanceMarking.subject, type: attendanceMarking.type}) : ''}
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      const parsed = JSON.parse(e.target.value);
+                      setAttendanceMarking({...attendanceMarking, subject: parsed.subject, type: parsed.type});
+                    }}
                   >
-                    <option value="Select Subject">-- Select Subject --</option>
-                    {attendanceDashboard?.subjects?.map((s:any) => <option key={s.name} value={s.name}>{s.name}</option>)}
+                    <option value="">-- Select Subject --</option>
+                    {attendanceDashboard?.subjects?.map((s:any) => <option key={s.name} value={JSON.stringify({subject: s.subject, type: s.classType})}>{s.name}</option>)}
                   </select>
                 </div>
               ) : (
@@ -3495,9 +3545,10 @@ function App() {
                       rollNo: studentUser?.rollNo,
                       date: attendanceMarking.targetDate || attendanceMarking.date,
                       day: attendanceMarking.targetDay || attendanceMarking.day,
-                      timeSlot: attendanceMarking.timeSlot || attendanceMarking.time
+                      timeSlot: attendanceMarking.timeSlot || attendanceMarking.time,
+                      classType: attendanceMarking.type
                     };
-                    if (!attendanceMarking.targetDate && attendanceMarking.type !== 'Extra') setTodayMarkedSlots(prev => ({ ...prev, [attendanceMarking.periodIndex]: 'Present' }));
+                    if (!attendanceMarking.targetDate && !attendanceMarking.isExtra) setTodayMarkedSlots(prev => ({ ...prev, [attendanceMarking.periodIndex]: 'Present' }));
                     setAttendanceMarking(null);
                     fetch('/api/attendance_tracker/mark', {
                       method: 'POST',
@@ -3505,12 +3556,12 @@ function App() {
                       body: JSON.stringify(payload)
                     });
                   }}
-                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-green-100 bg-green-50 hover:bg-green-100 hover:border-green-300 transition-all active:scale-95 ${attendanceMarking.type === 'Extra' ? 'col-span-3' : ''}`}
+                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-green-100 bg-green-50 hover:bg-green-100 hover:border-green-300 transition-all active:scale-95 ${attendanceMarking.isExtra ? 'col-span-3' : ''}`}
                 >
                   <CheckCircle className="w-8 h-8 text-green-500" />
-                  <span className="font-bold text-green-700 text-sm">{attendanceMarking.type === 'Extra' ? 'Log Extra Present' : 'Present'}</span>
+                  <span className="font-bold text-green-700 text-sm">{attendanceMarking.isExtra ? 'Log Extra Present' : 'Present'}</span>
                 </button>
-                {attendanceMarking.type !== 'Extra' && (
+                {!attendanceMarking.isExtra && (
                   <>
                     <button 
                       onClick={() => {
@@ -3520,7 +3571,8 @@ function App() {
                           rollNo: studentUser?.rollNo,
                           date: attendanceMarking.targetDate || attendanceMarking.date,
                           day: attendanceMarking.targetDay || attendanceMarking.day,
-                          timeSlot: attendanceMarking.timeSlot || attendanceMarking.time
+                          timeSlot: attendanceMarking.timeSlot || attendanceMarking.time,
+                          classType: attendanceMarking.type
                         };
                         if (!attendanceMarking.targetDate) setTodayMarkedSlots(prev => ({ ...prev, [attendanceMarking.periodIndex]: 'Absent' }));
                         setAttendanceMarking(null);
@@ -3543,7 +3595,8 @@ function App() {
                           rollNo: studentUser?.rollNo,
                           date: attendanceMarking.targetDate || attendanceMarking.date,
                           day: attendanceMarking.targetDay || attendanceMarking.day,
-                          timeSlot: attendanceMarking.timeSlot || attendanceMarking.time
+                          timeSlot: attendanceMarking.timeSlot || attendanceMarking.time,
+                          classType: attendanceMarking.type
                         };
                         if (!attendanceMarking.targetDate) setTodayMarkedSlots(prev => ({ ...prev, [attendanceMarking.periodIndex]: 'Cancelled' }));
                         setAttendanceMarking(null);

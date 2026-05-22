@@ -1272,8 +1272,9 @@ function App() {
     }
 
     return TIME_SLOTS.map((timeLabel, index) => {
-      const classData = timetableData[day].find((c: any) => c.periodIndex === index);
-      const hasClass = !!classData;
+      const classesAtSlot = timetableData[day].filter((c: any) => c.periodIndex === index);
+      const hasClass = classesAtSlot.length > 0;
+      const classData = classesAtSlot.find((c: any) => c.type === 'Extra') || classesAtSlot[0];
       const lastClassIndex = Math.max(...timetableData[day].map((c: any) => c.periodIndex));
 
       if (index > lastClassIndex) return null;
@@ -1303,7 +1304,7 @@ function App() {
                   <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md ${
                       classData.type === 'Lecture' ? 'bg-blue-50 text-blue-700' :
                       classData.type === 'Tutorial' ? 'bg-purple-50 text-purple-700' : 
-                      classData.type === 'Makeup' ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300' :
+                      classData.type === 'Extra' ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300' :
                       'bg-green-50 text-green-700'
                     }`}>{classData.type}</span>
                 </div>

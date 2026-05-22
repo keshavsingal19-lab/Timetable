@@ -147,9 +147,33 @@ export async function onRequestGet(context) {
       weeksRemaining = Math.max(0, workingWeeks - weeksElapsed);
     }
 
+    // Fetch actual timetable frequency to get exact classes per week
+    let timetableFreq = {};
+    try {
+      const freqRes = await env.DB.prepare(`
+        SELECT s.subject_name, s.type as class_type, count(*) as count
+        FROM student_sections ss
+        JOIN sections s ON ss.section_id = s.id
+        JOIN timetable t ON t.section_id = s.id
+        WHERE ss.roll_no = ?
+        GROUP BY s.subject_name, s.type
+      `).bind(rollNo).all();
+      
+      if (freqRes && freqRes.results) {
+        freqRes.results.forEach(row => {
+          const key = `${row.subject_name} (${row.class_type})`;
+          timetableFreq[key] = row.count;
+        });
+      }
+    } catch (e) {
+      console.warn("Failed to fetch timetable freq", e);
+    }
+
     const subjectProjections = subjects.map(s => {
-      // Estimate classes per week for this subject+type from logged data
-      const classesPerWeek = Math.max(1, Math.round(s.total / weeksElapsed));
+      // Use exact classes per week from timetable if available, otherwise fallback to estimation
+      const exactFreq = timetableFreq[s.name];
+      const classesPerWeek = exactFreq !== undefined ? exactFreq : Math.max(1, Math.round(s.total / weeksElapsed));
+      
       const sessionTotal = classesPerWeek * workingWeeks;
       const remaining = Math.max(0, sessionTotal - s.total);
       
@@ -165,6 +189,7 @@ export async function onRequestGet(context) {
         classType: s.classType,
         currentPercentage: s.percentage,
         classesPerWeek,
+        isExactFreq: exactFreq !== undefined,
         sessionTotal,
         attended: s.present,
         remaining,

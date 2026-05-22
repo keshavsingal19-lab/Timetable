@@ -1951,6 +1951,15 @@ function App() {
                       </div>
                     </div>
 
+                    <div className="bg-yellow-50/50 border border-yellow-200 rounded-xl p-4 flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
+                      <div>
+                        <h5 className="font-bold text-yellow-800 text-sm">Accuracy Disclaimer</h5>
+                        <p className="text-yellow-700 text-xs mt-1 leading-relaxed">
+                          These figures are approximate and highly sensitive to your manual inputs. To make projections as accurate as possible, <strong>you must mark all classes on a holiday as "Cancelled"</strong> so the system doesn't assume you were simply absent.
+                        </p>
+                      </div>
+                    </div>
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                       <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
                         <h3 className="font-bold text-gray-900">Subject Breakdown</h3>

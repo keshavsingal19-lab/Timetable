@@ -135,6 +135,28 @@ export async function onRequestPost(context) {
     // Default: 16 total weeks, 14 working weeks (minus 2 non-working)
     const WORKING_WEEKS = 14;
 
+    // Fetch actual timetable frequency to get exact classes per week
+    let timetableFreq = {};
+    try {
+      const freqRes = await env.DB.prepare(`
+        SELECT s.subject_name, s.type as class_type, count(*) as count
+        FROM student_sections ss
+        JOIN sections s ON ss.section_id = s.id
+        JOIN timetable t ON t.section_id = s.id
+        WHERE ss.roll_no = ?
+        GROUP BY s.subject_name, s.type
+      `).bind(rollNo).all();
+      
+      if (freqRes && freqRes.results) {
+        freqRes.results.forEach(row => {
+          const key = `${row.subject_name} (${row.class_type})`;
+          timetableFreq[key] = row.count;
+        });
+      }
+    } catch (e) {
+      console.warn("Failed to fetch timetable freq", e);
+    }
+
     const projRows = [
       ['Subject', 'Type', 'Current %', 'Freq/Wk', 'Total (Est.)', 'Attended', 'Remaining', 'Must Attend (66.67%)', 'Can Skip', 'Verdict']
     ];
@@ -142,11 +164,18 @@ export async function onRequestPost(context) {
     allPairs.forEach((pair, idx) => {
       const summaryRow = idx + 2; // row number in the summary sheet
       const projRow = projRows.length + 1;
+      const key = `${pair.subject} (${pair.type})`;
+      const exactFreq = timetableFreq[key];
+      
+      const freqFormula = exactFreq !== undefined ? 
+        `${exactFreq}` : 
+        `=MAX(1, ROUND('Subject Summary'!C${summaryRow}/${weeksElapsed}, 0))`;
+
       projRows.push([
         pair.subject,
         pair.type,
         `='Subject Summary'!G${summaryRow}`,
-        `=MAX(1, ROUND('Subject Summary'!C${summaryRow}/${weeksElapsed}, 0))`,
+        freqFormula,
         `=D${projRow}*${WORKING_WEEKS}`,
         `='Subject Summary'!D${summaryRow}`,
         `=MAX(0, E${projRow}-F${projRow})`,

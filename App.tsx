@@ -1360,7 +1360,8 @@ function App() {
 
       const isCurrentlyActive = (day === currentDayName) && (index === selectedTimeIndex);
 
-      const markedStatus = todayMarkedSlots[index];
+      // Only show marked status if we are looking at today's schedule
+      const markedStatus = (day === currentDayName) ? todayMarkedSlots[index] : null;
 
       return (
         <div 
@@ -1672,10 +1673,21 @@ function App() {
                 )}
                 {attendanceConnected && (
                   <button onClick={() => {
+                    if (window.confirm('WARNING: Reset past records? This will delete all rows from your attendance spreadsheet and clear the data.')) {
+                      fetch('/api/attendance_tracker/reset', { method: 'POST', headers: { Authorization: `Bearer ${authToken}` } }).then(() => {
+                        window.location.reload();
+                      });
+                    }
+                  }} className="p-2 bg-yellow-50 text-yellow-600 rounded-lg shadow-sm border border-yellow-100 hover:bg-yellow-100 transition-colors" title="Reset Past Records">
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                )}
+                {attendanceConnected && (
+                  <button onClick={() => {
                     if (window.confirm('Disconnect Google Sheets? This will stop syncing your attendance. Your spreadsheet will not be deleted.')) {
                       fetch('/api/attendance_tracker/disconnect', { method: 'POST', headers: { Authorization: `Bearer ${authToken}` } }).then(() => setAttendanceConnected(false));
                     }
-                  }} className="p-2 bg-red-50 text-red-600 rounded-lg shadow-sm border border-red-100 hover:bg-red-100 transition-colors">
+                  }} className="p-2 bg-red-50 text-red-600 rounded-lg shadow-sm border border-red-100 hover:bg-red-100 transition-colors" title="Disconnect Google Sheets">
                     <LogOut className="w-5 h-5" />
                   </button>
                 )}
@@ -1946,8 +1958,25 @@ function App() {
                         />
                       </div>
                       
-                      <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100 mb-6">
-                        <p className="text-sm text-blue-800 font-medium">Select a date above to view and manage past attendance records.</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                        <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100">
+                          <p className="text-sm text-blue-800 font-medium">Select a date above to view and manage past attendance records.</p>
+                        </div>
+                        <div className="bg-green-50 rounded-xl p-4 border border-green-200 flex flex-col justify-center items-start sm:items-end sm:text-right">
+                          <button 
+                            onClick={() => {
+                              setAttendanceMarking({ 
+                                subject: 'Select Subject', type: 'Extra', 
+                                timeSlot: `Extra-${Date.now()}`, 
+                                room: '', teacher: '',
+                                targetDate: calendarDate, targetDay: new Date(calendarDate).toLocaleDateString('en-US', { weekday: 'long' })
+                              });
+                            }}
+                            className="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors shadow-sm text-sm"
+                          >
+                            + Log Extra Class
+                          </button>
+                        </div>
                       </div>
 
                       {/* Display schedule for the selected date */}
@@ -2392,6 +2421,14 @@ function App() {
                       </button>
                     ))}
                   </div>
+
+                  {attendanceConnected && myScheduleDay === currentDayName && (
+                    <div className="px-5 py-2 mt-2">
+                      <p className="text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-lg p-2 flex items-center justify-center gap-1.5 shadow-sm">
+                        <CheckCircle className="w-3.5 h-3.5" /> Tap on a class to mark your attendance
+                      </p>
+                    </div>
+                  )}
 
                   <div className="p-4 space-y-3 bg-gray-50/30">
                     {myTimetableData ? renderTimetableSlots(myTimetableData, myScheduleDay) : (
@@ -3416,8 +3453,21 @@ function App() {
               >
                 <X className="w-5 h-5" />
               </button>
-              <h2 className="text-xl font-black mb-1">{attendanceMarking.subject}</h2>
-              <p className="text-srcc-yellow font-bold text-xs uppercase tracking-widest">{attendanceMarking.timeSlot || attendanceMarking.time} • Room {attendanceMarking.room}</p>
+              {attendanceMarking.type === 'Extra' ? (
+                <div className="mb-2">
+                  <select 
+                    className="text-gray-900 bg-white font-bold w-full p-2 rounded-xl outline-none border border-gray-200 text-sm"
+                    value={attendanceMarking.subject}
+                    onChange={(e) => setAttendanceMarking({...attendanceMarking, subject: e.target.value})}
+                  >
+                    <option value="Select Subject">-- Select Subject --</option>
+                    {attendanceDashboard?.subjects?.map((s:any) => <option key={s.name} value={s.name}>{s.name}</option>)}
+                  </select>
+                </div>
+              ) : (
+                <h2 className="text-xl font-black mb-1">{attendanceMarking.subject}</h2>
+              )}
+              <p className="text-srcc-yellow font-bold text-xs uppercase tracking-widest">{attendanceMarking.timeSlot || attendanceMarking.time} {attendanceMarking.room ? ` • Room ${attendanceMarking.room}` : ''}</p>
               {attendanceMarking.targetDate && (
                 <p className="mt-2 text-sm text-blue-200 bg-black/20 inline-block px-2 py-1 rounded">
                   Backdated: {new Date(attendanceMarking.targetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -3429,6 +3479,10 @@ function App() {
               <div className="grid grid-cols-3 gap-3">
                 <button 
                   onClick={() => {
+                    if (attendanceMarking.type === 'Extra' && attendanceMarking.subject === 'Select Subject') {
+                      alert('Please select a subject for the extra attendance.');
+                      return;
+                    }
                     const payload = { 
                       ...attendanceMarking, 
                       status: 'Present', 
@@ -3437,7 +3491,7 @@ function App() {
                       day: attendanceMarking.targetDay || attendanceMarking.day,
                       timeSlot: attendanceMarking.timeSlot || attendanceMarking.time
                     };
-                    if (!attendanceMarking.targetDate) setTodayMarkedSlots(prev => ({ ...prev, [attendanceMarking.periodIndex]: 'Present' }));
+                    if (!attendanceMarking.targetDate && attendanceMarking.type !== 'Extra') setTodayMarkedSlots(prev => ({ ...prev, [attendanceMarking.periodIndex]: 'Present' }));
                     setAttendanceMarking(null);
                     fetch('/api/attendance_tracker/mark', {
                       method: 'POST',
@@ -3445,57 +3499,61 @@ function App() {
                       body: JSON.stringify(payload)
                     });
                   }}
-                  className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-green-100 bg-green-50 hover:bg-green-100 hover:border-green-300 transition-all active:scale-95"
+                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-green-100 bg-green-50 hover:bg-green-100 hover:border-green-300 transition-all active:scale-95 ${attendanceMarking.type === 'Extra' ? 'col-span-3' : ''}`}
                 >
                   <CheckCircle className="w-8 h-8 text-green-500" />
-                  <span className="font-bold text-green-700 text-sm">Present</span>
+                  <span className="font-bold text-green-700 text-sm">{attendanceMarking.type === 'Extra' ? 'Log Extra Present' : 'Present'}</span>
                 </button>
-                <button 
-                  onClick={() => {
-                    const payload = { 
-                      ...attendanceMarking, 
-                      status: 'Absent', 
-                      rollNo: studentUser?.rollNo,
-                      date: attendanceMarking.targetDate || attendanceMarking.date,
-                      day: attendanceMarking.targetDay || attendanceMarking.day,
-                      timeSlot: attendanceMarking.timeSlot || attendanceMarking.time
-                    };
-                    if (!attendanceMarking.targetDate) setTodayMarkedSlots(prev => ({ ...prev, [attendanceMarking.periodIndex]: 'Absent' }));
-                    setAttendanceMarking(null);
-                    fetch('/api/attendance_tracker/mark', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-                      body: JSON.stringify(payload)
-                    });
-                  }}
-                  className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-red-100 bg-red-50 hover:bg-red-100 hover:border-red-300 transition-all active:scale-95"
-                >
-                  <XCircle className="w-8 h-8 text-red-500" />
-                  <span className="font-bold text-red-700 text-sm">Absent</span>
-                </button>
-                <button 
-                  onClick={() => {
-                    const payload = { 
-                      ...attendanceMarking, 
-                      status: 'Cancelled', 
-                      rollNo: studentUser?.rollNo,
-                      date: attendanceMarking.targetDate || attendanceMarking.date,
-                      day: attendanceMarking.targetDay || attendanceMarking.day,
-                      timeSlot: attendanceMarking.timeSlot || attendanceMarking.time
-                    };
-                    if (!attendanceMarking.targetDate) setTodayMarkedSlots(prev => ({ ...prev, [attendanceMarking.periodIndex]: 'Cancelled' }));
-                    setAttendanceMarking(null);
-                    fetch('/api/attendance_tracker/mark', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-                      body: JSON.stringify(payload)
-                    });
-                  }}
-                  className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-gray-100 bg-gray-50 hover:bg-gray-100 hover:border-gray-300 transition-all active:scale-95"
-                >
-                  <CalendarOff className="w-8 h-8 text-gray-500" />
-                  <span className="font-bold text-gray-700 text-xs text-center leading-tight">Class Cancelled</span>
-                </button>
+                {attendanceMarking.type !== 'Extra' && (
+                  <>
+                    <button 
+                      onClick={() => {
+                        const payload = { 
+                          ...attendanceMarking, 
+                          status: 'Absent', 
+                          rollNo: studentUser?.rollNo,
+                          date: attendanceMarking.targetDate || attendanceMarking.date,
+                          day: attendanceMarking.targetDay || attendanceMarking.day,
+                          timeSlot: attendanceMarking.timeSlot || attendanceMarking.time
+                        };
+                        if (!attendanceMarking.targetDate) setTodayMarkedSlots(prev => ({ ...prev, [attendanceMarking.periodIndex]: 'Absent' }));
+                        setAttendanceMarking(null);
+                        fetch('/api/attendance_tracker/mark', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+                          body: JSON.stringify(payload)
+                        });
+                      }}
+                      className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-red-100 bg-red-50 hover:bg-red-100 hover:border-red-300 transition-all active:scale-95"
+                    >
+                      <XCircle className="w-8 h-8 text-red-500" />
+                      <span className="font-bold text-red-700 text-sm">Absent</span>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        const payload = { 
+                          ...attendanceMarking, 
+                          status: 'Cancelled', 
+                          rollNo: studentUser?.rollNo,
+                          date: attendanceMarking.targetDate || attendanceMarking.date,
+                          day: attendanceMarking.targetDay || attendanceMarking.day,
+                          timeSlot: attendanceMarking.timeSlot || attendanceMarking.time
+                        };
+                        if (!attendanceMarking.targetDate) setTodayMarkedSlots(prev => ({ ...prev, [attendanceMarking.periodIndex]: 'Cancelled' }));
+                        setAttendanceMarking(null);
+                        fetch('/api/attendance_tracker/mark', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+                          body: JSON.stringify(payload)
+                        });
+                      }}
+                      className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300 transition-all active:scale-95"
+                    >
+                      <CalendarOff className="w-8 h-8 text-gray-500" />
+                      <span className="font-bold text-gray-700 text-sm">Cancelled</span>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

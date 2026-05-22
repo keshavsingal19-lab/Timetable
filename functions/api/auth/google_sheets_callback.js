@@ -55,17 +55,26 @@ export async function onRequestGet(context) {
         // Existing spreadsheet is still accessible — reuse it
         spreadsheetId = existingRow.spreadsheet_id;
         spreadsheetUrl = existingRow.spreadsheet_url;
+      }
+    }
+
+    if (!spreadsheetId) {
+      // Not in DB or inaccessible. Let's search Google Drive to see if the file exists.
+      const queryName = `SRCC Attendance Tracker — ${rollNo}`;
+      const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${encodeURIComponent(queryName)}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false&fields=files(id,webViewLink)`, {
+        headers: { Authorization: `Bearer ${access_token}` }
+      });
+      const searchData = await searchRes.json();
+      
+      if (searchData.files && searchData.files.length > 0) {
+        spreadsheetId = searchData.files[0].id;
+        spreadsheetUrl = searchData.files[0].webViewLink;
       } else {
-        // Spreadsheet was deleted or inaccessible — create a new one
+        // No existing connection and not in Drive — create a new spreadsheet
         const result = await createProfessionalSpreadsheet(access_token, rollNo);
         spreadsheetId = result.spreadsheetId;
         spreadsheetUrl = result.spreadsheetUrl;
       }
-    } else {
-      // No existing connection — create a new spreadsheet
-      const result = await createProfessionalSpreadsheet(access_token, rollNo);
-      spreadsheetId = result.spreadsheetId;
-      spreadsheetUrl = result.spreadsheetUrl;
     }
 
     const tokenExpiry = Math.floor(Date.now() / 1000) + (expires_in || 3600);

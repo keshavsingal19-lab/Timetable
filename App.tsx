@@ -6,7 +6,7 @@ import {
   ArrowRight, MessageCircle, Star, Timer, Megaphone, Mail, Home,
   BookOpen, User, UserPlus, Key, Settings, Menu, ShieldCheck, ChevronRight, ChevronLeft,
   Eye, MousePointerClick, Edit, Trash2, LayoutDashboard, Contact, CalendarOff, Globe, Map as LucideMap,
-  RefreshCw, Layers, X, Copy, ClipboardCheck
+  RefreshCw, Layers, X, Copy, ClipboardCheck, TrendingUp, Calendar, BarChart3, Target, ChevronDown, ChevronUp, ArrowLeft
 } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
@@ -256,6 +256,9 @@ function App() {
   const [attendanceMarking, setAttendanceMarking] = useState<any>(null);
   const [todayMarkedSlots, setTodayMarkedSlots] = useState<Record<number, string>>({});
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
+  const [attendanceTab, setAttendanceTab] = useState<'overview' | 'subjects' | 'calendar' | 'projections'>('overview');
+  const [calendarDate, setCalendarDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [calendarMonth, setCalendarMonth] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; });
 
   // --- SOCIETY EVENTS STATES ---
   const [societyEvents, setSocietyEvents] = useState<any[]>([]);
@@ -307,10 +310,11 @@ function App() {
             setAttendanceDashboard(dash);
             
             // Parse today's marked slots
-            if (dash.recentEntries) {
+            const entriesToCheck = dash.allEntries || dash.recentEntries;
+            if (entriesToCheck) {
               const todayStr = new Date().toISOString().split('T')[0];
               const todaySlots: {[key: number]: string} = {};
-              dash.recentEntries.forEach((entry: any) => {
+              entriesToCheck.forEach((entry: any) => {
                 if (entry.date === todayStr) {
                   const pIndex = TIME_SLOTS.indexOf(entry.timeSlot);
                   if (pIndex !== -1) {
@@ -1648,13 +1652,13 @@ function App() {
             <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 pt-[env(safe-area-inset-top)] mt-12 md:mt-0">
               <div>
                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-srcc-yellow/20 text-srcc-portalNavy rounded-full text-xs font-bold uppercase tracking-wider mb-3">
-                  <ClipboardCheck className="w-4 h-4" /> Attendance Tracker
+                  <ClipboardCheck className="w-4 h-4" /> Attendance Tracker V2
                 </div>
                 <h1 className="text-3xl md:text-4xl font-serif font-bold text-gray-900 tracking-tight leading-tight">
                   Track Your <span className="text-srcc-portalNavy">Presence</span>
                 </h1>
                 <p className="text-gray-500 mt-2 max-w-xl text-sm leading-relaxed">
-                  Connect your Google Sheets to securely track and manage your attendance.
+                  Manage your attendance securely. Your data stays in your personal Google Sheet.
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -1702,9 +1706,9 @@ function App() {
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-3">Connect Google Sheets</h2>
                 <p className="text-gray-500 mb-8 leading-relaxed text-sm">
-                  Track your attendance effortlessly. Connect your Google account to automatically create a personal attendance spreadsheet in your Google Drive. 
+                  Track your attendance effortlessly. Connect your Google account to automatically create a professional attendance spreadsheet in your Google Drive. 
                   <br/><br/>
-                  <span className="font-medium text-gray-700">Your data stays in YOUR Google Drive. We only create one spreadsheet and do not read your other files.</span>
+                  <span className="font-medium text-gray-700">If you connected previously, your existing sheet will be reused. We only request permission to manage files created by this app.</span>
                 </p>
                 <a href={`/api/auth/google_sheets?token=${authToken}`} className="inline-flex items-center justify-center gap-3 w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-md hover:shadow-lg active:scale-95">
                   <svg className="w-5 h-5 bg-white rounded-full p-1 text-blue-600" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.2,4.73C15.29,4.73 17.1,6.7 17.1,6.7L19,4.72C19,4.72 16.56,2 12.1,2C6.42,2 2.03,6.8 2.03,12C2.03,17.05 6.16,22 12.25,22C17.6,22 21.5,18.33 21.5,12.91C21.5,11.76 21.35,11.1 21.35,11.1V11.1Z" /></svg>
@@ -1713,88 +1717,309 @@ function App() {
               </div>
             ) : attendanceDashboard ? (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-500 font-medium mb-1">Overall Attendance</p>
-                      <h3 className="text-3xl font-bold text-gray-900">{attendanceDashboard.overallPercentage}%</h3>
-                    </div>
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${parseFloat(attendanceDashboard.overallPercentage) >= 66.6 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                      <CheckCircle className="w-6 h-6" />
-                    </div>
-                  </div>
-                  <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-500 font-medium mb-1">Classes Attended</p>
-                      <h3 className="text-3xl font-bold text-gray-900">{attendanceDashboard.present} <span className="text-lg text-gray-400 font-medium">/ {attendanceDashboard.totalClasses - attendanceDashboard.cancelled}</span></h3>
-                    </div>
-                    <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
-                      <Users className="w-6 h-6" />
-                    </div>
-                  </div>
-                  <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-500 font-medium mb-1">Classes Missed</p>
-                      <h3 className="text-3xl font-bold text-gray-900">{attendanceDashboard.absent}</h3>
-                    </div>
-                    <div className="w-12 h-12 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center">
-                      <XCircle className="w-6 h-6" />
-                    </div>
-                  </div>
+                
+                {/* SUB-TABS NAVIGATION */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-1.5 flex flex-wrap gap-1 sticky top-16 z-20">
+                  <button onClick={() => setAttendanceTab('overview')} className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold transition-all ${attendanceTab === 'overview' ? 'bg-srcc-portalNavy text-white shadow-md' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}>
+                    <LayoutDashboard className="w-4 h-4" /> Overview
+                  </button>
+                  <button onClick={() => setAttendanceTab('subjects')} className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold transition-all ${attendanceTab === 'subjects' ? 'bg-srcc-portalNavy text-white shadow-md' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}>
+                    <BookOpen className="w-4 h-4" /> Subjects
+                  </button>
+                  <button onClick={() => setAttendanceTab('projections')} className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold transition-all ${attendanceTab === 'projections' ? 'bg-srcc-portalNavy text-white shadow-md' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}>
+                    <Target className="w-4 h-4" /> Projections
+                  </button>
+                  <button onClick={() => setAttendanceTab('calendar')} className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold transition-all ${attendanceTab === 'calendar' ? 'bg-srcc-portalNavy text-white shadow-md' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}>
+                    <Calendar className="w-4 h-4" /> Calendar
+                  </button>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                      <h3 className="font-bold text-gray-900 flex items-center gap-2"><BookOpen className="w-4 h-4 text-srcc-portalNavy" /> Subject Breakdown</h3>
-                    </div>
-                    <div className="p-6 space-y-5">
-                      {attendanceDashboard.subjects.length === 0 ? (
-                        <p className="text-gray-500 text-center py-4 text-sm">No attendance data yet. Go to your Dashboard and tap on a class to mark attendance!</p>
-                      ) : attendanceDashboard.subjects.map((subj: any, i: number) => (
-                        <div key={i}>
-                          <div className="flex justify-between items-end mb-2">
-                            <div>
-                              <p className="font-medium text-gray-900 line-clamp-1">{subj.name}</p>
-                              <p className="text-xs text-gray-500">{subj.present} of {subj.total - subj.cancelled} classes</p>
-                            </div>
-                            <span className={`text-sm font-bold ${parseFloat(subj.percentage) >= 66.6 ? 'text-green-600' : 'text-red-600'}`}>
-                              {subj.percentage}%
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                            <div className={`h-2.5 rounded-full ${parseFloat(subj.percentage) >= 66.6 ? 'bg-green-500' : 'bg-red-500'}`} style={{ width: `${Math.min(100, parseFloat(subj.percentage))}%` }}></div>
+                {/* TAB CONTENT: OVERVIEW */}
+                {attendanceTab === 'overview' && (
+                  <div className="space-y-6 animate-in fade-in duration-300">
+                    {/* Projections Banner */}
+                    {attendanceDashboard.projections?.status === 'at_risk' ? (
+                      <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-4 shadow-sm">
+                        <div className="bg-red-100 p-2 rounded-full text-red-600 shrink-0"><AlertTriangle className="w-6 h-6" /></div>
+                        <div>
+                          <h4 className="font-bold text-red-900">Attendance Warning</h4>
+                          <p className="text-red-700 text-sm mt-1">Based on current estimates, you need to attend <span className="font-bold">{attendanceDashboard.projections.classesNeededFor67}</span> more classes to maintain 66.67% across all subjects.</p>
+                        </div>
+                      </div>
+                    ) : attendanceDashboard.projections?.canSkip > 0 ? (
+                      <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-start gap-4 shadow-sm">
+                        <div className="bg-green-100 p-2 rounded-full text-green-600 shrink-0"><ShieldCheck className="w-6 h-6" /></div>
+                        <div>
+                          <h4 className="font-bold text-green-900">On Track</h4>
+                          <p className="text-green-700 text-sm mt-1">You are maintaining a safe margin. You can afford to miss <span className="font-bold">{attendanceDashboard.projections.canSkip}</span> classes across the session and stay above 66.67%.</p>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-500 font-medium mb-1">Overall Attendance</p>
+                          <div className="flex items-baseline gap-2">
+                            <h3 className="text-4xl font-black text-gray-900">{attendanceDashboard.overallPercentage}%</h3>
+                            <span className="text-sm text-gray-400 font-medium tracking-wide">TARGET: 66.67%</span>
                           </div>
                         </div>
-                      ))}
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center ${parseFloat(attendanceDashboard.overallPercentage) >= 66.67 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                          <Target className="w-8 h-8" />
+                        </div>
+                      </div>
+                      
+                      <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                        <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
+                          <CheckCircle className="w-5 h-5" />
+                        </div>
+                        <p className="text-sm text-gray-500 font-medium">Attended</p>
+                        <h3 className="text-2xl font-bold text-gray-900">{attendanceDashboard.present}</h3>
+                      </div>
+                      
+                      <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                        <div className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center mb-3">
+                          <XCircle className="w-5 h-5" />
+                        </div>
+                        <p className="text-sm text-gray-500 font-medium">Missed</p>
+                        <h3 className="text-2xl font-bold text-gray-900">{attendanceDashboard.absent}</h3>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                      <h3 className="font-bold text-gray-900 flex items-center gap-2"><Clock className="w-4 h-4 text-srcc-portalNavy" /> Recent Entries</h3>
-                    </div>
-                    <div className="p-0">
-                      {attendanceDashboard.recentEntries.length === 0 ? (
-                        <div className="p-6 text-center text-gray-500 text-sm">No entries found.</div>
-                      ) : (
-                        <ul className="divide-y divide-gray-100">
-                          {attendanceDashboard.recentEntries.map((entry: any, i: number) => (
-                            <li key={i} className="p-4 hover:bg-gray-50 transition-colors flex items-center justify-between gap-3">
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium text-gray-900 truncate">{entry.subject}</p>
-                                <p className="text-xs text-gray-500">{new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • {entry.timeSlot}</p>
-                              </div>
-                              {entry.status === 'Present' && <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">Present</span>}
-                              {entry.status === 'Absent' && <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">Absent</span>}
-                              {entry.status === 'Cancelled' && <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">Cancelled</span>}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+                    {/* Recent Entries */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                      <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                        <h3 className="font-bold text-gray-900 flex items-center gap-2"><Clock className="w-4 h-4 text-srcc-portalNavy" /> Recent Entries</h3>
+                        <button onClick={() => setAttendanceTab('calendar')} className="text-sm font-bold text-blue-600 hover:text-blue-700">View Calendar &rarr;</button>
+                      </div>
+                      <div className="p-0">
+                        {attendanceDashboard.recentEntries.length === 0 ? (
+                          <div className="p-8 text-center text-gray-500 text-sm">No entries logged yet. Tap a class on your portal to mark attendance.</div>
+                        ) : (
+                          <ul className="divide-y divide-gray-100">
+                            {attendanceDashboard.recentEntries.slice(0, 5).map((entry: any, i: number) => (
+                              <li key={i} className="p-4 hover:bg-gray-50 transition-colors flex items-center justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-bold text-gray-900 truncate">{entry.subject}</p>
+                                  <p className="text-xs text-gray-500">{new Date(entry.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} • {entry.timeSlot}</p>
+                                </div>
+                                {entry.status === 'Present' && <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-green-100 text-green-800 border border-green-200 shadow-sm">Present</span>}
+                                {entry.status === 'Absent' && <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-red-100 text-red-800 border border-red-200 shadow-sm">Absent</span>}
+                                {entry.status === 'Cancelled' && <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-gray-100 text-gray-700 border border-gray-200 shadow-sm">Cancelled</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+
+                {/* TAB CONTENT: SUBJECTS */}
+                {attendanceTab === 'subjects' && (
+                  <div className="space-y-4 animate-in fade-in duration-300">
+                    {attendanceDashboard.subjects.length === 0 ? (
+                      <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center text-gray-500">
+                        No subject data yet.
+                      </div>
+                    ) : attendanceDashboard.subjects.map((subj: any, i: number) => (
+                      <div key={i} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h4 className="font-bold text-gray-900 text-lg">{subj.name}</h4>
+                            <p className="text-sm text-gray-500 font-medium mt-1">Total Classes Held: {subj.total - subj.cancelled} <span className="text-gray-300 mx-1">|</span> {subj.cancelled > 0 ? `${subj.cancelled} Cancelled` : 'No Cancellations'}</p>
+                          </div>
+                          <div className={`text-xl font-black ${subj.percentage >= 66.67 ? 'text-green-600' : 'text-red-600'}`}>
+                            {subj.percentage}%
+                          </div>
+                        </div>
+                        
+                        <div className="w-full bg-gray-100 rounded-full h-3 mb-4 overflow-hidden relative">
+                          <div className="absolute top-0 bottom-0 left-[66.67%] w-0.5 bg-gray-400 z-10" title="66.67% Target"></div>
+                          <div className={`h-full rounded-full transition-all duration-1000 ${subj.percentage >= 66.67 ? 'bg-green-500' : 'bg-red-500'}`} style={{ width: `${Math.min(100, subj.percentage)}%` }}></div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-green-50 rounded-xl p-3 border border-green-100 flex justify-between items-center">
+                            <span className="text-sm font-bold text-green-800">Attended</span>
+                            <span className="text-lg font-black text-green-600">{subj.present}</span>
+                          </div>
+                          <div className="bg-red-50 rounded-xl p-3 border border-red-100 flex justify-between items-center">
+                            <span className="text-sm font-bold text-red-800">Missed</span>
+                            <span className="text-lg font-black text-red-600">{subj.absent}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* TAB CONTENT: PROJECTIONS */}
+                {attendanceTab === 'projections' && (
+                  <div className="space-y-6 animate-in fade-in duration-300">
+                    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 shadow-sm">
+                      <div className="flex items-start gap-3 mb-4">
+                        <div className="bg-blue-100 p-2 rounded-full text-blue-600 shrink-0"><Target className="w-5 h-5" /></div>
+                        <div>
+                          <h4 className="font-bold text-blue-900 text-lg">Target: 66.67%</h4>
+                          <p className="text-blue-700 text-sm mt-1">This tool estimates remaining classes based on your timetable and current progression to help you plan your absences.</p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="bg-white/60 p-3 rounded-xl">
+                          <p className="text-xs font-bold text-blue-800 uppercase tracking-wide">Weeks Elapsed</p>
+                          <p className="text-xl font-black text-blue-900">{attendanceDashboard.projections?.weeksElapsed || 1}</p>
+                        </div>
+                        <div className="bg-white/60 p-3 rounded-xl">
+                          <p className="text-xs font-bold text-blue-800 uppercase tracking-wide">Weeks Left</p>
+                          <p className="text-xl font-black text-blue-900">{attendanceDashboard.projections?.weeksRemaining || 15}</p>
+                        </div>
+                        <div className="bg-white/60 p-3 rounded-xl">
+                          <p className="text-xs font-bold text-blue-800 uppercase tracking-wide">Target Needs</p>
+                          <p className="text-xl font-black text-blue-900">{attendanceDashboard.projections?.classesNeededFor67 || 0} classes</p>
+                        </div>
+                        <div className="bg-white/60 p-3 rounded-xl">
+                          <p className="text-xs font-bold text-blue-800 uppercase tracking-wide">Safe Absences</p>
+                          <p className="text-xl font-black text-blue-900">{attendanceDashboard.projections?.canSkip || 0} classes</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                      <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                        <h3 className="font-bold text-gray-900">Subject Breakdown</h3>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-gray-50 text-xs uppercase tracking-wider text-gray-500 border-b border-gray-100">
+                              <th className="p-4 font-bold">Subject</th>
+                              <th className="p-4 font-bold text-center">Remaining</th>
+                              <th className="p-4 font-bold text-center text-srcc-portalNavy">Must Attend</th>
+                              <th className="p-4 font-bold text-center text-green-600">Can Skip</th>
+                              <th className="p-4 font-bold">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {attendanceDashboard.subjectProjections?.map((proj: any, i: number) => (
+                              <tr key={i} className="hover:bg-gray-50 transition-colors">
+                                <td className="p-4 font-medium text-gray-900 text-sm">{proj.subject}</td>
+                                <td className="p-4 text-center text-sm font-bold text-gray-500">{proj.remaining}</td>
+                                <td className="p-4 text-center text-sm font-black text-srcc-portalNavy">{proj.mustAttend}</td>
+                                <td className="p-4 text-center text-sm font-black text-green-600">{proj.canSkip}</td>
+                                <td className="p-4">
+                                  {proj.verdict === 'safe' ? (
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-green-100 text-green-800">Safe</span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-red-100 text-red-800">At Risk</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                            {(!attendanceDashboard.subjectProjections || attendanceDashboard.subjectProjections.length === 0) && (
+                              <tr><td colSpan={5} className="p-8 text-center text-gray-500 text-sm">No projection data available yet.</td></tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB CONTENT: CALENDAR (BACKDATED MARKING) */}
+                {attendanceTab === 'calendar' && (
+                  <div className="space-y-6 animate-in fade-in duration-300">
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                      <div className="flex items-center justify-between mb-5">
+                        <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+                          <CalendarDays className="w-5 h-5 text-blue-600" /> Daily Record
+                        </h3>
+                        <input 
+                          type="date" 
+                          value={calendarDate}
+                          onChange={(e) => setCalendarDate(e.target.value)}
+                          max={new Date().toISOString().split('T')[0]}
+                          className="px-3 py-2 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        />
+                      </div>
+                      
+                      <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100 mb-6">
+                        <p className="text-sm text-blue-800 font-medium">Select a date above to view and manage past attendance records.</p>
+                      </div>
+
+                      {/* Display schedule for the selected date */}
+                      {(() => {
+                        const selDateObj = new Date(calendarDate);
+                        const selDayNameStr = selDateObj.toLocaleDateString('en-US', { weekday: 'long' });
+                        
+                        if (selDayNameStr === 'Sunday') {
+                          return <div className="text-center p-8 bg-gray-50 rounded-xl text-gray-500 font-medium border border-gray-100">No classes scheduled on Sunday.</div>;
+                        }
+
+                        const selDayName = selDayNameStr as DayOfWeek;
+
+                        if (!myTimetableData || !myTimetableData[selDayName] || myTimetableData[selDayName].length === 0) {
+                          return <div className="text-center p-8 bg-gray-50 rounded-xl text-gray-500 font-medium border border-gray-100">No classes found in your timetable for {selDayName}.</div>;
+                        }
+
+                        // We have classes. Let's find any existing entries for this date.
+                        const dayEntries = attendanceDashboard.allEntries?.filter((e: any) => e.date === calendarDate) || [];
+
+                        return (
+                          <div className="space-y-3">
+                            <h4 className="font-bold text-gray-700 text-sm mb-3 uppercase tracking-wider">{selDateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</h4>
+                            {myTimetableData[selDayName].map((cls: any, i: number) => {
+                              // Find if this class is marked
+                              const markedEntry = dayEntries.find((e: any) => e.timeSlot === cls.time);
+                              
+                              return (
+                                <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-gray-200 hover:border-gray-300 transition-colors bg-white">
+                                  <div>
+                                    <h5 className="font-bold text-gray-900">{cls.subject}</h5>
+                                    <p className="text-xs text-gray-500 font-medium mt-1">{cls.time} • {cls.room} • {cls.teacher}</p>
+                                  </div>
+                                  
+                                  <div className="flex items-center gap-3">
+                                    {markedEntry ? (
+                                      <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold border shadow-sm ${
+                                        markedEntry.status === 'Present' ? 'bg-green-100 text-green-800 border-green-200' :
+                                        markedEntry.status === 'Absent' ? 'bg-red-100 text-red-800 border-red-200' :
+                                        'bg-gray-100 text-gray-800 border-gray-200'
+                                      }`}>
+                                        {markedEntry.status}
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                        Not Marked
+                                      </span>
+                                    )}
+                                    
+                                    <button 
+                                      onClick={() => {
+                                        setAttendanceMarking({
+                                          ...cls,
+                                          periodIndex: TIME_SLOTS.indexOf(cls.time), // Not strictly needed for backdated, but keeps struct
+                                          targetDate: calendarDate,
+                                          targetDay: selDayName
+                                        });
+                                      }}
+                                      className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-50 shadow-sm transition-colors whitespace-nowrap"
+                                    >
+                                      {markedEntry ? 'Edit' : 'Mark'}
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : null}
           </div>
@@ -3192,15 +3417,27 @@ function App() {
                 <X className="w-5 h-5" />
               </button>
               <h2 className="text-xl font-black mb-1">{attendanceMarking.subject}</h2>
-              <p className="text-srcc-yellow font-bold text-xs uppercase tracking-widest">{attendanceMarking.timeSlot} • Room {attendanceMarking.room}</p>
+              <p className="text-srcc-yellow font-bold text-xs uppercase tracking-widest">{attendanceMarking.timeSlot || attendanceMarking.time} • Room {attendanceMarking.room}</p>
+              {attendanceMarking.targetDate && (
+                <p className="mt-2 text-sm text-blue-200 bg-black/20 inline-block px-2 py-1 rounded">
+                  Backdated: {new Date(attendanceMarking.targetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </p>
+              )}
             </div>
             <div className="p-6">
               <p className="text-gray-500 font-medium text-sm mb-4 text-center">Mark your attendance for this class.</p>
               <div className="grid grid-cols-3 gap-3">
                 <button 
                   onClick={() => {
-                    const payload = { ...attendanceMarking, status: 'Present', rollNo: studentUser?.rollNo };
-                    setTodayMarkedSlots(prev => ({ ...prev, [attendanceMarking.periodIndex]: 'Present' }));
+                    const payload = { 
+                      ...attendanceMarking, 
+                      status: 'Present', 
+                      rollNo: studentUser?.rollNo,
+                      date: attendanceMarking.targetDate || attendanceMarking.date,
+                      day: attendanceMarking.targetDay || attendanceMarking.day,
+                      timeSlot: attendanceMarking.timeSlot || attendanceMarking.time
+                    };
+                    if (!attendanceMarking.targetDate) setTodayMarkedSlots(prev => ({ ...prev, [attendanceMarking.periodIndex]: 'Present' }));
                     setAttendanceMarking(null);
                     fetch('/api/attendance_tracker/mark', {
                       method: 'POST',
@@ -3215,8 +3452,15 @@ function App() {
                 </button>
                 <button 
                   onClick={() => {
-                    const payload = { ...attendanceMarking, status: 'Absent', rollNo: studentUser?.rollNo };
-                    setTodayMarkedSlots(prev => ({ ...prev, [attendanceMarking.periodIndex]: 'Absent' }));
+                    const payload = { 
+                      ...attendanceMarking, 
+                      status: 'Absent', 
+                      rollNo: studentUser?.rollNo,
+                      date: attendanceMarking.targetDate || attendanceMarking.date,
+                      day: attendanceMarking.targetDay || attendanceMarking.day,
+                      timeSlot: attendanceMarking.timeSlot || attendanceMarking.time
+                    };
+                    if (!attendanceMarking.targetDate) setTodayMarkedSlots(prev => ({ ...prev, [attendanceMarking.periodIndex]: 'Absent' }));
                     setAttendanceMarking(null);
                     fetch('/api/attendance_tracker/mark', {
                       method: 'POST',
@@ -3231,8 +3475,15 @@ function App() {
                 </button>
                 <button 
                   onClick={() => {
-                    const payload = { ...attendanceMarking, status: 'Cancelled', rollNo: studentUser?.rollNo };
-                    setTodayMarkedSlots(prev => ({ ...prev, [attendanceMarking.periodIndex]: 'Cancelled' }));
+                    const payload = { 
+                      ...attendanceMarking, 
+                      status: 'Cancelled', 
+                      rollNo: studentUser?.rollNo,
+                      date: attendanceMarking.targetDate || attendanceMarking.date,
+                      day: attendanceMarking.targetDay || attendanceMarking.day,
+                      timeSlot: attendanceMarking.timeSlot || attendanceMarking.time
+                    };
+                    if (!attendanceMarking.targetDate) setTodayMarkedSlots(prev => ({ ...prev, [attendanceMarking.periodIndex]: 'Cancelled' }));
                     setAttendanceMarking(null);
                     fetch('/api/attendance_tracker/mark', {
                       method: 'POST',
@@ -3254,14 +3505,14 @@ function App() {
       {/* --- MODAL: ATTENDANCE INSTRUCTIONS --- */}
       {isInstructionsOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col relative">
-            <div className="p-6 bg-blue-600 text-white">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col relative max-h-[90vh]">
+            <div className="p-6 bg-blue-600 text-white shrink-0">
               <button onClick={() => setIsInstructionsOpen(false)} className="absolute top-4 right-4 bg-white/10 p-2 rounded-full hover:bg-white/20 transition-all">
                 <X className="w-5 h-5" />
               </button>
               <h2 className="text-xl font-black mb-1 flex items-center gap-2"><ClipboardCheck className="w-6 h-6" /> How to use Tracker</h2>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto">
               <div className="flex gap-3">
                 <div className="w-8 h-8 shrink-0 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black">1</div>
                 <div>
@@ -3279,12 +3530,27 @@ function App() {
               <div className="flex gap-3">
                 <div className="w-8 h-8 shrink-0 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black">3</div>
                 <div>
-                  <p className="font-bold text-gray-900">Data goes to Google Sheets</p>
-                  <p className="text-sm text-gray-500 mt-0.5">Your attendance is saved in your connected Google Spreadsheet. You can open it anytime to make manual edits!</p>
+                  <p className="font-bold text-gray-900">Backdated Marking</p>
+                  <p className="text-sm text-gray-500 mt-0.5">Missed marking a class? Use the Calendar tab inside the Attendance Tracker to mark classes for any past date.</p>
                 </div>
               </div>
+              <div className="flex gap-3">
+                <div className="w-8 h-8 shrink-0 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black">4</div>
+                <div>
+                  <p className="font-bold text-gray-900">Data goes to Google Sheets</p>
+                  <p className="text-sm text-gray-500 mt-0.5">Your attendance is saved in your connected Google Spreadsheet. You can open it anytime to view raw data or make manual edits.</p>
+                </div>
+              </div>
+              
+              <div className="mt-6 bg-red-50 border border-red-200 rounded-xl p-4">
+                <h4 className="font-bold text-red-900 flex items-center gap-2 mb-1"><AlertTriangle className="w-4 h-4" /> Disclaimer</h4>
+                <p className="text-xs text-red-700 leading-relaxed">
+                  This tracker is entirely based on your manual inputs and is meant strictly for personal record-keeping. It does <b>not</b> represent official college attendance records and should not be used as such. The college bears no responsibility for discrepancies.
+                </p>
+              </div>
+
               <button onClick={() => setIsInstructionsOpen(false)} className="w-full mt-4 bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold py-3 rounded-xl transition-colors">
-                Got it
+                Got it, I understand
               </button>
             </div>
           </div>

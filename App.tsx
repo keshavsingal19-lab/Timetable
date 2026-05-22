@@ -1685,7 +1685,13 @@ function App() {
                 {attendanceConnected && (
                   <button onClick={() => {
                     if (window.confirm('Disconnect Google Sheets? This will stop syncing your attendance. Your spreadsheet will not be deleted.')) {
-                      fetch('/api/attendance_tracker/disconnect', { method: 'POST', headers: { Authorization: `Bearer ${authToken}` } }).then(() => setAttendanceConnected(false));
+                      fetch('/api/attendance_tracker/disconnect', { method: 'POST', headers: { Authorization: `Bearer ${authToken}` } }).then(() => {
+                        setAttendanceConnected(false);
+                        setAttendanceDashboard(null);
+                        setAttendanceEmail('');
+                        setAttendanceSheetUrl('');
+                        setTodayMarkedSlots({});
+                      });
                     }
                   }} className="p-2 bg-red-50 text-red-600 rounded-lg shadow-sm border border-red-100 hover:bg-red-100 transition-colors" title="Disconnect Google Sheets">
                     <LogOut className="w-5 h-5" />

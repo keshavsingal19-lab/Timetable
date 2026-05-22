@@ -1338,6 +1338,75 @@ function App() {
     );
   }
 
+  if (IS_MAINTENANCE && !isLoggedIn) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden font-sans" 
+           style={{ backgroundImage: 'url(/bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+        {/* Deep branding overlay */}
+        <div className="absolute inset-0 bg-srcc-portalNavy/65 backdrop-blur-[3px] z-0" />
+        
+        <div className="relative z-10 w-full max-w-lg mx-4 text-center">
+          <div className="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-[2.5rem] p-10 sm:p-14 shadow-2xl animate-in zoom-in-95 fade-in duration-700">
+            {/* Gear Icon Group */}
+            <div className="relative w-24 h-24 mx-auto mb-8">
+              <div className="absolute inset-0 bg-srcc-yellow rounded-3xl rotate-6 animate-pulse opacity-20"></div>
+              <div className="absolute inset-0 bg-srcc-yellow rounded-3xl -rotate-3 transition-transform hover:rotate-0 flex items-center justify-center shadow-lg">
+                <Settings className="w-12 h-12 text-srcc-portalNavy animate-[spin_5s_linear_infinite]" />
+              </div>
+            </div>
+
+            <img src="/SRCC100.svg" alt="SRCC Logo" className="w-16 h-16 mx-auto mb-6 opacity-90 drop-shadow-md" />
+            
+            <h1 className="text-3xl sm:text-4xl font-black text-white mb-4 tracking-tight" 
+                style={{ fontFamily: "'Trajan Pro', 'Trajan', 'Cinzel', serif" }}>
+              UNDER MAINTENANCE
+            </h1>
+            
+            <div className="w-16 h-1 bg-srcc-yellow mx-auto mb-6 rounded-full opacity-50"></div>
+            
+            <p className="text-gray-100 text-sm sm:text-base leading-relaxed font-medium mb-8">
+              We are currently enhancing the SRCC Assist portal to provide you with a smoother, faster, and more robust experience. 
+              <br/><br/>
+              <b>The portal will be back online shortly.</b>
+            </p>
+
+            <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-srcc-yellow/10 border border-srcc-yellow/20 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest text-srcc-yellow">
+              <span className="w-2 h-2 bg-srcc-yellow rounded-full animate-ping"></span>
+              Optimization In Progress
+            </div>
+
+            <div className="mt-8 border-t border-white/20 pt-8">
+               <p className="text-white/60 text-xs font-medium mb-4 uppercase tracking-widest">Admin Access</p>
+               {loginError && (
+                 <div className="mb-4 text-red-400 text-xs font-bold bg-red-500/10 py-2 rounded border border-red-500/20">
+                   {loginError}
+                 </div>
+               )}
+               <div className="flex flex-col gap-3">
+                 <input 
+                   type="password" 
+                   value={adminPass}
+                   onChange={e => setAdminPass(e.target.value)}
+                   placeholder="Admin Password"
+                   className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/50 text-center outline-none focus:border-srcc-yellow transition-colors tracking-widest"
+                 />
+                 <button 
+                   onClick={handleAdminLogin}
+                   className="w-full bg-srcc-yellow hover:bg-yellow-400 text-srcc-portalNavy font-bold py-3 rounded-xl transition-all shadow-lg uppercase text-sm tracking-wide"
+                 >
+                   Bypass Maintenance
+                 </button>
+               </div>
+            </div>
+          </div>
+          
+          <p className="mt-8 text-white/40 text-[10px] uppercase font-black tracking-widest">
+            SHRI RAM COLLEGE OF COMMERCE • UNIVERSITY OF DELHI
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-50 text-gray-900 font-sans selection:bg-indigo-100 font-outfit overflow-hidden">

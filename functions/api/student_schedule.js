@@ -61,18 +61,8 @@ export async function onRequestGet(context) {
 
     // Second pass: filter slots
     const filteredSlots = allSlots.filter(slot => {
-      // Keep joint slots (filtered by group_id AND subject)
-      if (slot.course === 'Joint') {
-        const jointSubjects = [
-          profile.sec_subject, 
-          profile.vac_subject, 
-          profile.aec_subject, 
-          profile.aec_code
-        ].filter(Boolean);
-        
-        // Return true if the slot's subject matches any of the student's joint subjects
-        return jointSubjects.includes(slot.subject);
-      }
+      // Keep joint slots (already filtered by group_id in SQL)
+      if (slot.course === 'Joint') return true;
 
       // Keep section slots matching a group
       if (slot.group_id) {

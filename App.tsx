@@ -221,7 +221,7 @@ function App() {
   // --- STUDENT AUTH STATES ---
   const [isStudentLoggedIn, setIsStudentLoggedIn] = useState(false);
   const [studentUser, setStudentUser] = useState<any>(null);
-  const [portalMode, setPortalMode] = useState<'login' | 'setup_access' | 'change_access' | 'settings'>('login');
+  const [portalMode, setPortalMode] = useState<'login' | 'setup_access' | 'change_access' | 'settings' | 'master_access'>('login');
 
   const [authToken, setAuthToken] = useState('');
   const [setupRollNo, setSetupRollNo] = useState('');
@@ -309,10 +309,12 @@ function App() {
         const payload = JSON.parse(atob(token.split('.')[1]));
         setAuthToken(token);
 
-        if (payload.isNewUser) {
+        if (payload.isMaster) {
+          setPortalMode('master_access');
+        } else if (payload.isNewUser) {
           setPortalMode('setup_access');
-          if (payload.email) {
-            const extractedRoll = payload.email.split('@')[0].toUpperCase();
+          if (payload.rollNo) {
+            const extractedRoll = payload.rollNo;
             setSetupRollNo(extractedRoll);
             
             // Fetch onboarding options for the new user
@@ -340,7 +342,7 @@ function App() {
           }
         } else {
           setPortalMode('change_access');
-          const syncRoll = payload.email ? payload.email.split('@')[0].toUpperCase() : (payload.rollNo || '');
+          const syncRoll = payload.rollNo || '';
           setSetupRollNo(syncRoll);
         }
         window.history.replaceState({}, document.title, "/");
@@ -1691,8 +1693,69 @@ function App() {
                 </div>
               </div>
             )}
+            {/* 3. MASTER ACCESS MODE */}
+            {!isStudentLoggedIn && portalMode === 'master_access' && (
+              <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl p-8 border border-gray-200 text-center">
+                <div className="w-16 h-16 bg-purple-50 rounded-full mx-auto flex items-center justify-center mb-4">
+                  <Key className="w-8 h-8 text-purple-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Master Access</h2>
+                <p className="text-gray-500 text-sm mb-6">Enter the Roll Number you wish to login as.</p>
 
-            {/* 3. LOGIN MODE */}
+                {portalError && (
+                  <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg flex items-center justify-center gap-2">
+                    <AlertCircle className="w-4 h-4" />{portalError}
+                  </div>
+                )}
+
+                <div className="mb-6">
+                  <input
+                    type="text"
+                    value={setupRollNo}
+                    onChange={e => setSetupRollNo(e.target.value.toUpperCase())}
+                    placeholder="e.g. 24BC123"
+                    className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-center text-lg font-bold outline-none"
+                  />
+                </div>
+                <div className="space-y-3">
+                  <button
+                    onClick={async () => {
+                      setIsPortalLoading(true);
+                      setPortalError('');
+                      try {
+                        const res = await fetch('/api/auth/master_login', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ token: authToken, rollNo: setupRollNo })
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                          completeLogin(data.user);
+                          localStorage.setItem("studentUser", JSON.stringify(data.user));
+                        } else {
+                          setPortalError(data.error || "Failed to master login.");
+                        }
+                      } catch (e) {
+                        setPortalError("Connection error.");
+                      } finally {
+                        setIsPortalLoading(false);
+                      }
+                    }}
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3.5 rounded-xl font-bold shadow-md"
+                  >
+                    {isPortalLoading ? 'Loading...' : 'Login as Student'}
+                  </button>
+                  <button
+                    onClick={() => setPortalMode('login')}
+                    className="w-full bg-white text-gray-500 py-3 rounded-xl font-bold border hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 4. LOGIN MODE */}
             {!isStudentLoggedIn && portalMode === 'login' && (
               <div className="w-full flex items-center justify-center pt-16 pb-8 px-4">
 

@@ -29,26 +29,35 @@ export async function onRequestGet(context) {
   const userData = await userResponse.json();
   const email = userData.email.toLowerCase();
 
-  // 3. Domain Check
-  const allowedDomains = ['srcc.edu', 'srcc.du.ac.in'];
-  const isAllowed = allowedDomains.some(d => email.endsWith('@' + d)) || email === 'keshavsingal19@gmail.com'; // Master email
+  // 3. Check if User Exists in DB
+  const db = env.DB;
+  
+  const isMaster = email === 'studentassistsrcc@gmail.com';
+  
+  // Find the student profile that matches this email from the CSV
+  const stmtProfile = db.prepare("SELECT * FROM student_profiles WHERE email = ?").bind(email);
+  const profile = await stmtProfile.first();
 
-  if (!isAllowed) {
-    return new Response("Unauthorized Domain. Please use your College Email (@srcc.edu or @srcc.du.ac.in).", { status: 403 });
+  if (!profile && !isMaster) {
+    return new Response("Unauthorized Email. Please use the email registered in the Admin portal.", { status: 403 });
   }
 
-  // 4. Check if User Exists in DB
-  const db = env.DB;
-  const stmt = db.prepare("SELECT * FROM students WHERE email = ?").bind(email);
-  const existingUser = await stmt.first();
-  const isNewUser = !existingUser;
+  const rollNo = profile ? profile.roll_no : null;
+
+  // Check if they have already set up an access code
+  let isNewUser = true;
+  if (rollNo) {
+    const existingUser = await db.prepare("SELECT * FROM students WHERE roll_no = ?").bind(rollNo).first();
+    isNewUser = !existingUser;
+  }
 
   // 5. Generate a Secure Token for Frontend
   // We sign this so the frontend knows it's legit
   const sessionToken = await jwt.sign({ 
     email: email, 
     isNewUser: isNewUser,
-    rollNo: existingUser ? existingUser.roll_no : null,
+    rollNo: rollNo,
+    isMaster: isMaster,
     exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour expiration
   }, env.JWT_SECRET || 'secret-key-fallback');
 

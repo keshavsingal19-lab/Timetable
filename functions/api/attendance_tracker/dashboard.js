@@ -204,10 +204,10 @@ export async function onRequestGet(context) {
 
     // ── Projections ──
     const TARGET_PERCENT = 66.67;
-    const NON_WORKING_WEEKS = 2;
+    const NON_WORKING_WEEKS = 3;
     
     let totalWeeksInSession = 16; // default fallback
-    let workingWeeks = 14; // default: 16 - 2
+    let workingWeeks = 13; // default: 16 - 3
     let weeksElapsed = 1;
     let weeksRemaining = 13;
 

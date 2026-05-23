@@ -75,6 +75,32 @@ export async function onRequestPost(context) {
     });
     const updatedData = await updatedRes.json();
     const pairsMap = new Map();
+    
+    // Fetch actual timetable frequency to pre-populate pairsMap
+    // This ensures even subjects with 0 marked classes get Summary/Projection rows
+    let timetableFreq = {};
+    try {
+      const freqRes = await env.DB.prepare(`
+        SELECT s.subject_name, s.type as class_type, count(*) as count
+        FROM student_sections ss
+        JOIN sections s ON ss.section_id = s.id
+        JOIN timetable t ON t.section_id = s.id
+        WHERE ss.roll_no = ?
+        GROUP BY s.subject_name, s.type
+      `).bind(rollNo).all();
+      
+      if (freqRes && freqRes.results) {
+        freqRes.results.forEach(row => {
+          const key = `${row.subject_name}|${row.class_type}`;
+          timetableFreq[`${row.subject_name} (${row.class_type})`] = row.count;
+          if (!pairsMap.has(key)) pairsMap.set(key, { subject: row.subject_name, type: row.class_type });
+        });
+      }
+    } catch (e) {
+      console.warn("Failed to fetch timetable freq", e);
+    }
+
+    // Add subjects actually marked in the log (e.g. Extra classes not in timetable)
     for (const row of (updatedData.values || [])) {
       const subj = row[0];
       const type = row[3] || 'Lecture'; // Column G is index 3 relative to D
@@ -134,29 +160,6 @@ export async function onRequestPost(context) {
 
     // Default: 16 total weeks, 14 working weeks (minus 2 non-working)
     const WORKING_WEEKS = 14;
-
-    // Fetch actual timetable frequency to get exact classes per week
-    let timetableFreq = {};
-    try {
-      const freqRes = await env.DB.prepare(`
-        SELECT s.subject_name, s.type as class_type, count(*) as count
-        FROM student_sections ss
-        JOIN sections s ON ss.section_id = s.id
-        JOIN timetable t ON t.section_id = s.id
-        WHERE ss.roll_no = ?
-        GROUP BY s.subject_name, s.type
-      `).bind(rollNo).all();
-      
-      if (freqRes && freqRes.results) {
-        freqRes.results.forEach(row => {
-          const key = `${row.subject_name} (${row.class_type})`;
-          timetableFreq[key] = row.count;
-        });
-      }
-    } catch (e) {
-      console.warn("Failed to fetch timetable freq", e);
-    }
-
     const projRows = [
       ['Subject', 'Type', 'Current %', 'Freq/Wk', 'Total (Est.)', 'Attended', 'Remaining', 'Must Attend (66.67%)', 'Can Skip', 'Verdict']
     ];

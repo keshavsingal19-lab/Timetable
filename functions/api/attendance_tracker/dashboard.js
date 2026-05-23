@@ -47,6 +47,36 @@ export async function onRequestGet(context) {
     const monthlyStats = {};
     const allEntries = [];
 
+    // 1. Fetch actual timetable frequency and pre-populate subjectStats
+    // This ensures even subjects with 0 marked classes appear in the dashboard.
+    let timetableFreq = {};
+    try {
+      const freqRes = await env.DB.prepare(`
+        SELECT s.subject_name, s.type as class_type, count(*) as count
+        FROM student_sections ss
+        JOIN sections s ON ss.section_id = s.id
+        JOIN timetable t ON t.section_id = s.id
+        WHERE ss.roll_no = ?
+        GROUP BY s.subject_name, s.type
+      `).bind(rollNo).all();
+      
+      if (freqRes && freqRes.results) {
+        freqRes.results.forEach(row => {
+          const key = `${row.subject_name} (${row.class_type})`;
+          timetableFreq[key] = row.count;
+          // Pre-populate with 0s
+          subjectStats[key] = { 
+            name: key, 
+            subject: row.subject_name, 
+            classType: row.class_type, 
+            total: 0, present: 0, absent: 0, cancelled: 0 
+          };
+        });
+      }
+    } catch (e) {
+      console.warn("Failed to fetch timetable freq", e);
+    }
+
     for (const row of dataRows) {
       const date = row[0] || '';
       const day = row[1] || '';
@@ -145,28 +175,6 @@ export async function onRequestGet(context) {
       }
       workingWeeks = totalWeeksInSession - NON_WORKING_WEEKS;
       weeksRemaining = Math.max(0, workingWeeks - weeksElapsed);
-    }
-
-    // Fetch actual timetable frequency to get exact classes per week
-    let timetableFreq = {};
-    try {
-      const freqRes = await env.DB.prepare(`
-        SELECT s.subject_name, s.type as class_type, count(*) as count
-        FROM student_sections ss
-        JOIN sections s ON ss.section_id = s.id
-        JOIN timetable t ON t.section_id = s.id
-        WHERE ss.roll_no = ?
-        GROUP BY s.subject_name, s.type
-      `).bind(rollNo).all();
-      
-      if (freqRes && freqRes.results) {
-        freqRes.results.forEach(row => {
-          const key = `${row.subject_name} (${row.class_type})`;
-          timetableFreq[key] = row.count;
-        });
-      }
-    } catch (e) {
-      console.warn("Failed to fetch timetable freq", e);
     }
 
     const subjectProjections = subjects.map(s => {

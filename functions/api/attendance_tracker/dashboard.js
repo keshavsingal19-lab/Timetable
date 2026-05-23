@@ -60,44 +60,66 @@ export async function onRequestGet(context) {
         // Get groups for filtering
         const groups = [profile.tut_group, profile.prac_group, profile.sec_group, profile.vac_group, profile.aec_group, profile.aec_code].filter(Boolean);
         
-        // Query section_slots for this student's section
-        let freqResults = [];
-        const sectionFreq = await env.DB.prepare(`
-          SELECT subject, class_type, count(*) as count
-          FROM section_slots
-          WHERE course = ? AND semester = ? AND section = ?
-          GROUP BY subject, class_type
-        `).bind(profile.course, profile.semester, profile.section).all();
-        if (sectionFreq?.results) freqResults.push(...sectionFreq.results);
-        
-        // Also query Joint slots for this student's groups
+        // Fetch core subjects
+        const coreRows = await env.DB.prepare(
+          'SELECT subject_code FROM core_subject_config WHERE course = ? AND semester = ?'
+        ).bind(profile.course, profile.semester).all();
+        const coreSubjects = new Set(coreRows?.results?.map(r => r.subject_code) || []);
+
+        // Fetch section slots
+        const sectionSlots = await env.DB.prepare(
+          'SELECT * FROM section_slots WHERE course = ? AND semester = ? AND section = ?'
+        ).bind(profile.course, profile.semester, profile.section).all();
+
+        // Fetch Joint slots
+        let jointSlots = { results: [] };
         if (groups.length > 0) {
           const placeholders = groups.map(() => '?').join(',');
-          const jointFreq = await env.DB.prepare(`
-            SELECT subject, class_type, count(*) as count
-            FROM section_slots
-            WHERE course = 'Joint' AND semester = ? AND group_id IN (${placeholders})
-            GROUP BY subject, class_type
-          `).bind(profile.semester, ...groups).all();
-          if (jointFreq?.results) freqResults.push(...jointFreq.results);
+          jointSlots = await env.DB.prepare(
+            `SELECT * FROM section_slots WHERE course = 'Joint' AND semester = ? AND group_id IN (${placeholders})`
+          ).bind(profile.semester, ...groups).all();
+        }
+
+        const allSlots = [...(sectionSlots.results || []), ...(jointSlots.results || [])];
+        const electives = [profile.dse_ge_code, profile.dse_code, profile.ge_code, profile.aec_code].filter(Boolean);
+        const validSubjects = new Set([...coreSubjects, ...electives]);
+
+        for (const slot of allSlots) {
+          if (slot.group_id && groups.includes(slot.group_id)) {
+            validSubjects.add(slot.subject);
+          }
+        }
+
+        const filteredSlots = allSlots.filter(slot => {
+          if (slot.course === 'Joint') return true;
+          if (slot.group_id) return groups.includes(slot.group_id);
+          if (slot.class_type === 'Lecture') return validSubjects.has(slot.subject);
+          return true;
+        });
+
+        const freqResults = {};
+        for (const slot of filteredSlots) {
+          const key = `${slot.subject}|${slot.class_type}`;
+          freqResults[key] = (freqResults[key] || 0) + 1;
         }
 
         // Build frequency map and pre-populate subjectStats
-        // Resolve display names for Joint subjects (SEC/VAC/AEC)
-        freqResults.forEach(row => {
-          let displaySubject = row.subject;
+        Object.keys(freqResults).forEach(key => {
+          const [subject, class_type] = key.split('|');
+          const count = freqResults[key];
+          let displaySubject = subject;
           // Map group-based subjects to their actual display names
-          if (profile.sec_subject && row.subject === profile.sec_group) displaySubject = profile.sec_subject;
-          if (profile.vac_subject && row.subject === profile.vac_group) displaySubject = profile.vac_subject;
-          if (profile.aec_subject && (row.subject === profile.aec_group || row.subject === profile.aec_code)) displaySubject = profile.aec_subject;
+          if (profile.sec_subject && subject === profile.sec_group) displaySubject = profile.sec_subject;
+          if (profile.vac_subject && subject === profile.vac_group) displaySubject = profile.vac_subject;
+          if (profile.aec_subject && (subject === profile.aec_group || subject === profile.aec_code)) displaySubject = profile.aec_subject;
           
-          const key = `${displaySubject} (${row.class_type})`;
-          timetableFreq[key] = (timetableFreq[key] || 0) + row.count;
-          if (!subjectStats[key]) {
-            subjectStats[key] = { 
-              name: key, 
+          const freqKey = `${displaySubject} (${class_type})`;
+          timetableFreq[freqKey] = (timetableFreq[freqKey] || 0) + count;
+          if (!subjectStats[freqKey]) {
+            subjectStats[freqKey] = { 
+              name: freqKey, 
               subject: displaySubject, 
-              classType: row.class_type, 
+              classType: class_type, 
               total: 0, present: 0, absent: 0, cancelled: 0 
             };
           }

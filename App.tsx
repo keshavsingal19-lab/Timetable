@@ -303,7 +303,8 @@ function App() {
     const storedEnd = localStorage.getItem('semesterEnd');
     if (storedStart) dashParams.set('semesterStart', storedStart);
     if (storedEnd) dashParams.set('semesterEnd', storedEnd);
-    const dashUrl = `/api/attendance_tracker/dashboard${dashParams.toString() ? '?' + dashParams.toString() : ''}`;
+    dashParams.set('_t', Date.now().toString()); // Cache buster to force fresh fetch
+    const dashUrl = `/api/attendance_tracker/dashboard?${dashParams.toString()}`;
     fetch(dashUrl, {
       headers: { Authorization: `Bearer ${authToken}` }
     }).then(r => r.json()).then(dash => {

@@ -44,7 +44,7 @@ export async function onRequestPost(context) {
 
     const nowStr = new Date().toISOString();
     const effectiveType = classType || 'Lecture';
-    const rowValues = [date, day, timeSlot, subject, room, teacher || '', effectiveType, status, nowStr];
+    const rowValues = [date || '', day || '', timeSlot || '', subject || '', room || '', teacher || '', effectiveType, status || '', nowStr];
 
     if (rowIdx > 0) {
       // Update existing row

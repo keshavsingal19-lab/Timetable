@@ -241,12 +241,14 @@ export async function onRequestGet(context) {
       const exactFreq = timetableFreq[s.name];
       const classesPerWeek = exactFreq !== undefined ? exactFreq : Math.max(1, Math.round(s.total / weeksElapsed));
       
-      const sessionTotal = classesPerWeek * workingWeeks;
-      const remaining = Math.max(0, sessionTotal - s.total);
+      // New logic: Denominator dynamically adjusts down for Cancelled and Unmarked classes, 
+      // and adjusts up for Extra classes.
+      // Denominator = (Valid Logged Classes) + (Expected Future Classes)
+      const sessionTotal = (s.present + s.absent) + (classesPerWeek * weeksRemaining);
+      const remaining = classesPerWeek * weeksRemaining;
       
-      // To achieve 66.67%: mustAttend = ceil(0.6667 * effectiveTotal - present)
-      const effectiveTotal = sessionTotal - s.cancelled;
-      const mustAttend = Math.max(0, Math.ceil(TARGET_PERCENT / 100 * effectiveTotal - s.present));
+      // To achieve 66.67%: mustAttend = ceil((2/3) * sessionTotal - present)
+      const mustAttend = Math.max(0, Math.ceil((2/3) * sessionTotal - s.present));
       const canSkip = Math.max(0, remaining - mustAttend);
       const verdict = canSkip >= 0 && mustAttend <= remaining ? 'safe' : 'at_risk';
 
@@ -316,10 +318,10 @@ export async function onRequestGet(context) {
         proj.classType,
         `='Subject Summary'!G${summaryRow}`,
         freqFormula,
-        `=D${projRow}*${workingWeeks}`,
+        `='Subject Summary'!D${summaryRow} + 'Subject Summary'!E${summaryRow} + (D${projRow}*${weeksRemaining})`,
         `='Subject Summary'!D${summaryRow}`,
-        `=MAX(0, E${projRow}-F${projRow})`,
-        `=MAX(0, CEILING(0.6667*(E${projRow}-'Subject Summary'!F${summaryRow})-F${projRow}, 1))`,
+        `=D${projRow}*${weeksRemaining}`,
+        `=MAX(0, CEILING((2/3)*E${projRow} - F${projRow}, 1))`,
         `=MAX(0, G${projRow}-H${projRow})`,
         `=IF(H${projRow}<=G${projRow}, "✅ Safe", "⚠️ At Risk")`
       ]);

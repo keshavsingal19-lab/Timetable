@@ -295,6 +295,38 @@ function App() {
     }
   }, []);
 
+  // Reusable function to refresh attendance dashboard data
+  const refreshAttendanceDashboard = () => {
+    if (!authToken) return;
+    const dashParams = new URLSearchParams();
+    const storedStart = localStorage.getItem('semesterStart');
+    const storedEnd = localStorage.getItem('semesterEnd');
+    if (storedStart) dashParams.set('semesterStart', storedStart);
+    if (storedEnd) dashParams.set('semesterEnd', storedEnd);
+    const dashUrl = `/api/attendance_tracker/dashboard${dashParams.toString() ? '?' + dashParams.toString() : ''}`;
+    fetch(dashUrl, {
+      headers: { Authorization: `Bearer ${authToken}` }
+    }).then(r => r.json()).then(dash => {
+      setAttendanceDashboard(dash);
+      
+      // Parse today's marked slots
+      const entriesToCheck = dash.allEntries || dash.recentEntries;
+      if (entriesToCheck) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todaySlots: {[key: number]: string} = {};
+        entriesToCheck.forEach((entry: any) => {
+          if (entry.date === todayStr) {
+            const pIndex = TIME_SLOTS.indexOf(entry.timeSlot);
+            if (pIndex !== -1) {
+              todaySlots[pIndex] = entry.status;
+            }
+          }
+        });
+        setTodayMarkedSlots(todaySlots);
+      }
+    }).catch(e => console.warn("Dashboard refresh failed:", e));
+  };
+
   useEffect(() => {
     if ((activeTab === 'attendance_tracker' || activeTab === 'student_portal') && isStudentLoggedIn && authToken && !attendanceConnected) {
       setIsAttendanceLoading(true);
@@ -305,34 +337,7 @@ function App() {
           setAttendanceConnected(true);
           setAttendanceSheetUrl(data.spreadsheetUrl);
           setAttendanceEmail(data.email);
-          
-          const dashParams = new URLSearchParams();
-          const storedStart = localStorage.getItem('semesterStart');
-          const storedEnd = localStorage.getItem('semesterEnd');
-          if (storedStart) dashParams.set('semesterStart', storedStart);
-          if (storedEnd) dashParams.set('semesterEnd', storedEnd);
-          const dashUrl = `/api/attendance_tracker/dashboard${dashParams.toString() ? '?' + dashParams.toString() : ''}`;
-          fetch(dashUrl, {
-            headers: { Authorization: `Bearer ${authToken}` }
-          }).then(r => r.json()).then(dash => {
-            setAttendanceDashboard(dash);
-            
-            // Parse today's marked slots
-            const entriesToCheck = dash.allEntries || dash.recentEntries;
-            if (entriesToCheck) {
-              const todayStr = new Date().toISOString().split('T')[0];
-              const todaySlots: {[key: number]: string} = {};
-              entriesToCheck.forEach((entry: any) => {
-                if (entry.date === todayStr) {
-                  const pIndex = TIME_SLOTS.indexOf(entry.timeSlot);
-                  if (pIndex !== -1) {
-                    todaySlots[pIndex] = entry.status;
-                  }
-                }
-              });
-              setTodayMarkedSlots(todaySlots);
-            }
-          });
+          refreshAttendanceDashboard();
         } else {
           setAttendanceConnected(false);
         }
@@ -2062,14 +2067,17 @@ function App() {
                           <div className="space-y-3">
                             <h4 className="font-bold text-gray-700 text-sm mb-3 uppercase tracking-wider">{selDateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</h4>
                             {myTimetableData[selDayName].map((cls: any, i: number) => {
+                              // cls from student_schedule has: { periodIndex, subject, room, type, teacher }
+                              // Derive the time label from periodIndex
+                              const timeLabel = TIME_SLOTS[cls.periodIndex] || `Period ${cls.periodIndex + 1}`;
                               // Find if this class is marked
-                              const markedEntry = dayEntries.find((e: any) => e.timeSlot === cls.time);
+                              const markedEntry = dayEntries.find((e: any) => e.timeSlot === timeLabel && e.subject === cls.subject);
                               
                               return (
                                 <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-gray-200 hover:border-gray-300 transition-colors bg-white">
                                   <div>
                                     <h5 className="font-bold text-gray-900">{cls.subject}</h5>
-                                    <p className="text-xs text-gray-500 font-medium mt-1">{cls.time} • {cls.room} • {cls.teacher}</p>
+                                    <p className="text-xs text-gray-500 font-medium mt-1">{timeLabel} • {cls.room} • {cls.teacher}</p>
                                   </div>
                                   
                                   <div className="flex items-center gap-3">
@@ -2091,7 +2099,8 @@ function App() {
                                       onClick={() => {
                                         setAttendanceMarking({
                                           ...cls,
-                                          periodIndex: TIME_SLOTS.indexOf(cls.time), // Not strictly needed for backdated, but keeps struct
+                                          periodIndex: cls.periodIndex,
+                                          timeSlot: timeLabel,
                                           targetDate: calendarDate,
                                           targetDay: selDayName
                                         });
@@ -3526,7 +3535,26 @@ function App() {
                     }}
                   >
                     <option value="">-- Select Subject --</option>
-                    {attendanceDashboard?.subjects?.map((s:any) => <option key={s.name} value={JSON.stringify({subject: s.subject, type: s.classType})}>{s.name}</option>)}
+                    {(() => {
+                      // Derive unique subject+type pairs from the local timetable data
+                      const seen = new Set<string>();
+                      const options: {subject: string, type: string, label: string}[] = [];
+                      if (myTimetableData) {
+                        Object.values(myTimetableData).forEach((dayClasses: any) => {
+                          (dayClasses || []).forEach((cls: any) => {
+                            const key = `${cls.subject}|${cls.type}`;
+                            if (cls.subject && !seen.has(key)) {
+                              seen.add(key);
+                              options.push({ subject: cls.subject, type: cls.type || 'Lecture', label: `${cls.subject} (${cls.type || 'Lecture'})` });
+                            }
+                          });
+                        });
+                      }
+                      options.sort((a, b) => a.label.localeCompare(b.label));
+                      return options.map(opt => (
+                        <option key={opt.label} value={JSON.stringify({subject: opt.subject, type: opt.type})}>{opt.label}</option>
+                      ));
+                    })()}
                   </select>
                 </div>
               ) : (
@@ -3544,7 +3572,7 @@ function App() {
               <div className="grid grid-cols-3 gap-3">
                 <button 
                   onClick={() => {
-                    if (attendanceMarking.type === 'Extra' && attendanceMarking.subject === 'Select Subject') {
+                    if (attendanceMarking.isExtra && !attendanceMarking.subject) {
                       alert('Please select a subject for the extra attendance.');
                       return;
                     }
@@ -3563,7 +3591,7 @@ function App() {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
                       body: JSON.stringify(payload)
-                    });
+                    }).then(() => setTimeout(refreshAttendanceDashboard, 1500));
                   }}
                   className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-green-100 bg-green-50 hover:bg-green-100 hover:border-green-300 transition-all active:scale-95 ${attendanceMarking.isExtra ? 'col-span-3' : ''}`}
                 >
@@ -3589,7 +3617,7 @@ function App() {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
                           body: JSON.stringify(payload)
-                        });
+                        }).then(() => setTimeout(refreshAttendanceDashboard, 1500));
                       }}
                       className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-red-100 bg-red-50 hover:bg-red-100 hover:border-red-300 transition-all active:scale-95"
                     >
@@ -3613,7 +3641,7 @@ function App() {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
                           body: JSON.stringify(payload)
-                        });
+                        }).then(() => setTimeout(refreshAttendanceDashboard, 1500));
                       }}
                       className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300 transition-all active:scale-95"
                     >

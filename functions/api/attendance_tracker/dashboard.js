@@ -51,26 +51,56 @@ export async function onRequestGet(context) {
     // This ensures even subjects with 0 marked classes appear in the dashboard.
     let timetableFreq = {};
     try {
-      const freqRes = await env.DB.prepare(`
-        SELECT s.subject_name, s.type as class_type, count(*) as count
-        FROM student_sections ss
-        JOIN sections s ON ss.section_id = s.id
-        JOIN timetable t ON t.section_id = s.id
-        WHERE ss.roll_no = ?
-        GROUP BY s.subject_name, s.type
-      `).bind(rollNo).all();
+      // First get the student's profile to know their course, semester, section
+      const profile = await env.DB.prepare(
+        'SELECT * FROM student_profiles WHERE roll_no = ?'
+      ).bind(rollNo).first();
       
-      if (freqRes && freqRes.results) {
-        freqRes.results.forEach(row => {
-          const key = `${row.subject_name} (${row.class_type})`;
-          timetableFreq[key] = row.count;
-          // Pre-populate with 0s
-          subjectStats[key] = { 
-            name: key, 
-            subject: row.subject_name, 
-            classType: row.class_type, 
-            total: 0, present: 0, absent: 0, cancelled: 0 
-          };
+      if (profile) {
+        // Get groups for filtering
+        const groups = [profile.tut_group, profile.prac_group, profile.sec_group, profile.vac_group, profile.aec_group, profile.aec_code].filter(Boolean);
+        
+        // Query section_slots for this student's section
+        let freqResults = [];
+        const sectionFreq = await env.DB.prepare(`
+          SELECT subject, class_type, count(*) as count
+          FROM section_slots
+          WHERE course = ? AND semester = ? AND section = ?
+          GROUP BY subject, class_type
+        `).bind(profile.course, profile.semester, profile.section).all();
+        if (sectionFreq?.results) freqResults.push(...sectionFreq.results);
+        
+        // Also query Joint slots for this student's groups
+        if (groups.length > 0) {
+          const placeholders = groups.map(() => '?').join(',');
+          const jointFreq = await env.DB.prepare(`
+            SELECT subject, class_type, count(*) as count
+            FROM section_slots
+            WHERE course = 'Joint' AND semester = ? AND group_id IN (${placeholders})
+            GROUP BY subject, class_type
+          `).bind(profile.semester, ...groups).all();
+          if (jointFreq?.results) freqResults.push(...jointFreq.results);
+        }
+
+        // Build frequency map and pre-populate subjectStats
+        // Resolve display names for Joint subjects (SEC/VAC/AEC)
+        freqResults.forEach(row => {
+          let displaySubject = row.subject;
+          // Map group-based subjects to their actual display names
+          if (profile.sec_subject && row.subject === profile.sec_group) displaySubject = profile.sec_subject;
+          if (profile.vac_subject && row.subject === profile.vac_group) displaySubject = profile.vac_subject;
+          if (profile.aec_subject && (row.subject === profile.aec_group || row.subject === profile.aec_code)) displaySubject = profile.aec_subject;
+          
+          const key = `${displaySubject} (${row.class_type})`;
+          timetableFreq[key] = (timetableFreq[key] || 0) + row.count;
+          if (!subjectStats[key]) {
+            subjectStats[key] = { 
+              name: key, 
+              subject: displaySubject, 
+              classType: row.class_type, 
+              total: 0, present: 0, absent: 0, cancelled: 0 
+            };
+          }
         });
       }
     } catch (e) {
@@ -220,6 +250,82 @@ export async function onRequestGet(context) {
     const totalRemaining = subjectProjections.reduce((sum, s) => sum + s.remaining, 0);
     const totalMustAttend = subjectProjections.reduce((sum, s) => sum + s.mustAttend, 0);
     const totalCanSkip = Math.max(0, totalRemaining - totalMustAttend);
+
+    // -- Option A Implementation: Rebuild Google Sheet Tabs on Dashboard Load --
+    // We build the rows for the Subject Summary and Projections tabs using the data we already collected.
+    const summaryRows = [
+      ['Subject', 'Type', 'Total', 'Present', 'Absent', 'Cancelled', 'Attendance %', 'Status']
+    ];
+    subjects.forEach((s, idx) => {
+      const rowNum = idx + 2;
+      summaryRows.push([
+        s.subject,
+        s.classType,
+        `=COUNTIFS('Attendance Log'!D:D, "${s.subject}", 'Attendance Log'!G:G, "${s.classType}")`,
+        `=COUNTIFS('Attendance Log'!D:D, "${s.subject}", 'Attendance Log'!G:G, "${s.classType}", 'Attendance Log'!H:H, "Present")`,
+        `=COUNTIFS('Attendance Log'!D:D, "${s.subject}", 'Attendance Log'!G:G, "${s.classType}", 'Attendance Log'!H:H, "Absent")`,
+        `=COUNTIFS('Attendance Log'!D:D, "${s.subject}", 'Attendance Log'!G:G, "${s.classType}", 'Attendance Log'!H:H, "Cancelled")`,
+        `=IF((C${rowNum}-F${rowNum})>0, ROUND(D${rowNum}/(C${rowNum}-F${rowNum})*100, 1)&"%", "N/A")`,
+        `=IF(VALUE(SUBSTITUTE(G${rowNum}, "%", ""))>=66.67, "✅ On Track", "⚠️ Below Target")`
+      ]);
+    });
+
+    const projRows = [
+      ['Subject', 'Type', 'Current %', 'Freq/Wk', 'Total (Est.)', 'Attended', 'Remaining', 'Must Attend (66.67%)', 'Can Skip', 'Verdict']
+    ];
+    subjectProjections.forEach((proj, idx) => {
+      const summaryRow = idx + 2;
+      const projRow = idx + 2;
+      const exactFreq = timetableFreq[proj.subject]; // subject here is the key "Subject (Type)"
+      
+      const freqFormula = exactFreq !== undefined ? 
+        `${exactFreq}` : 
+        `=MAX(1, ROUND('Subject Summary'!C${summaryRow}/${weeksElapsed}, 0))`;
+
+      projRows.push([
+        proj.rawSubject,
+        proj.classType,
+        `='Subject Summary'!G${summaryRow}`,
+        freqFormula,
+        `=D${projRow}*${workingWeeks}`,
+        `='Subject Summary'!D${summaryRow}`,
+        `=MAX(0, E${projRow}-F${projRow})`,
+        `=MAX(0, CEILING(0.6667*(E${projRow}-'Subject Summary'!F${summaryRow})-F${projRow}, 1))`,
+        `=MAX(0, G${projRow}-H${projRow})`,
+        `=IF(H${projRow}<=G${projRow}, "✅ Safe", "⚠️ At Risk")`
+      ]);
+    });
+
+    // Run the updates in the background using Cloudflare Workers' waitUntil
+    // This allows the dashboard to return instantly while updating the sheet tabs for manual viewers.
+    const updateTabsPromise = (async () => {
+      try {
+        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Subject%20Summary!A:H:clear`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Subject%20Summary!A1?valueInputOption=USER_ENTERED`, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ values: summaryRows })
+        });
+        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Projections!A:J:clear`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Projections!A1?valueInputOption=USER_ENTERED`, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ values: projRows })
+        });
+      } catch (e) {
+        console.warn("Failed to update sheet tabs in background:", e);
+      }
+    })();
+    context.waitUntil(updateTabsPromise);
+
 
     return new Response(JSON.stringify({
       totalClasses: dataRows.length,

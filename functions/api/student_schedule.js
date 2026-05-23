@@ -16,7 +16,7 @@ export async function onRequestGet(context) {
     }
 
     // 2. Build group list for filtering
-    const groups = [
+    const rawGroups = [
       profile.tut_group,
       profile.prac_group,
       profile.sec_group,
@@ -24,6 +24,15 @@ export async function onRequestGet(context) {
       profile.aec_group,
       profile.aec_code // some AEC options (like AEC-1) are group IDs in Joint timetable
     ].filter(Boolean);
+    
+    const groups = [];
+    rawGroups.forEach(g => {
+      if (typeof g === 'string') {
+        groups.push(...g.split(/[,/]+/).map(s => s.trim()).filter(Boolean));
+      } else {
+        groups.push(g);
+      }
+    });
 
     // 3. Fetch Core Subjects
     const coreRows = await env.DB.prepare(

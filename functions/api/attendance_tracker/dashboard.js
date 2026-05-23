@@ -57,8 +57,15 @@ export async function onRequestGet(context) {
       ).bind(rollNo).first();
       
       if (profile) {
-        // Get groups for filtering
-        const groups = [profile.tut_group, profile.prac_group, profile.sec_group, profile.vac_group, profile.aec_group, profile.aec_code].filter(Boolean);
+        const rawGroups = [profile.tut_group, profile.prac_group, profile.sec_group, profile.vac_group, profile.aec_group, profile.aec_code].filter(Boolean);
+        const groups = [];
+        rawGroups.forEach(g => {
+          if (typeof g === 'string') {
+            groups.push(...g.split(/[,/]+/).map(s => s.trim()).filter(Boolean));
+          } else {
+            groups.push(g);
+          }
+        });
         
         // Fetch core subjects
         const coreRows = await env.DB.prepare(

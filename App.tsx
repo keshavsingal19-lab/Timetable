@@ -1224,48 +1224,53 @@ function App() {
   // --- REUSABLE COMPONENTS ---
   const TeachersOnLeaveDashboard = () => (
     <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden mb-8">
-      <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-4 sm:p-6 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-black text-srcc-portalNavy mb-1">FACULTY ON LEAVE</h2>
-          <p className="text-gray-500 text-sm font-medium">Daily absence directory for {currentDayName}, {formattedDate}</p>
+          <h2 className="text-xl sm:text-2xl font-black text-srcc-portalNavy mb-1">FACULTY ON LEAVE</h2>
+          <p className="text-gray-500 text-xs sm:text-sm font-medium">Daily absence directory for {formattedDate}</p>
         </div>
         {absentTeachers.length > 0 && (
-          <div className="bg-red-100 text-red-700 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-red-200">
+          <div className="bg-red-100 text-red-700 px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest border border-red-200 self-start sm:self-auto whitespace-nowrap">
             {absentTeachers.length} Absent Today
           </div>
         )}
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full text-left border-collapse min-w-full">
           <thead>
             <tr className="bg-srcc-portalNavy text-white">
-              <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">S.No</th>
-              <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">Name</th>
-              <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">From</th>
-              <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">To</th>
+              <th className="px-4 sm:px-6 py-3 font-bold text-[10px] sm:text-xs uppercase tracking-wider w-10 sm:w-12">#</th>
+              <th className="px-4 sm:px-6 py-3 font-bold text-[10px] sm:text-xs uppercase tracking-wider">Name</th>
+              <th className="px-4 sm:px-6 py-3 font-bold text-[10px] sm:text-xs uppercase tracking-wider hidden sm:table-cell whitespace-nowrap">From</th>
+              <th className="px-4 sm:px-6 py-3 font-bold text-[10px] sm:text-xs uppercase tracking-wider hidden sm:table-cell whitespace-nowrap">To</th>
+              <th className="px-4 sm:px-6 py-3 font-bold text-[10px] sm:text-xs uppercase tracking-wider sm:hidden whitespace-nowrap">Duration</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {absentTeachers.length > 0 ? (
               absentTeachers.map((abs, index) => {
                 const teacher = liveTeachers[abs.teacher_id];
+                const durationMobile = abs.start_date === abs.end_date 
+                  ? abs.start_date 
+                  : `${abs.start_date.slice(5)} to ${abs.end_date.slice(5)}`;
+                  
                 return (
                   <tr key={abs.teacher_id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 text-sm font-bold text-gray-400">{index + 1}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-srcc-portalNavy leading-tight">{teacher?.name || abs.teacher_id}</span>
-                        <span className="text-[10px] uppercase font-black text-srcc-yellow bg-srcc-portalNavy px-1.5 py-0.5 rounded w-fit mt-1">{teacher?.department || 'Faculty'}</span>
-                      </div>
+                    <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-bold text-gray-400">{index + 1}</td>
+                    <td className="px-4 sm:px-6 py-3 sm:py-4">
+                      <span className="font-bold text-sm sm:text-base text-srcc-portalNavy leading-tight block whitespace-normal min-w-[120px]">
+                        {teacher?.name || abs.teacher_id}
+                      </span>
                     </td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-600">{abs.start_date}</td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-600">{abs.end_date}</td>
+                    <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium text-gray-600 hidden sm:table-cell whitespace-nowrap">{abs.start_date}</td>
+                    <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium text-gray-600 hidden sm:table-cell whitespace-nowrap">{abs.end_date}</td>
+                    <td className="px-4 sm:px-6 py-3 sm:py-4 text-[11px] font-medium text-gray-600 sm:hidden whitespace-nowrap">{durationMobile}</td>
                   </tr>
                 );
               })
             ) : (
               <tr>
-                <td colSpan={4} className="px-6 py-12 text-center text-gray-500 font-medium whitespace-nowrap">
+                <td colSpan={5} className="px-4 sm:px-6 py-8 sm:py-12 text-center text-gray-500 text-sm font-medium">
                   No faculty absences reported for today.
                 </td>
               </tr>
@@ -1538,7 +1543,7 @@ function App() {
           <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'hidden' : 'flex'}`}>
             <img src="/SRCC.svg" alt="SRCC" className="w-20 h-20" />
             <div>
-              <h1 className="font-serif font-bold text-xl leading-tight tracking-wide text-white">SRCC ASSIST</h1>
+              <h1 className="font-sans font-black text-xl leading-tight tracking-wide text-white">SRCC ASSIST</h1>
               <p className="text-srcc-yellow text-[10px] font-medium tracking-widest uppercase">Student Portal</p>
             </div>
           </div>
@@ -1598,7 +1603,7 @@ function App() {
                 <div className="flex items-center gap-3">
                   <img src="/SRCC.svg" alt="SRCC" className="w-8 h-8" />
                   <div>
-                    <h1 className="font-serif font-bold text-xl leading-tight tracking-wide text-white">SRCC ASSIST</h1>
+                    <h1 className="font-sans font-black text-xl leading-tight tracking-wide text-white">SRCC ASSIST</h1>
                     <p className="text-srcc-yellow text-[10px] font-medium tracking-widest uppercase">Student Portal</p>
                   </div>
                 </div>
@@ -2352,7 +2357,7 @@ function App() {
                 {/* Glassmorphism login card - wider on desktop, perfectly centred */}
                 <div className="w-full max-w-lg md:max-w-2xl lg:max-w-3xl text-white bg-white/8 backdrop-blur-2xl border border-white/25 rounded-2xl p-8 sm:p-10 lg:p-14 text-center shadow-[0_20px_60px_0_rgba(0,0,0,0.6)]">
                   <img src="/SRCC100.svg" alt="SRCC Assist" className="w-16 h-16 sm:w-20 sm:h-20 lg:w-28 lg:h-28 mx-auto mb-4 sm:mb-6 lg:mb-8 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] hover:scale-110 transition-transform duration-500" />
-                  <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white mb-1 sm:mb-3 tracking-wide" style={{ fontFamily: "'Trajan Pro', 'Trajan', 'Cinzel', serif" }}>SRCC ASSIST</h2>
+                  <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black font-sans text-white mb-1 sm:mb-3 tracking-wide">SRCC ASSIST</h2>
                   <p className="text-gray-300 text-xs sm:text-sm mb-4 sm:mb-6 font-light">Sign in with your college email.</p>
 
                   <div className="space-y-3 mb-4">
@@ -2944,25 +2949,23 @@ function App() {
                   <button 
                     key={entity.id} 
                     onClick={() => handleTeacherClick(entity)}
-                    className="bg-white border rounded-xl p-5 hover:shadow-md transition-all text-left group active:scale-95"
+                    className="bg-white border rounded-xl p-5 hover:shadow-md transition-all text-left group active:scale-95 flex flex-col min-h-[170px]"
                   >
-                    <div className="flex justify-between items-start mb-3">
+                    <div className="flex justify-between items-start mb-3 w-full">
                       <div className="bg-srcc-portalNavy/10 p-2.5 rounded-xl text-srcc-portalNavy group-hover:bg-srcc-portalNavy group-hover:text-srcc-yellow transition-colors">
                         <GraduationCap className="w-6 h-6" />
                       </div>
-                      <div className={`px-3.5 py-1.5 rounded-lg text-sm font-black flex items-center gap-1.5 shadow-sm ${statusInfo.color === 'red' ? 'bg-red-50 text-red-700' : statusInfo.color === 'blue' ? 'bg-blue-100 text-blue-800 ring-1 ring-blue-200' : 'bg-green-50 text-green-700'}`}>
-                        <StatusIcon className="w-4 h-4" /> {statusInfo.status}
+                      <div className="text-gray-400 group-hover:text-srcc-portalNavy transition-colors p-2 bg-gray-50 rounded-lg group-hover:bg-srcc-portalNavy/5">
+                         <Mail className="w-5 h-5" />
                       </div>
                     </div>
-                    <h3 className="font-bold text-gray-900 text-lg leading-tight">{entity.name}</h3>
-                    <p className="text-xs text-gray-500 font-bold uppercase tracking-wide mt-1">{entity.department}</p>
-                    <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
-                      <p className="text-sm text-gray-600 flex items-center gap-2">
-                        <Clock className="w-3.5 h-3.5 text-gray-400" /> {statusInfo.detail}
+                    <h3 className="font-bold text-gray-900 text-lg leading-tight mb-auto">{entity.name}</h3>
+                    
+                    <div className="mt-4 pt-4 border-t border-gray-100 w-full">
+                      <p className={`text-base font-bold flex items-center gap-2 ${statusInfo.color === 'red' ? 'text-red-600' : statusInfo.color === 'blue' ? 'text-blue-700' : 'text-green-600'}`}>
+                        <StatusIcon className="w-5 h-5" /> 
+                        {statusInfo.status === 'Free' ? 'No Class Scheduled' : statusInfo.status === 'On Leave' ? 'On Leave' : `Scheduled Lecture • ${statusInfo.status.replace('In ', '')}`}
                       </p>
-                      <div className="text-srcc-portalNavy opacity-0 group-hover:opacity-100 transition-opacity">
-                         <Mail className="w-4 h-4" />
-                      </div>
                     </div>
                   </button>
                 );

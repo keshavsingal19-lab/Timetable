@@ -1535,7 +1535,7 @@ function App() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 text-gray-900 font-sans selection:bg-indigo-100 font-outfit overflow-hidden">
+    <div className="flex h-[100dvh] bg-gray-50 text-gray-900 font-sans selection:bg-indigo-100 font-outfit overflow-hidden">
       
       {/* DESKTOP SIDEBAR */}
       <aside className={`bg-srcc-portalNavy text-white transition-all shadow-xl z-40 hidden md:flex flex-col flex-shrink-0 ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}>
@@ -1657,14 +1657,14 @@ function App() {
 
         {/* SCROLLING MAIN CONTENT */}
         <main
-          className={`flex-1 overflow-x-hidden overflow-y-auto pb-48 relative ${activeTab === 'student_portal' && !isStudentLoggedIn && portalMode === 'login' ? '' : 'bg-gray-50'}`}
+          className={`flex-1 overflow-x-hidden overflow-y-auto pb-6 relative ${activeTab === 'student_portal' && !isStudentLoggedIn && portalMode === 'login' ? '' : 'bg-gray-50'}`}
           style={activeTab === 'student_portal' && !isStudentLoggedIn && portalMode === 'login' ? { backgroundImage: 'url(/bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' } : {}}
         >
           {/* Overlay for login page - light so bg.jpg stays very visible */}
           {activeTab === 'student_portal' && !isStudentLoggedIn && portalMode === 'login' && (
             <div className="fixed inset-0 bg-srcc-portalNavy/25 pointer-events-none z-0" />
           )}
-          <div className={activeTab === 'student_portal' && !isStudentLoggedIn && portalMode === 'login' ? "relative z-10 w-full min-h-full flex flex-col items-center justify-center" : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-32"}>
+          <div className={activeTab === 'student_portal' && !isStudentLoggedIn && portalMode === 'login' ? "relative z-10 w-full min-h-full flex flex-col items-center justify-center" : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-8"}>
 
         {/* --- ATTENDANCE TRACKER TAB --- */}
         {activeTab === 'attendance_tracker' && (
@@ -2949,23 +2949,25 @@ function App() {
                   <button 
                     key={entity.id} 
                     onClick={() => handleTeacherClick(entity)}
-                    className="bg-white border rounded-xl p-5 hover:shadow-md transition-all text-left group active:scale-95 flex flex-col min-h-[170px]"
+                    className="bg-white border rounded-xl p-5 hover:shadow-md transition-all text-left group active:scale-95 flex flex-col"
                   >
-                    <div className="flex justify-between items-start mb-3 w-full">
-                      <div className="bg-srcc-portalNavy/10 p-2.5 rounded-xl text-srcc-portalNavy group-hover:bg-srcc-portalNavy group-hover:text-srcc-yellow transition-colors">
-                        <GraduationCap className="w-6 h-6" />
-                      </div>
-                      <div className="text-gray-400 group-hover:text-srcc-portalNavy transition-colors p-2 bg-gray-50 rounded-lg group-hover:bg-srcc-portalNavy/5">
+                    <div className="flex justify-between items-start w-full mb-1">
+                      <h3 className="font-bold text-gray-900 text-lg leading-tight">{entity.name}</h3>
+                      <div className="text-gray-400 group-hover:text-srcc-portalNavy transition-colors p-2 bg-gray-50 rounded-lg group-hover:bg-srcc-portalNavy/5 shrink-0 ml-3">
                          <Mail className="w-5 h-5" />
                       </div>
                     </div>
-                    <h3 className="font-bold text-gray-900 text-lg leading-tight mb-auto">{entity.name}</h3>
                     
-                    <div className="mt-4 pt-4 border-t border-gray-100 w-full">
-                      <p className={`text-base font-bold flex items-center gap-2 ${statusInfo.color === 'red' ? 'text-red-600' : statusInfo.color === 'blue' ? 'text-blue-700' : 'text-green-600'}`}>
-                        <StatusIcon className="w-5 h-5" /> 
-                        {statusInfo.status === 'Free' ? 'No Class Scheduled' : statusInfo.status === 'On Leave' ? 'On Leave' : `Scheduled Lecture • ${statusInfo.status.replace('In ', '')}`}
+                    <div className="mt-auto pt-4 border-t border-gray-100 w-full flex items-center justify-between gap-2">
+                      <p className={`text-sm font-bold flex items-center gap-1.5 ${statusInfo.color === 'red' ? 'text-red-600' : statusInfo.color === 'blue' ? 'text-blue-700' : 'text-green-600'}`}>
+                        <StatusIcon className="w-4 h-4" /> 
+                        {statusInfo.status === 'Free' ? 'No Class Scheduled' : statusInfo.status === 'On Leave' ? 'On Leave' : 'Scheduled Lecture'}
                       </p>
+                      {statusInfo.color === 'blue' && (
+                        <span className="text-xs font-black text-srcc-portalNavy bg-srcc-portalNavy/10 px-2.5 py-1 rounded-lg tracking-wide">
+                          {statusInfo.status.replace('In ', '')}
+                        </span>
+                      )}
                     </div>
                   </button>
                 );
@@ -3112,8 +3114,8 @@ function App() {
           </div>
         </main>
 
-        {/* GLOBAL FOOTER - Locks permanently to the bottom of the viewport beneath <main> */}
-        <footer className="absolute bottom-0 w-full bg-srcc-portalNavy/95 border-t border-white/10 z-40 backdrop-blur-md">
+        {/* GLOBAL FOOTER - Always visible at bottom of flex column */}
+        <footer className="shrink-0 w-full bg-srcc-portalNavy/95 border-t border-white/10 z-40 backdrop-blur-md">
           <div className="max-w-4xl mx-auto px-4 py-2 md:py-3 flex flex-col items-center justify-center -mt-1 md:mt-0">
             <div className="flex flex-wrap justify-center items-center gap-x-4 md:gap-x-6 gap-y-1 text-[10px] md:text-sm font-medium text-white/80 mb-1">
               <button onClick={() => setActiveTab('legal_disclaimer')} className="hover:text-white transition-colors focus:outline-none">Disclaimer</button>

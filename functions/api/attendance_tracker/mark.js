@@ -36,7 +36,7 @@ export async function onRequestPost(context) {
     // skip header row — find existing entry for same date + timeSlot + subject
     for (let i = 1; i < values.length; i++) {
       const row = values[i];
-      if (row[0] === date && row[2] === timeSlot) {
+      if (row[0] === date && row[2] === timeSlot && row[3] === subject) {
         rowIdx = i + 1; // 1-based index for Sheets API
         break;
       }

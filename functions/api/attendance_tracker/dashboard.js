@@ -297,7 +297,7 @@ export async function onRequestGet(context) {
         `=COUNTIFS('Attendance Log'!D:D, "${s.subject}", 'Attendance Log'!G:G, "${s.classType}", 'Attendance Log'!H:H, "Absent")`,
         `=COUNTIFS('Attendance Log'!D:D, "${s.subject}", 'Attendance Log'!G:G, "${s.classType}", 'Attendance Log'!H:H, "Cancelled")`,
         `=IF((C${rowNum}-F${rowNum})>0, ROUND(D${rowNum}/(C${rowNum}-F${rowNum})*100, 1)&"%", "N/A")`,
-        `=IF(VALUE(SUBSTITUTE(G${rowNum}, "%", ""))>=66.67, "✅ On Track", "⚠️ Below Target")`
+        `=IF(G${rowNum}="N/A", "N/A", IF(VALUE(SUBSTITUTE(G${rowNum}, "%", ""))>=66.67, "✅ On Track", "⚠️ Below Target"))`
       ]);
     });
 

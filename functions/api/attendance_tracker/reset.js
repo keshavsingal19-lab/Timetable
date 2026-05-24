@@ -46,14 +46,14 @@ export async function onRequestPost(context) {
       });
 
       // Also clear Subject Summary (except header)
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Subject%20Summary!A2:G:clear`, {
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Subject%20Summary!A2:H:clear`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({})
       });
 
       // Also clear Projections (except header)
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Projections!A2:H:clear`, {
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Projections!A2:J:clear`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({})

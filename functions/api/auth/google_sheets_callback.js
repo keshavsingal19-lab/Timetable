@@ -168,6 +168,7 @@ async function createProfessionalSpreadsheet(accessToken, rollNo) {
               {
                 values: [
                   { userEnteredValue: { stringValue: 'Subject' }, userEnteredFormat: headerFormat },
+                  { userEnteredValue: { stringValue: 'Type' }, userEnteredFormat: headerFormat },
                   { userEnteredValue: { stringValue: 'Total' }, userEnteredFormat: headerFormat },
                   { userEnteredValue: { stringValue: 'Present' }, userEnteredFormat: headerFormat },
                   { userEnteredValue: { stringValue: 'Absent' }, userEnteredFormat: headerFormat },
@@ -188,8 +189,10 @@ async function createProfessionalSpreadsheet(accessToken, rollNo) {
               {
                 values: [
                   { userEnteredValue: { stringValue: 'Subject' }, userEnteredFormat: headerFormat },
+                  { userEnteredValue: { stringValue: 'Type' }, userEnteredFormat: headerFormat },
                   { userEnteredValue: { stringValue: 'Current %' }, userEnteredFormat: headerFormat },
-                  { userEnteredValue: { stringValue: 'Total (Session Est.)' }, userEnteredFormat: headerFormat },
+                  { userEnteredValue: { stringValue: 'Freq/Wk' }, userEnteredFormat: headerFormat },
+                  { userEnteredValue: { stringValue: 'Total (Est.)' }, userEnteredFormat: headerFormat },
                   { userEnteredValue: { stringValue: 'Attended' }, userEnteredFormat: headerFormat },
                   { userEnteredValue: { stringValue: 'Remaining' }, userEnteredFormat: headerFormat },
                   { userEnteredValue: { stringValue: 'Must Attend (for 66.67%)' }, userEnteredFormat: headerFormat },
@@ -366,7 +369,7 @@ async function createProfessionalSpreadsheet(accessToken, rollNo) {
         },
 
         // ── Column widths for Subject Summary ──
-        ...[ 200, 80, 80, 80, 80, 110, 120 ].map((w, i) => ({
+        ...[ 200, 80, 80, 80, 80, 80, 110, 120 ].map((w, i) => ({
           updateDimensionProperties: {
             range: { sheetId: 1, dimension: 'COLUMNS', startIndex: i, endIndex: i + 1 },
             properties: { pixelSize: w },
@@ -375,7 +378,7 @@ async function createProfessionalSpreadsheet(accessToken, rollNo) {
         })),
 
         // ── Column widths for Projections ──
-        ...[ 200, 100, 140, 90, 100, 180, 90, 120 ].map((w, i) => ({
+        ...[ 200, 80, 100, 80, 140, 90, 100, 180, 90, 120 ].map((w, i) => ({
           updateDimensionProperties: {
             range: { sheetId: 2, dimension: 'COLUMNS', startIndex: i, endIndex: i + 1 },
             properties: { pixelSize: w },

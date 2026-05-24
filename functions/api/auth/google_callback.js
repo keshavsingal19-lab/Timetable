@@ -61,6 +61,25 @@ export async function onRequestGet(context) {
     exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour expiration
   }, env.JWT_SECRET || 'secret-key-fallback');
 
-  // 6. Redirect to Frontend with Token
-  return Response.redirect(`${url.origin}/?auth_token=${sessionToken}`, 302);
+  // 6. If this was opened in a popup, send a message back to the opener and close.
+  //    Otherwise, fallback to a standard redirect (e.g. if user navigated directly).
+  const origin = url.origin;
+  const html = `<!DOCTYPE html>
+<html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#000066;color:white;">
+<p>Authenticating…</p>
+<script>
+  var token = ${JSON.stringify(sessionToken)};
+  if (window.opener) {
+    window.opener.postMessage({ type: 'google_auth_success', token: token }, ${JSON.stringify(origin)});
+    window.close();
+  } else {
+    window.location.href = '/?auth_token=' + encodeURIComponent(token);
+  }
+</script>
+</body></html>`;
+
+  return new Response(html, {
+    headers: { 'Content-Type': 'text/html; charset=utf-8' }
+  });
 }

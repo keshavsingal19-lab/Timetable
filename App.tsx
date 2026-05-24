@@ -380,11 +380,8 @@ function App() {
       try { setDismissedAds(JSON.parse(savedDismissed)); } catch (e) { }
     }
 
-    // Check Auth Token
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('auth_token');
-
-    if (token) {
+    // Shared helper: process an auth token (from URL redirect or popup postMessage)
+    const processAuthToken = (token: string) => {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         setAuthToken(token);
@@ -426,11 +423,28 @@ function App() {
           const syncRoll = payload.rollNo || '';
           setSetupRollNo(syncRoll);
         }
-        window.history.replaceState({}, document.title, "/");
         setActiveTab('student_portal');
       } catch (e) {
         setPortalError("Authentication failed. Please try again.");
       }
+    };
+
+    // Listen for auth token from popup window (Google OAuth)
+    const handleAuthMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type === 'google_auth_success' && event.data?.token) {
+        processAuthToken(event.data.token);
+      }
+    };
+    window.addEventListener('message', handleAuthMessage);
+
+    // Check Auth Token from URL (fallback for non-popup flow)
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('auth_token');
+
+    if (token) {
+      processAuthToken(token);
+      window.history.replaceState({}, document.title, "/");
     } else {
       const savedUser = localStorage.getItem("studentUser");
       const savedToken = localStorage.getItem("authToken");
@@ -480,6 +494,7 @@ function App() {
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('message', handleAuthMessage);
     };
   }, []);
 
@@ -619,7 +634,17 @@ function App() {
   };
 
   // --- AUTH HANDLERS ---
-  const handleGoogleLogin = () => window.location.href = "/api/auth/google";
+  const handleGoogleLogin = () => {
+    // Open Google OAuth in a popup so the user stays in the current PWA/browser context
+    const w = 500, h = 600;
+    const left = window.screenX + (window.innerWidth - w) / 2;
+    const top = window.screenY + (window.innerHeight - h) / 2;
+    window.open(
+      '/api/auth/google',
+      'google_auth',
+      `width=${w},height=${h},left=${left},top=${top},popup=yes`
+    );
+  };
   const handleMicrosoftLogin = () => window.location.href = "/api/auth/microsoft";
 
   const handleManualLogin = async (e: React.FormEvent) => {

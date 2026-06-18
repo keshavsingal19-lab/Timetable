@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { MessageCircle, X, Send, User, Mic, MicOff, Volume2, MapPin, Clock, Search, ChevronRight } from 'lucide-react';
+import { MessageCircle, X, Send, User, Mic, MicOff, Volume2, VolumeX, MapPin, Clock, Search, ChevronRight, Globe } from 'lucide-react';
 
 interface ChatWidgetProps {
   studentUser: any;
@@ -34,6 +34,8 @@ export function ChatWidget({ studentUser }: ChatWidgetProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [lang, setLang] = useState<'en' | 'hi'>('en');
+  const [autoSpeak, setAutoSpeak] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -43,31 +45,75 @@ export function ChatWidget({ studentUser }: ChatWidgetProps) {
   useEffect(() => { scrollToBottom(); }, [messages, isOpen, isLoading]);
   useEffect(() => { if (isOpen) setTimeout(() => inputRef.current?.focus(), 300); }, [isOpen]);
 
-  // ---- Web Speech API: Text-to-Speech ----
+  // ---- Pick the best available voice ----
+  const getBestVoice = useCallback((targetLang: string) => {
+    const voices = window.speechSynthesis?.getVoices() || [];
+    
+    if (targetLang === 'hi') {
+      // Prefer Google Hindi, then any Hindi voice
+      const googleHi = voices.find(v => v.lang.startsWith('hi') && v.name.includes('Google'));
+      if (googleHi) return googleHi;
+      const anyHi = voices.find(v => v.lang.startsWith('hi'));
+      if (anyHi) return anyHi;
+      // Fallback to English if no Hindi voice available
+    }
+    
+    // English: prefer Google UK/US voices (much higher quality than system voices)
+    const googleEn = voices.find(v => 
+      (v.name.includes('Google UK English Female') || v.name.includes('Google US English'))
+    );
+    if (googleEn) return googleEn;
+    
+    // Fallback to any decent English voice
+    const goodEn = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Karen')));
+    if (goodEn) return goodEn;
+    
+    const anyEn = voices.find(v => v.lang.startsWith('en'));
+    return anyEn || null;
+  }, []);
+
+  // Ensure voices are loaded (Chrome loads them async)
+  useEffect(() => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    }
+  }, []);
+
+  // ---- Text-to-Speech ----
   const speak = useCallback((text: string) => {
-    if (!('speechSynthesis' in window)) return;
+    if (!('speechSynthesis' in window) || !autoSpeak) return;
     window.speechSynthesis.cancel();
-    // Clean markdown bold markers
-    const clean = text.replace(/\*\*/g, '').replace(/•/g, '').replace(/\n/g, '. ');
+    const clean = text.replace(/\*\*/g, '').replace(/•/g, '').replace(/[→]/g, 'in').replace(/\n/g, '. ').replace(/\s+/g, ' ');
     const utterance = new SpeechSynthesisUtterance(clean);
-    utterance.lang = 'en-IN';
-    utterance.rate = 1.05;
+    
+    const voice = getBestVoice(lang);
+    if (voice) {
+      utterance.voice = voice;
+      utterance.lang = voice.lang;
+    } else {
+      utterance.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
+    }
+    
+    utterance.rate = 0.95;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);
     window.speechSynthesis.speak(utterance);
-  }, []);
+  }, [lang, autoSpeak, getBestVoice]);
 
   const stopSpeaking = useCallback(() => {
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     setIsSpeaking(false);
   }, []);
 
-  // ---- Web Speech API: Speech-to-Text ----
+  // ---- Speech-to-Text ----
   const toggleListening = useCallback(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert('Your browser doesn\'t support voice input. Try Chrome or Safari.');
+      alert('Voice input is not supported in this browser. Try Chrome or Safari.');
       return;
     }
 
@@ -78,7 +124,7 @@ export function ChatWidget({ studentUser }: ChatWidgetProps) {
     }
 
     const recognition = new SpeechRecognition();
-    recognition.lang = 'en-IN';
+    recognition.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
     recognition.continuous = false;
     recognition.interimResults = false;
 
@@ -86,7 +132,6 @@ export function ChatWidget({ studentUser }: ChatWidgetProps) {
       const transcript = event.results[0][0].transcript;
       setInput(transcript);
       setIsListening(false);
-      // Auto-send after voice input
       setTimeout(() => sendMessage(transcript), 200);
     };
 
@@ -96,7 +141,7 @@ export function ChatWidget({ studentUser }: ChatWidgetProps) {
     recognitionRef.current = recognition;
     recognition.start();
     setIsListening(true);
-  }, [isListening]);
+  }, [isListening, lang]);
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return;
@@ -123,8 +168,7 @@ export function ChatWidget({ studentUser }: ChatWidgetProps) {
       };
       setMessages(prev => [...prev, botMsg]);
 
-      // Auto-speak the response
-      if (botMsg.text) speak(botMsg.text);
+      if (botMsg.text && autoSpeak) speak(botMsg.text);
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', text: 'Connection error. Please try again.' }]);
     } finally {
@@ -132,8 +176,7 @@ export function ChatWidget({ studentUser }: ChatWidgetProps) {
     }
   };
 
-  const TIME_LABELS = ["8:30 AM", "9:30 AM", "10:30 AM", "11:30 AM", "12:30 PM", "1:30 PM", "2:30 PM", "3:30 PM", "4:30 PM"];
-
+  // ---- Render ----
   if (!isOpen) {
     return (
       <button
@@ -150,7 +193,7 @@ export function ChatWidget({ studentUser }: ChatWidgetProps) {
   return (
     <div
       className="fixed bottom-0 right-0 sm:bottom-6 sm:right-6 w-full sm:w-[400px] bg-white sm:rounded-2xl shadow-2xl overflow-hidden z-[100] flex flex-col border-0 sm:border sm:border-gray-200"
-      style={{ height: '100dvh', maxHeight: 'calc(100dvh)', ...(typeof window !== 'undefined' && window.innerWidth >= 640 ? { height: '600px', maxHeight: 'calc(100vh - 100px)' } : {}) }}
+      style={{ height: '100dvh', maxHeight: '100dvh', ...(typeof window !== 'undefined' && window.innerWidth >= 640 ? { height: '600px', maxHeight: 'calc(100vh - 100px)' } : {}) }}
     >
       {/* ---- Header ---- */}
       <div className="shrink-0 px-4 py-3 flex items-center gap-3 border-b border-gray-100" style={{ background: '#000066' }}>
@@ -161,11 +204,30 @@ export function ChatWidget({ studentUser }: ChatWidgetProps) {
           <div className="font-bold text-white text-sm leading-tight tracking-tight">Campus Finder</div>
           <div className="text-[11px] font-medium mt-0.5" style={{ color: 'rgba(255,255,255,0.6)' }}>Rooms • Teachers • Schedule</div>
         </div>
-        {isSpeaking && (
-          <button onClick={stopSpeaking} className="p-1.5 rounded-full transition-colors" style={{ background: 'rgba(252,235,8,0.2)' }}>
-            <Volume2 size={16} style={{ color: '#FCEB08' }} />
-          </button>
-        )}
+
+        {/* Language Toggle */}
+        <button
+          onClick={() => setLang(l => l === 'en' ? 'hi' : 'en')}
+          className="px-2 py-1 rounded-md text-[10px] font-bold tracking-wide transition-all active:scale-95"
+          style={{ background: 'rgba(252,235,8,0.15)', color: '#FCEB08', border: '1px solid rgba(252,235,8,0.3)' }}
+          title={lang === 'en' ? 'Switch to Hindi voice' : 'Switch to English voice'}
+        >
+          {lang === 'en' ? 'EN' : 'हि'}
+        </button>
+
+        {/* Speaker Toggle */}
+        <button
+          onClick={() => { setAutoSpeak(s => !s); if (isSpeaking) stopSpeaking(); }}
+          className="p-1.5 rounded-full transition-colors"
+          style={{ background: autoSpeak ? 'rgba(252,235,8,0.2)' : 'rgba(255,255,255,0.1)' }}
+          title={autoSpeak ? 'Mute voice output' : 'Enable voice output'}
+        >
+          {autoSpeak
+            ? <Volume2 size={15} style={{ color: '#FCEB08' }} />
+            : <VolumeX size={15} className="text-white/40" />
+          }
+        </button>
+
         <button onClick={() => { setIsOpen(false); stopSpeaking(); }} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
           <X size={18} className="text-white/70" />
         </button>
@@ -182,12 +244,13 @@ export function ChatWidget({ studentUser }: ChatWidgetProps) {
                   <Search size={12} className="text-white" strokeWidth={3} />
                 </div>
               )}
-              <div className={`px-3.5 py-2.5 text-[13px] leading-relaxed ${
-                msg.role === 'user'
-                  ? 'text-white rounded-2xl rounded-br-sm shadow-sm'
-                  : 'bg-white border border-gray-100 text-gray-800 rounded-2xl rounded-bl-sm shadow-sm'
-              }`}
-              style={msg.role === 'user' ? { background: '#000066' } : {}}
+              <div
+                className={`px-3.5 py-2.5 text-[13px] leading-relaxed ${
+                  msg.role === 'user'
+                    ? 'text-white rounded-2xl rounded-br-sm shadow-sm'
+                    : 'bg-white border border-gray-100 text-gray-800 rounded-2xl rounded-bl-sm shadow-sm'
+                }`}
+                style={msg.role === 'user' ? { background: '#000066' } : {}}
               >
                 {msg.text.split('\n').map((line, i) => (
                   <p key={i} className="mb-1 last:mb-0">{renderText(line)}</p>
@@ -256,13 +319,20 @@ export function ChatWidget({ studentUser }: ChatWidgetProps) {
 
       {/* ---- Input Bar ---- */}
       <div className="shrink-0 p-3 bg-white border-t border-gray-100">
+        {/* Listening indicator */}
+        {isListening && (
+          <div className="mb-2 flex items-center justify-center gap-2 text-red-500 text-xs font-semibold animate-pulse">
+            <div className="w-2 h-2 rounded-full bg-red-500"></div>
+            {lang === 'hi' ? 'सुन रहा हूँ... बोलिए' : 'Listening... speak now'}
+          </div>
+        )}
         <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} className="flex items-center gap-2">
           <button
             type="button"
             onClick={toggleListening}
             className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all active:scale-95 ${
               isListening
-                ? 'bg-red-500 text-white shadow-md animate-pulse'
+                ? 'bg-red-500 text-white shadow-md'
                 : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             }`}
           >
@@ -273,7 +343,7 @@ export function ChatWidget({ studentUser }: ChatWidgetProps) {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={isListening ? "Listening..." : "Type a question..."}
+            placeholder={isListening ? (lang === 'hi' ? "सुन रहा हूँ..." : "Listening...") : (lang === 'hi' ? "कोई सवाल पूछें..." : "Type a question...")}
             className="flex-1 bg-gray-50 border border-gray-200 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-gray-300 transition-all font-medium text-gray-700 placeholder:text-gray-400"
             style={{ '--tw-ring-color': 'rgba(0,0,102,0.15)' } as any}
             disabled={isLoading || isListening}

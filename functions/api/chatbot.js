@@ -235,18 +235,18 @@ function classifyIntent(text, roomMatch, teacherMatch, rollNo) {
   // HELP
   if (/\b(help|commands|kya kar sakte|what can you)\b/.test(text)) return "HELP";
 
-  // ROOM_INFO (specific room mentioned + question about it)
+  // ROOM_INFO (specific room ID mentioned + question about it)
   if (roomMatch && /\b(who|what|is|free|occupied|khali|kya|status)\b/.test(text)) return "ROOM_INFO";
   if (/\b(who is in|who's in|what's in|what is in|whats happening|who teaches in)\b/.test(text)) return "ROOM_INFO";
 
-  // TEACHER_INFO (teacher name detected)
-  if (teacherMatch && /\b(free|available|where|kahan|schedule|class|room|kidhar|busy|milenge)\b/.test(text)) return "TEACHER_INFO";
-  if (teacherMatch && !/\b(my|mera|mere|i)\b/.test(text)) return "TEACHER_INFO"; // If a teacher name is present and it's not about "my" stuff
-
-  // AVAILABLE_ROOMS
+  // AVAILABLE_ROOMS — check BEFORE teacher to avoid false positives
   if (/\b(room|rooms|kamra|halls?|labs?|tutorial)\b/.test(text) && /\b(free|available|empty|khali|vacant|open)\b/.test(text)) return "AVAILABLE_ROOMS";
   if (/\b(free room|available room|empty room|rooms? free|rooms? available|rooms? empty|rooms? khali)\b/.test(text)) return "AVAILABLE_ROOMS";
-  if (/\b(koi room|which room|konsa room|room mil|room chahiye)\b/.test(text)) return "AVAILABLE_ROOMS";
+  if (/\b(koi room|which room|konsa room|room mil|room chahiye|rooms? at)\b/.test(text)) return "AVAILABLE_ROOMS";
+
+  // TEACHER_INFO (teacher name detected) — only if no room keywords present
+  if (teacherMatch && /\b(free|available|where|kahan|schedule|kidhar|busy|milenge)\b/.test(text)) return "TEACHER_INFO";
+  if (teacherMatch && !/\b(my|mera|mere|room|rooms|available|free|empty)\b/.test(text)) return "TEACHER_INFO";
 
   // MY_NEXT_CLASS
   if (/\b(my next class|next lecture|next class|kahan jana|where.*(go|next)|what'?s next|agla class|agla period)\b/.test(text)) return "MY_NEXT_CLASS";
@@ -404,29 +404,50 @@ function parseRoom(text) {
 // ========================================================
 //  FIND TEACHER — fuzzy matching against DB
 // ========================================================
+const STOPWORDS = new Set([
+  // Days & time
+  'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+  'mon', 'tue', 'tues', 'wed', 'thu', 'thur', 'thurs', 'fri', 'sat', 'sun',
+  'today', 'tomorrow', 'yesterday', 'morning', 'afternoon', 'evening',
+  'somvar', 'mangalvar', 'budhvar', 'guruvar', 'shukravar', 'shanivar',
+  // Common query words
+  'room', 'rooms', 'free', 'available', 'empty', 'vacant', 'open', 'class',
+  'schedule', 'timetable', 'next', 'where', 'when', 'what', 'which', 'who',
+  'show', 'find', 'tell', 'give', 'help', 'about', 'between', 'after',
+  'before', 'from', 'until', 'lecture', 'tutorial', 'labs', 'hall',
+  'teacher', 'teachers', 'student', 'period', 'slot', 'time',
+  'mera', 'mere', 'meri', 'kya', 'kahan', 'kidhar', 'kab', 'kaun',
+  'khali', 'busy', 'aaj', 'kal', 'abhi', 'now', 'currently',
+  'classes', 'subjects', 'subject',
+]);
+
 function findTeacher(rawMessage, allTeachers) {
   if (!allTeachers.length) return null;
   const text = rawMessage.toLowerCase()
     .replace(/\b(dr|mr|ms|mrs|prof|professor|sir|ma'am|maam|madam)\b\.?/gi, '')
+    .replace(/\b\d[:.]?\d*\s*(am|pm)?\b/gi, '') // strip times
     .trim();
 
-  // 1. Exact substring match on full name
+  // 1. Exact substring match — teacher's surname or full name in query
   for (const t of allTeachers) {
     const name = t.name.toLowerCase().replace(/\b(dr|mr|ms|mrs|prof)\b\.?\s*/gi, '');
-    // Check if any significant word from the teacher name appears in the query
-    const nameWords = name.split(/[\s.]+/).filter(w => w.length >= 3);
+    const nameWords = name.split(/[\s.]+/).filter(w => w.length >= 4); // require 4+ char words
     for (const word of nameWords) {
-      if (text.includes(word)) return t;
+      if (STOPWORDS.has(word)) continue;
+      // Must be a standalone word in the query, not substring of another word
+      if (new RegExp(`\\b${escapeRegex(word)}\\b`).test(text)) return t;
     }
   }
 
-  // 2. Match by teacher code (e.g., "SPB", "JDP")
+  // 2. Match by teacher code (e.g., "SPB", "JDP") — only if explicitly typed
   for (const t of allTeachers) {
-    if (t.id.length >= 2 && text.includes(t.id.toLowerCase())) return t;
+    if (t.id.length >= 2 && t.id.length <= 4) {
+      if (new RegExp(`\\b${escapeRegex(t.id.toLowerCase())}\\b`).test(text)) return t;
+    }
   }
 
-  // 3. Levenshtein-based fuzzy match for names >= 4 chars
-  const queryWords = text.split(/\s+/).filter(w => w.length >= 4);
+  // 3. Levenshtein-based fuzzy match — strict: only non-stopword query words ≥ 5 chars
+  const queryWords = text.split(/\s+/).filter(w => w.length >= 5 && !STOPWORDS.has(w));
   if (queryWords.length === 0) return null;
 
   let bestMatch = null;
@@ -434,28 +455,39 @@ function findTeacher(rawMessage, allTeachers) {
 
   for (const t of allTeachers) {
     const nameClean = t.name.toLowerCase().replace(/\b(dr|mr|ms|mrs|prof)\b\.?\s*/gi, '');
-    const nameWords = nameClean.split(/[\s.]+/).filter(w => w.length >= 3);
+    const nameWords = nameClean.split(/[\s.]+/).filter(w => w.length >= 4 && !STOPWORDS.has(w));
 
     let score = 0;
     for (const qw of queryWords) {
       for (const nw of nameWords) {
-        // Prefix match (3+ chars)
-        if (nw.startsWith(qw.substring(0, 3)) || qw.startsWith(nw.substring(0, 3))) {
-          score += Math.min(qw.length, nw.length);
-        }
-        // Levenshtein for close matches
-        if (levenshtein(qw, nw) <= 2 && qw.length >= 4) {
+        // Exact match
+        if (qw === nw) { score += nw.length * 3; continue; }
+        // Prefix match — require at least 4 shared chars
+        const prefixLen = commonPrefixLength(qw, nw);
+        if (prefixLen >= 4) { score += prefixLen * 2; continue; }
+        // Levenshtein — only for words ≥ 5 chars, max distance 1
+        if (qw.length >= 5 && nw.length >= 5 && levenshtein(qw, nw) <= 1) {
           score += nw.length;
         }
       }
     }
-    if (score > bestScore && score >= 4) {
+    if (score > bestScore && score >= 8) {
       bestScore = score;
       bestMatch = t;
     }
   }
 
   return bestMatch;
+}
+
+function commonPrefixLength(a, b) {
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  return i;
+}
+
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function levenshtein(a, b) {

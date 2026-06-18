@@ -97,8 +97,9 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
     }
 
     const rec = new SR();
-    // hi-IN recognizes BOTH pure Hindi (Devanagari) and English natively without a toggle.
-    rec.lang = 'hi-IN';
+    // Use en-IN. It perfectly understands Indian English accents and Hinglish, 
+    // avoiding the issue where English speech gets coerced into Hindi script.
+    rec.lang = 'en-IN';
     rec.continuous = false;
     rec.interimResults = false;
 

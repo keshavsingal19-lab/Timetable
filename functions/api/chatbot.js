@@ -91,12 +91,19 @@ export async function onRequestPost(context) {
           const busy = new Set(daySlots.map(s => s.period_index));
           const free = [];
           for (let i = 0; i <= 8; i++) if (!busy.has(i)) free.push(TL[i]);
-          response = isHindi
-            ? `${teacherMatch.name} ${day} को free हैं: ${free.join(', ')}।`
-            : `${teacherMatch.name} is free on ${day} at: ${free.join(', ')}.`;
+          
+          if (free.length === 9) {
+            response = isHindi ? `${teacherMatch.name} की ${day} को कोई class नहीं है।` : `${teacherMatch.name} has no classes on ${day}.`;
+          } else if (free.length === 0) {
+            response = isHindi ? `${teacherMatch.name} ${day} को पूरे दिन busy हैं।` : `${teacherMatch.name} is busy all day on ${day}.`;
+          } else {
+            response = isHindi
+              ? `${teacherMatch.name} ${day} को इन times पर free हैं: ${free.join(', ')}।`
+              : `${teacherMatch.name} is free on ${day} at: ${free.join(', ')}.`;
+          }
         }
         speakText = response;
-        suggestions = [`${teacherMatch.name.split(' ').pop()} tomorrow`, "Free rooms now"];
+        suggestions = ["Free rooms now", "My next class"];
       }
     }
 
@@ -307,8 +314,11 @@ function findTeacher(rawMessage, allTeachers) {
         if (STOP.has(nw)) continue;
         // Exact word match
         if (qw === nw) { score += nw.length * 4; matchedWords++; continue; }
-        // Very close match (distance 1, both 5+ chars)
-        if (qw.length >= 5 && nw.length >= 5 && levenshtein(qw, nw) <= 1) { score += nw.length * 3; matchedWords++; continue; }
+        // Very close match (distance 1 for 4+ chars, distance 2 for 6+ chars)
+        const dist = levenshtein(qw, nw);
+        if ((qw.length >= 4 && nw.length >= 4 && dist <= 1) || (qw.length >= 6 && nw.length >= 6 && dist <= 2)) {
+          score += nw.length * 3; matchedWords++; continue;
+        }
         // Prefix match (4+ shared chars)
         let p = 0; while (p < qw.length && p < nw.length && qw[p] === nw[p]) p++;
         if (p >= 4) { score += p * 2; matchedWords++; }

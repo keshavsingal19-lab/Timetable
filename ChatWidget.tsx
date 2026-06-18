@@ -45,43 +45,139 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
     }
   }, []);
 
-  const getBestVoice = useCallback((isHindi: boolean) => {
-    const voices = window.speechSynthesis?.getVoices() || [];
-    if (isHindi) {
-      return voices.find(v => v.lang.startsWith('hi') && v.name.includes('Google'))
-        || voices.find(v => v.lang.startsWith('hi'))
-        || voices.find(v => v.name.includes('Google') && v.lang.startsWith('en'))
-        || null;
-    }
-    // English: prefer Google voices (much better quality)
-    return voices.find(v => v.name === 'Google UK English Female')
-      || voices.find(v => v.name.includes('Google') && v.lang.startsWith('en'))
-      || voices.find(v => v.lang.startsWith('en') && (v.name.includes('Female') || v.name.includes('Samantha')))
-      || voices.find(v => v.lang.startsWith('en'))
-      || null;
-  }, []);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const resumeIntervalRef = useRef<any>(null);
 
   const stopSpeaking = useCallback(() => {
+    // Stop Edge TTS audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current.src = '';
+      audioRef.current = null;
+    }
+    // Stop browser speechSynthesis
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    // Clear Chrome glitch fix interval
+    if (resumeIntervalRef.current) {
+      clearInterval(resumeIntervalRef.current);
+      resumeIntervalRef.current = null;
+    }
     setIsSpeaking(false);
   }, []);
 
-  const speak = useCallback((text: string, isHindi: boolean) => {
-    if (!('speechSynthesis' in window) || !autoSpeak || !text) return;
+  // Humanize text for natural speech cadence
+  const humanizeText = (text: string): string => {
+    return text
+      .replace(/\*\*/g, '')
+      .replace(/[•→]/g, ' ')
+      .replace(/\n/g, '. ')
+      .replace(/(\d+)\s*rooms?\b/gi, (_, n) => `${n} rooms`)
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  // Primary: Edge TTS neural audio (works on ALL browsers)
+  const speakEdgeTTS = useCallback(async (text: string, isHindi: boolean): Promise<boolean> => {
+    const clean = humanizeText(text);
+    if (!clean || clean.length > 500) return false;
+    try {
+      const lang = isHindi ? 'hi-IN' : 'en-IN';
+      const url = `/api/tts?text=${encodeURIComponent(clean)}&lang=${lang}`;
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onplay = () => setIsSpeaking(true);
+      audio.onended = () => { setIsSpeaking(false); audioRef.current = null; };
+      audio.onerror = () => { setIsSpeaking(false); audioRef.current = null; };
+      await audio.play();
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  // Fallback: Improved browser speechSynthesis
+  const getBestVoice = useCallback((isHindi: boolean) => {
+    const voices = window.speechSynthesis?.getVoices() || [];
+    const langPrefix = isHindi ? 'hi' : 'en';
+
+    // Priority 1: Neural/Natural voices (Edge provides these)
+    const neural = voices.find(v =>
+      v.lang.startsWith(langPrefix) &&
+      (v.name.includes('Neural') || v.name.includes('Natural')) &&
+      !v.localService
+    );
+    if (neural) return neural;
+
+    // Priority 2: Google online voices
+    const google = voices.find(v =>
+      v.lang.startsWith(langPrefix) && v.name.includes('Google')
+    );
+    if (google) return google;
+
+    // Priority 3: Any non-local (online/cloud) voice
+    const online = voices.find(v =>
+      v.lang.startsWith(langPrefix) && !v.localService
+    );
+    if (online) return online;
+
+    // Priority 4: Any voice for this language
+    return voices.find(v => v.lang.startsWith(langPrefix)) || null;
+  }, []);
+
+  const speakBrowserFallback = useCallback((text: string, isHindi: boolean) => {
+    if (!('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
-    const clean = text.replace(/\*\*/g, '').replace(/[•→]/g, ' ').replace(/\n/g, '. ').replace(/\s+/g, ' ').trim();
+    const clean = humanizeText(text);
     if (!clean) return;
-    const utt = new SpeechSynthesisUtterance(clean);
+
+    // Sentence fragmentation: split long text for fluid delivery
+    const sentences = clean.match(/[^.!?]+[.!?]?/g) || [clean];
     const voice = getBestVoice(isHindi);
-    if (voice) { utt.voice = voice; utt.lang = voice.lang; }
-    else utt.lang = isHindi ? 'hi-IN' : 'en-IN';
-    utt.rate = 0.92;
-    utt.pitch = 1.0;
-    utt.onstart = () => setIsSpeaking(true);
-    utt.onend = () => setIsSpeaking(false);
-    utt.onerror = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utt);
-  }, [autoSpeak, getBestVoice]);
+
+    const speakNext = (index: number) => {
+      if (index >= sentences.length) {
+        setIsSpeaking(false);
+        if (resumeIntervalRef.current) { clearInterval(resumeIntervalRef.current); resumeIntervalRef.current = null; }
+        return;
+      }
+      const s = sentences[index].trim();
+      if (!s) { speakNext(index + 1); return; }
+
+      const utt = new SpeechSynthesisUtterance(s);
+      if (voice) { utt.voice = voice; utt.lang = voice.lang; }
+      else utt.lang = isHindi ? 'hi-IN' : 'en-IN';
+      utt.rate = 0.92;
+      utt.pitch = 1.0;
+      utt.volume = 1.0;
+      utt.onstart = () => setIsSpeaking(true);
+      utt.onend = () => speakNext(index + 1);
+      utt.onerror = () => { setIsSpeaking(false); if (resumeIntervalRef.current) clearInterval(resumeIntervalRef.current); };
+      window.speechSynthesis.speak(utt);
+    };
+
+    // Chrome 15-second glitch fix: periodically resume to prevent freezing
+    resumeIntervalRef.current = setInterval(() => {
+      if (!window.speechSynthesis.speaking) {
+        clearInterval(resumeIntervalRef.current);
+        resumeIntervalRef.current = null;
+      } else {
+        window.speechSynthesis.resume();
+      }
+    }, 10000);
+
+    speakNext(0);
+  }, [getBestVoice]);
+
+  // Hybrid speak: try Edge TTS first, fallback to browser
+  const speak = useCallback(async (text: string, isHindi: boolean) => {
+    if (!autoSpeak || !text) return;
+    stopSpeaking();
+    const edgeWorked = await speakEdgeTTS(text, isHindi);
+    if (!edgeWorked) {
+      speakBrowserFallback(text, isHindi);
+    }
+  }, [autoSpeak, stopSpeaking, speakEdgeTTS, speakBrowserFallback]);
 
   // --- Phonetic Correction Dictionary ---
   // Maps common Web Speech API mishearings to correct words (Indian English context)

@@ -49,16 +49,12 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
   const resumeIntervalRef = useRef<any>(null);
 
   const stopSpeaking = useCallback(() => {
-    // Stop Edge TTS audio
     if (audioRef.current) {
       audioRef.current.pause();
-      audioRef.current.currentTime = 0;
       audioRef.current.src = '';
       audioRef.current = null;
     }
-    // Stop browser speechSynthesis
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-    // Clear Chrome glitch fix interval
     if (resumeIntervalRef.current) {
       clearInterval(resumeIntervalRef.current);
       resumeIntervalRef.current = null;
@@ -72,42 +68,16 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
       .replace(/\*\*/g, '')
       .replace(/[•→]/g, ' ')
       .replace(/\n/g, '. ')
-      .replace(/(\d+)\s*rooms?\b/gi, (_, n) => `${n} rooms`)
       .replace(/\s+/g, ' ')
       .trim();
   };
 
-  // Primary: Edge TTS neural audio (works on ALL browsers)
-  const speakEdgeTTS = useCallback(async (text: string, isHindi: boolean): Promise<boolean> => {
-    const clean = humanizeText(text);
-    if (!clean || clean.length > 500) return false;
-    try {
-      const lang = isHindi ? 'hi-IN' : 'en-IN';
-      const url = `/api/tts?text=${encodeURIComponent(clean)}&lang=${lang}`;
-      // Pre-fetch to validate the response is actual audio
-      const res = await fetch(url);
-      if (!res.ok || !res.headers.get('content-type')?.includes('audio')) return false;
-      const blob = await res.blob();
-      if (blob.size < 100) return false; // Too small = error response
-      const audioUrl = URL.createObjectURL(blob);
-      const audio = new Audio(audioUrl);
-      audioRef.current = audio;
-      audio.onplay = () => setIsSpeaking(true);
-      audio.onended = () => { setIsSpeaking(false); audioRef.current = null; URL.revokeObjectURL(audioUrl); };
-      audio.onerror = () => { setIsSpeaking(false); audioRef.current = null; URL.revokeObjectURL(audioUrl); };
-      await audio.play();
-      return true;
-    } catch {
-      return false;
-    }
-  }, []);
-
-  // Fallback: Improved browser speechSynthesis
+  // Voice selection: Neural > Google > Online > Any
   const getBestVoice = useCallback((isHindi: boolean) => {
     const voices = window.speechSynthesis?.getVoices() || [];
     const langPrefix = isHindi ? 'hi' : 'en';
 
-    // Priority 1: Neural/Natural voices (Edge provides these)
+    // Priority 1: Neural/Natural voices (Edge browser provides these)
     const neural = voices.find(v =>
       v.lang.startsWith(langPrefix) &&
       (v.name.includes('Neural') || v.name.includes('Natural')) &&
@@ -115,7 +85,7 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
     );
     if (neural) return neural;
 
-    // Priority 2: Google online voices
+    // Priority 2: Google online voices (Chrome provides these)
     const google = voices.find(v =>
       v.lang.startsWith(langPrefix) && v.name.includes('Google')
     );
@@ -131,13 +101,33 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
     return voices.find(v => v.lang.startsWith(langPrefix)) || null;
   }, []);
 
-  const speakBrowserFallback = useCallback((text: string, isHindi: boolean) => {
-    if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
+  const speak = useCallback(async (text: string, isHindi: boolean) => {
+    if (!autoSpeak || !text) return;
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     const clean = humanizeText(text);
     if (!clean) return;
 
-    // Sentence fragmentation: split long text for fluid delivery
+    // Try Edge TTS neural audio first (crystal-clear, works on all browsers)
+    try {
+      const lang = isHindi ? 'hi-IN' : 'en-IN';
+      const res = await fetch(`/api/tts?text=${encodeURIComponent(clean)}&lang=${lang}`);
+      if (res.ok && res.headers.get('content-type')?.includes('audio')) {
+        const blob = await res.blob();
+        if (blob.size > 100) {
+          const url = URL.createObjectURL(blob);
+          const audio = new Audio(url);
+          audioRef.current = audio;
+          audio.onplay = () => setIsSpeaking(true);
+          audio.onended = () => { setIsSpeaking(false); audioRef.current = null; URL.revokeObjectURL(url); };
+          audio.onerror = () => { setIsSpeaking(false); audioRef.current = null; URL.revokeObjectURL(url); };
+          await audio.play();
+          return; // Success — skip browser fallback
+        }
+      }
+    } catch {} // Silent fail → use browser fallback below
+
+    // Fallback: improved browser speechSynthesis
+    if (!('speechSynthesis' in window)) return;
     const sentences = clean.match(/[^.!?]+[.!?]?/g) || [clean];
     const voice = getBestVoice(isHindi);
 
@@ -162,7 +152,6 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
       window.speechSynthesis.speak(utt);
     };
 
-    // Chrome 15-second glitch fix: periodically resume to prevent freezing
     resumeIntervalRef.current = setInterval(() => {
       if (!window.speechSynthesis.speaking) {
         clearInterval(resumeIntervalRef.current);
@@ -173,17 +162,7 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
     }, 10000);
 
     speakNext(0);
-  }, [getBestVoice]);
-
-  // Hybrid speak: try Edge TTS first, fallback to browser
-  const speak = useCallback(async (text: string, isHindi: boolean) => {
-    if (!autoSpeak || !text) return;
-    stopSpeaking();
-    const edgeWorked = await speakEdgeTTS(text, isHindi);
-    if (!edgeWorked) {
-      speakBrowserFallback(text, isHindi);
-    }
-  }, [autoSpeak, stopSpeaking, speakEdgeTTS, speakBrowserFallback]);
+  }, [autoSpeak, getBestVoice]);
 
   // --- Phonetic Correction Dictionary ---
   // Maps common Web Speech API mishearings to correct words (Indian English context)

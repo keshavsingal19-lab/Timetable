@@ -1,223 +1,293 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, User, Bot, Sparkles, Loader2, MapPin, Clock } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { MessageCircle, X, Send, User, Mic, MicOff, Volume2, MapPin, Clock, Search, ChevronRight } from 'lucide-react';
 
 interface ChatWidgetProps {
   studentUser: any;
 }
 
-/** Renders text with **bold** markdown support */
-function renderMarkdown(text: string) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="font-bold">{part.slice(2, -2)}</strong>;
-    }
-    return <span key={i}>{part}</span>;
-  });
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  text: string;
+  data?: any[];
+  suggestions?: string[];
+}
+
+/** Simple bold text renderer for **text** patterns */
+function renderText(text: string) {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith('**') && part.endsWith('**')
+      ? <strong key={i} className="font-bold">{part.slice(2, -2)}</strong>
+      : <span key={i}>{part}</span>
+  );
 }
 
 export function ChatWidget({ studentUser }: ChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<{ role: 'user' | 'bot'; text: string; data?: any; suggestions?: string[] }[]>([
-    { 
-      role: 'bot', 
-      text: "Hey! 👋 I'm your SRCC Timetable Assistant.\nAsk me about free rooms, your next class, or a room's status!", 
-      suggestions: ['Rooms free right now', 'My next class', 'Help'] 
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      role: 'assistant',
+      text: "Hey! 👋 Need to find a room or check a schedule?\nJust type your question below, or tap a button to get started.",
+      suggestions: ['Free rooms now', 'My next class', 'Help']
     }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, isOpen, isLoading]);
+  useEffect(() => { scrollToBottom(); }, [messages, isOpen, isLoading]);
+  useEffect(() => { if (isOpen) setTimeout(() => inputRef.current?.focus(), 300); }, [isOpen]);
 
-  // Focus input when chat opens
-  useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 300);
+  // ---- Web Speech API: Text-to-Speech ----
+  const speak = useCallback((text: string) => {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    // Clean markdown bold markers
+    const clean = text.replace(/\*\*/g, '').replace(/•/g, '').replace(/\n/g, '. ');
+    const utterance = new SpeechSynthesisUtterance(clean);
+    utterance.lang = 'en-IN';
+    utterance.rate = 1.05;
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(utterance);
+  }, []);
+
+  const stopSpeaking = useCallback(() => {
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+  }, []);
+
+  // ---- Web Speech API: Speech-to-Text ----
+  const toggleListening = useCallback(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Your browser doesn\'t support voice input. Try Chrome or Safari.');
+      return;
     }
-  }, [isOpen]);
+
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-IN';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+      setIsListening(false);
+      // Auto-send after voice input
+      setTimeout(() => sendMessage(transcript), 200);
+    };
+
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
+  }, [isListening]);
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return;
-    
-    const userMsg = { role: 'user' as const, text };
+    stopSpeaking();
+
+    const userMsg: ChatMessage = { role: 'user', text };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/chatbot', {
+      const res = await fetch('/api/chatbot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          message: text,
-          rollNo: studentUser?.rollNo || null
-        })
+        body: JSON.stringify({ message: text, rollNo: studentUser?.rollNo || null })
       });
-      
-      const result = await response.json();
-      
-      setMessages(prev => [...prev, { 
-        role: 'bot', 
-        text: result.response || result.error || "Sorry, something went wrong.", 
-        data: result.data,
+      const result = await res.json();
+
+      const botMsg: ChatMessage = {
+        role: 'assistant',
+        text: result.response || result.error || "Something went wrong.",
+        data: result.data || undefined,
         suggestions: result.suggestions
-      }]);
-    } catch (error) {
-      setMessages(prev => [...prev, { role: 'bot', text: 'Connection error. Please try again.' }]);
+      };
+      setMessages(prev => [...prev, botMsg]);
+
+      // Auto-speak the response
+      if (botMsg.text) speak(botMsg.text);
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', text: 'Connection error. Please try again.' }]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  return (
-    <>
-      {/* Floating Action Button */}
+  const TIME_LABELS = ["8:30 AM", "9:30 AM", "10:30 AM", "11:30 AM", "12:30 PM", "1:30 PM", "2:30 PM", "3:30 PM", "4:30 PM"];
+
+  if (!isOpen) {
+    return (
       <button
         id="chatbot-fab"
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-[100] p-4 bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-full shadow-xl hover:shadow-2xl transition-all transform hover:scale-110 active:scale-95 flex items-center justify-center"
-        style={{ boxShadow: '0 4px 24px rgba(249, 115, 22, 0.4)' }}
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-6 right-6 z-[100] w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 active:scale-95"
+        style={{ background: '#000066', boxShadow: '0 4px 20px rgba(0,0,102,0.35)' }}
       >
-        {isOpen ? <X size={26} strokeWidth={2.5} /> : <MessageCircle size={26} strokeWidth={2.5} />}
+        <Search size={24} className="text-white" strokeWidth={2.5} />
       </button>
+    );
+  }
 
-      {/* Chat Window */}
-      {isOpen && (
-        <div 
-          className="fixed bottom-24 right-4 sm:right-6 w-[calc(100vw-2rem)] sm:w-[400px] bg-white rounded-3xl shadow-2xl overflow-hidden z-[100] flex flex-col border border-gray-200/80"
-          style={{ height: '600px', maxHeight: 'calc(100vh - 120px)', boxShadow: '0 8px 48px rgba(0,0,0,0.12)' }}
-        >
-          {/* ---- Header ---- */}
-          <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-4 text-white flex items-center gap-3 shrink-0">
-            <div className="bg-white/20 p-2.5 rounded-xl">
-              <Sparkles size={20} className="text-yellow-200" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-bold text-base leading-tight">Timetable Assistant</div>
-              <div className="text-orange-100 text-[11px] font-medium mt-0.5">Ask anything about rooms, classes & teachers</div>
-            </div>
-            <button onClick={() => setIsOpen(false)} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition-colors shrink-0">
-              <X size={18} />
-            </button>
-          </div>
+  return (
+    <div
+      className="fixed bottom-0 right-0 sm:bottom-6 sm:right-6 w-full sm:w-[400px] bg-white sm:rounded-2xl shadow-2xl overflow-hidden z-[100] flex flex-col border-0 sm:border sm:border-gray-200"
+      style={{ height: '100dvh', maxHeight: 'calc(100dvh)', ...(typeof window !== 'undefined' && window.innerWidth >= 640 ? { height: '600px', maxHeight: 'calc(100vh - 100px)' } : {}) }}
+    >
+      {/* ---- Header ---- */}
+      <div className="shrink-0 px-4 py-3 flex items-center gap-3 border-b border-gray-100" style={{ background: '#000066' }}>
+        <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(252,235,8,0.2)' }}>
+          <Search size={18} style={{ color: '#FCEB08' }} strokeWidth={2.5} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-bold text-white text-sm leading-tight tracking-tight">Campus Finder</div>
+          <div className="text-[11px] font-medium mt-0.5" style={{ color: 'rgba(255,255,255,0.6)' }}>Rooms • Teachers • Schedule</div>
+        </div>
+        {isSpeaking && (
+          <button onClick={stopSpeaking} className="p-1.5 rounded-full transition-colors" style={{ background: 'rgba(252,235,8,0.2)' }}>
+            <Volume2 size={16} style={{ color: '#FCEB08' }} />
+          </button>
+        )}
+        <button onClick={() => { setIsOpen(false); stopSpeaking(); }} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
+          <X size={18} className="text-white/70" />
+        </button>
+      </div>
 
-          {/* ---- Messages ---- */}
-          <div className="flex-1 overflow-y-auto p-4 bg-gradient-to-b from-orange-50/30 to-white flex flex-col gap-4">
-            {messages.map((msg, idx) => (
-              <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                {/* Message bubble */}
-                <div className={`flex items-end gap-2 max-w-[88%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                    msg.role === 'user' 
-                      ? 'bg-orange-100 text-orange-600' 
-                      : 'bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-sm'
-                  }`}>
-                    {msg.role === 'user' ? <User size={14} strokeWidth={2.5} /> : <Bot size={14} strokeWidth={2.5} />}
-                  </div>
-                  <div className={`px-3.5 py-2.5 text-[13px] leading-relaxed ${
-                    msg.role === 'user' 
-                      ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-2xl rounded-br-sm shadow-sm' 
-                      : 'bg-white border border-gray-100 text-gray-800 rounded-2xl rounded-bl-sm shadow-sm'
-                  }`}>
-                    {msg.text.split('\n').map((line, i) => (
-                      <p key={i} className="mb-1 last:mb-0">{renderMarkdown(line)}</p>
-                    ))}
-                  </div>
+      {/* ---- Messages ---- */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4 bg-gray-50/50">
+        {messages.map((msg, idx) => (
+          <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+            {/* Bubble */}
+            <div className={`flex items-end gap-2 max-w-[90%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+              {msg.role === 'assistant' && (
+                <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 mb-0.5" style={{ background: '#000066' }}>
+                  <Search size={12} className="text-white" strokeWidth={3} />
                 </div>
-                
-                {/* ---- Data Cards ---- */}
-                {msg.data && Array.isArray(msg.data) && msg.data.length > 0 && msg.role === 'bot' && (
-                  <div className="mt-2 ml-9 flex flex-col gap-1.5 w-full max-w-[88%]">
-                    {msg.data.slice(0, 15).map((item: any, i: number) => (
-                      <div key={i} className="bg-white px-3 py-2 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between gap-2 hover:border-orange-200 transition-colors">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0"></div>
-                          <span className="font-semibold text-gray-800 text-[13px] truncate">{item.room || item.subject}</span>
-                          {item.room && item.subject && (
-                            <span className="text-gray-400 text-[11px] truncate">in {item.room}</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {item.time && (
-                            <span className="text-[10px] font-medium text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">{item.time}</span>
-                          )}
-                          <span className="text-[10px] font-medium text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">{item.type || item.class_type}</span>
-                        </div>
-                      </div>
-                    ))}
-                    {msg.data.length > 15 && (
-                      <div className="text-[11px] text-gray-400 text-center py-1">
-                        +{msg.data.length - 15} more rooms
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-                {/* ---- Suggestion Chips (only on last bot message) ---- */}
-                {msg.suggestions && msg.suggestions.length > 0 && msg.role === 'bot' && idx === messages.length - 1 && !isLoading && (
-                  <div className="mt-2.5 ml-9 flex flex-wrap gap-1.5 max-w-[88%]">
-                    {msg.suggestions.map((s, i) => (
-                      <button
-                        key={i}
-                        onClick={() => sendMessage(s)}
-                        className="bg-white hover:bg-orange-50 text-orange-600 border border-orange-200 hover:border-orange-300 px-3 py-1 rounded-full text-[11px] font-semibold transition-all shadow-sm active:scale-95"
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                )}
+              )}
+              <div className={`px-3.5 py-2.5 text-[13px] leading-relaxed ${
+                msg.role === 'user'
+                  ? 'text-white rounded-2xl rounded-br-sm shadow-sm'
+                  : 'bg-white border border-gray-100 text-gray-800 rounded-2xl rounded-bl-sm shadow-sm'
+              }`}
+              style={msg.role === 'user' ? { background: '#000066' } : {}}
+              >
+                {msg.text.split('\n').map((line, i) => (
+                  <p key={i} className="mb-1 last:mb-0">{renderText(line)}</p>
+                ))}
               </div>
-            ))}
-            
-            {/* Typing indicator */}
-            {isLoading && (
-              <div className="flex items-end gap-2 max-w-[88%]">
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-                  <Loader2 size={14} className="animate-spin" strokeWidth={3} />
-                </div>
-                <div className="bg-white border border-gray-100 px-4 py-3 rounded-2xl rounded-bl-sm shadow-sm flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{animationDelay: '0ms'}}></div>
-                  <div className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{animationDelay: '150ms'}}></div>
-                  <div className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{animationDelay: '300ms'}}></div>
-                </div>
+            </div>
+
+            {/* Data Cards */}
+            {msg.data && msg.data.length > 0 && msg.role === 'assistant' && (
+              <div className="mt-2 ml-8 flex flex-col gap-1.5 w-full max-w-[90%]">
+                {msg.data.slice(0, 12).map((item: any, i: number) => (
+                  <div key={i} className="bg-white px-3 py-2 rounded-xl border border-gray-100 flex items-center justify-between gap-2 shadow-sm">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#000066' }}></div>
+                      <span className="font-semibold text-gray-800 text-[13px] truncate">{item.room || item.subject}</span>
+                      {item.subject && item.room && (
+                        <span className="text-gray-400 text-[11px] truncate flex items-center gap-0.5">
+                          <MapPin size={10} /> {item.room}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {item.time && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ color: '#000066', background: 'rgba(0,0,102,0.06)' }}>{item.time}</span>
+                      )}
+                      <span className="text-[10px] font-medium text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">{item.type}</span>
+                    </div>
+                  </div>
+                ))}
+                {msg.data.length > 12 && (
+                  <div className="text-[11px] text-gray-400 text-center py-1">+{msg.data.length - 12} more</div>
+                )}
               </div>
             )}
-            <div ref={messagesEndRef} />
-          </div>
 
-          {/* ---- Input ---- */}
-          <div className="p-3 bg-white border-t border-gray-100 shrink-0">
-            <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} className="flex gap-2">
-              <input
-                ref={inputRef}
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about rooms, classes, teachers..."
-                className="flex-1 bg-gray-50 border border-gray-200 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 focus:bg-white transition-all font-medium text-gray-700 placeholder:text-gray-400"
-                disabled={isLoading}
-              />
-              <button
-                type="submit"
-                disabled={!input.trim() || isLoading}
-                className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-full flex items-center justify-center hover:shadow-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0 active:scale-95"
-              >
-                <Send size={16} strokeWidth={2.5} />
-              </button>
-            </form>
+            {/* Suggestion Chips */}
+            {msg.suggestions && msg.suggestions.length > 0 && msg.role === 'assistant' && idx === messages.length - 1 && !isLoading && (
+              <div className="mt-2.5 ml-8 flex flex-wrap gap-1.5 max-w-[90%]">
+                {msg.suggestions.map((s, i) => (
+                  <button key={i} onClick={() => sendMessage(s)}
+                    className="bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 px-3 py-1.5 rounded-full text-[11px] font-semibold text-gray-700 transition-all active:scale-95 shadow-sm flex items-center gap-1"
+                  >
+                    {s} <ChevronRight size={10} className="text-gray-400" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      )}
-    </>
+        ))}
+
+        {/* Typing indicator */}
+        {isLoading && (
+          <div className="flex items-end gap-2 max-w-[90%]">
+            <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0" style={{ background: '#000066' }}>
+              <div className="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            </div>
+            <div className="bg-white border border-gray-100 px-4 py-3 rounded-2xl rounded-bl-sm shadow-sm flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* ---- Input Bar ---- */}
+      <div className="shrink-0 p-3 bg-white border-t border-gray-100">
+        <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleListening}
+            className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all active:scale-95 ${
+              isListening
+                ? 'bg-red-500 text-white shadow-md animate-pulse'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+          >
+            {isListening ? <MicOff size={18} strokeWidth={2.5} /> : <Mic size={18} strokeWidth={2.5} />}
+          </button>
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={isListening ? "Listening..." : "Type a question..."}
+            className="flex-1 bg-gray-50 border border-gray-200 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-gray-300 transition-all font-medium text-gray-700 placeholder:text-gray-400"
+            style={{ '--tw-ring-color': 'rgba(0,0,102,0.15)' } as any}
+            disabled={isLoading || isListening}
+          />
+          <button
+            type="submit"
+            disabled={!input.trim() || isLoading}
+            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95 hover:opacity-90"
+            style={{ background: '#000066' }}
+          >
+            <Send size={16} strokeWidth={2.5} />
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }

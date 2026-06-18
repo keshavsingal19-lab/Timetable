@@ -1,18 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { MessageCircle, X, Send, User, Mic, MicOff, Volume2, VolumeX, MapPin, Clock, Search, ChevronRight, Globe } from 'lucide-react';
-
-interface ChatWidgetProps {
-  studentUser: any;
-}
+import { X, Send, Mic, MicOff, Volume2, VolumeX, MapPin, Search, ChevronRight } from 'lucide-react';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
   data?: any[];
   suggestions?: string[];
+  speakText?: string;
 }
 
-/** Simple bold text renderer for **text** patterns */
 function renderText(text: string) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
     part.startsWith('**') && part.endsWith('**')
@@ -21,58 +17,27 @@ function renderText(text: string) {
   );
 }
 
-export function ChatWidget({ studentUser }: ChatWidgetProps) {
+export function ChatWidget({ studentUser }: { studentUser: any }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: 'assistant',
-      text: "Hey! 👋 Need to find a room or check a schedule?\nJust type your question below, or tap a button to get started.",
-      suggestions: ['Free rooms now', 'My next class', 'Help']
-    }
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([{
+    role: 'assistant',
+    text: "Hey! 👋 Find rooms, teachers, or your schedule.\nType below or tap the mic to speak.",
+    suggestions: ['Free rooms now', 'My next class', 'Help']
+  }]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [lang, setLang] = useState<'en' | 'hi'>('en');
   const [autoSpeak, setAutoSpeak] = useState(true);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const recognitionRef = useRef<any>(null);
+  const recRef = useRef<any>(null);
 
-  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-
-  useEffect(() => { scrollToBottom(); }, [messages, isOpen, isLoading]);
+  const scrollToBottom = () => endRef.current?.scrollIntoView({ behavior: 'smooth' });
+  useEffect(scrollToBottom, [messages, isOpen, isLoading]);
   useEffect(() => { if (isOpen) setTimeout(() => inputRef.current?.focus(), 300); }, [isOpen]);
 
-  // ---- Pick the best available voice ----
-  const getBestVoice = useCallback((targetLang: string) => {
-    const voices = window.speechSynthesis?.getVoices() || [];
-    
-    if (targetLang === 'hi') {
-      // Prefer Google Hindi, then any Hindi voice
-      const googleHi = voices.find(v => v.lang.startsWith('hi') && v.name.includes('Google'));
-      if (googleHi) return googleHi;
-      const anyHi = voices.find(v => v.lang.startsWith('hi'));
-      if (anyHi) return anyHi;
-      // Fallback to English if no Hindi voice available
-    }
-    
-    // English: prefer Google UK/US voices (much higher quality than system voices)
-    const googleEn = voices.find(v => 
-      (v.name.includes('Google UK English Female') || v.name.includes('Google US English'))
-    );
-    if (googleEn) return googleEn;
-    
-    // Fallback to any decent English voice
-    const goodEn = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Karen')));
-    if (goodEn) return goodEn;
-    
-    const anyEn = voices.find(v => v.lang.startsWith('en'));
-    return anyEn || null;
-  }, []);
-
-  // Ensure voices are loaded (Chrome loads them async)
+  // Load voices on mount
   useEffect(() => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.getVoices();
@@ -80,75 +45,82 @@ export function ChatWidget({ studentUser }: ChatWidgetProps) {
     }
   }, []);
 
-  // ---- Text-to-Speech ----
-  const speak = useCallback((text: string) => {
-    if (!('speechSynthesis' in window) || !autoSpeak) return;
-    window.speechSynthesis.cancel();
-    const clean = text.replace(/\*\*/g, '').replace(/•/g, '').replace(/[→]/g, 'in').replace(/\n/g, '. ').replace(/\s+/g, ' ');
-    const utterance = new SpeechSynthesisUtterance(clean);
-    
-    const voice = getBestVoice(lang);
-    if (voice) {
-      utterance.voice = voice;
-      utterance.lang = voice.lang;
-    } else {
-      utterance.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
+  const getBestVoice = useCallback((isHindi: boolean) => {
+    const voices = window.speechSynthesis?.getVoices() || [];
+    if (isHindi) {
+      return voices.find(v => v.lang.startsWith('hi') && v.name.includes('Google'))
+        || voices.find(v => v.lang.startsWith('hi'))
+        || voices.find(v => v.name.includes('Google') && v.lang.startsWith('en'))
+        || null;
     }
-    
-    utterance.rate = 0.95;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utterance);
-  }, [lang, autoSpeak, getBestVoice]);
+    // English: prefer Google voices (much better quality)
+    return voices.find(v => v.name === 'Google UK English Female')
+      || voices.find(v => v.name.includes('Google') && v.lang.startsWith('en'))
+      || voices.find(v => v.lang.startsWith('en') && (v.name.includes('Female') || v.name.includes('Samantha')))
+      || voices.find(v => v.lang.startsWith('en'))
+      || null;
+  }, []);
 
   const stopSpeaking = useCallback(() => {
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     setIsSpeaking(false);
   }, []);
 
-  // ---- Speech-to-Text ----
-  const toggleListening = useCallback(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert('Voice input is not supported in this browser. Try Chrome or Safari.');
-      return;
-    }
+  const speak = useCallback((text: string, isHindi: boolean) => {
+    if (!('speechSynthesis' in window) || !autoSpeak || !text) return;
+    window.speechSynthesis.cancel();
+    const clean = text.replace(/\*\*/g, '').replace(/[•→]/g, ' ').replace(/\n/g, '. ').replace(/\s+/g, ' ').trim();
+    if (!clean) return;
+    const utt = new SpeechSynthesisUtterance(clean);
+    const voice = getBestVoice(isHindi);
+    if (voice) { utt.voice = voice; utt.lang = voice.lang; }
+    else utt.lang = isHindi ? 'hi-IN' : 'en-IN';
+    utt.rate = 0.92;
+    utt.pitch = 1.0;
+    utt.onstart = () => setIsSpeaking(true);
+    utt.onend = () => setIsSpeaking(false);
+    utt.onerror = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(utt);
+  }, [autoSpeak, getBestVoice]);
 
-    if (isListening && recognitionRef.current) {
-      recognitionRef.current.stop();
+  const toggleListening = useCallback(() => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) { alert('Voice not supported. Use Chrome or Safari.'); return; }
+
+    // Always stop speaking first
+    stopSpeaking();
+
+    if (isListening && recRef.current) {
+      recRef.current.stop();
       setIsListening(false);
       return;
     }
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    const rec = new SR();
+    // Accept both English and Hindi without manual toggle
+    rec.lang = 'hi-IN'; // hi-IN also recognizes English mixed input well
+    rec.continuous = false;
+    rec.interimResults = false;
 
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
+    rec.onresult = (e: any) => {
+      const transcript = e.results[0][0].transcript;
       setInput(transcript);
       setIsListening(false);
       setTimeout(() => sendMessage(transcript), 200);
     };
+    rec.onerror = () => setIsListening(false);
+    rec.onend = () => setIsListening(false);
 
-    recognition.onerror = () => setIsListening(false);
-    recognition.onend = () => setIsListening(false);
-
-    recognitionRef.current = recognition;
-    recognition.start();
+    recRef.current = rec;
+    rec.start();
     setIsListening(true);
-  }, [isListening, lang]);
+  }, [isListening, stopSpeaking]);
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return;
     stopSpeaking();
 
-    const userMsg: ChatMessage = { role: 'user', text };
-    setMessages(prev => [...prev, userMsg]);
+    setMessages(prev => [...prev, { role: 'user', text }]);
     setInput('');
     setIsLoading(true);
 
@@ -158,141 +130,101 @@ export function ChatWidget({ studentUser }: ChatWidgetProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text, rollNo: studentUser?.rollNo || null })
       });
-      const result = await res.json();
-
+      const r = await res.json();
       const botMsg: ChatMessage = {
         role: 'assistant',
-        text: result.response || result.error || "Something went wrong.",
-        data: result.data || undefined,
-        suggestions: result.suggestions
+        text: r.response || r.error || "Something went wrong.",
+        data: r.data || undefined,
+        suggestions: r.suggestions,
+        speakText: r.speakText
       };
       setMessages(prev => [...prev, botMsg]);
-
-      if (botMsg.text && autoSpeak) speak(botMsg.text);
+      // Speak the short version, not the full response
+      if (autoSpeak) speak(r.speakText || r.response || '', r.isHindi || false);
     } catch {
-      setMessages(prev => [...prev, { role: 'assistant', text: 'Connection error. Please try again.' }]);
+      setMessages(prev => [...prev, { role: 'assistant', text: 'Connection error.' }]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // ---- Render ----
   if (!isOpen) {
     return (
-      <button
-        id="chatbot-fab"
-        onClick={() => setIsOpen(true)}
+      <button id="chatbot-fab" onClick={() => setIsOpen(true)}
         className="fixed bottom-6 right-6 z-[100] w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 active:scale-95"
-        style={{ background: '#000066', boxShadow: '0 4px 20px rgba(0,0,102,0.35)' }}
-      >
+        style={{ background: '#000066', boxShadow: '0 4px 20px rgba(0,0,102,0.35)' }}>
         <Search size={24} className="text-white" strokeWidth={2.5} />
       </button>
     );
   }
 
   return (
-    <div
-      className="fixed bottom-0 right-0 sm:bottom-6 sm:right-6 w-full sm:w-[400px] bg-white sm:rounded-2xl shadow-2xl overflow-hidden z-[100] flex flex-col border-0 sm:border sm:border-gray-200"
-      style={{ height: '100dvh', maxHeight: '100dvh', ...(typeof window !== 'undefined' && window.innerWidth >= 640 ? { height: '600px', maxHeight: 'calc(100vh - 100px)' } : {}) }}
-    >
-      {/* ---- Header ---- */}
-      <div className="shrink-0 px-4 py-3 flex items-center gap-3 border-b border-gray-100" style={{ background: '#000066' }}>
+    <div className="fixed bottom-0 right-0 sm:bottom-6 sm:right-6 w-full sm:w-[400px] bg-white sm:rounded-2xl shadow-2xl overflow-hidden z-[100] flex flex-col border-0 sm:border sm:border-gray-200"
+      style={{ height: '100dvh', maxHeight: '100dvh', ...(typeof window !== 'undefined' && window.innerWidth >= 640 ? { height: '600px', maxHeight: 'calc(100vh - 100px)' } : {}) }}>
+
+      {/* Header */}
+      <div className="shrink-0 px-4 py-3 flex items-center gap-3" style={{ background: '#000066' }}>
         <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(252,235,8,0.2)' }}>
           <Search size={18} style={{ color: '#FCEB08' }} strokeWidth={2.5} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-bold text-white text-sm leading-tight tracking-tight">Campus Finder</div>
-          <div className="text-[11px] font-medium mt-0.5" style={{ color: 'rgba(255,255,255,0.6)' }}>Rooms • Teachers • Schedule</div>
+          <div className="font-bold text-white text-sm leading-tight">Campus Finder</div>
+          <div className="text-[11px] font-medium mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>Rooms · Teachers · Schedule</div>
         </div>
-
-        {/* Language Toggle */}
-        <button
-          onClick={() => setLang(l => l === 'en' ? 'hi' : 'en')}
-          className="px-2 py-1 rounded-md text-[10px] font-bold tracking-wide transition-all active:scale-95"
-          style={{ background: 'rgba(252,235,8,0.15)', color: '#FCEB08', border: '1px solid rgba(252,235,8,0.3)' }}
-          title={lang === 'en' ? 'Switch to Hindi voice' : 'Switch to English voice'}
-        >
-          {lang === 'en' ? 'EN' : 'हि'}
+        <button onClick={() => { setAutoSpeak(s => !s); if (isSpeaking) stopSpeaking(); }}
+          className="p-1.5 rounded-full transition-colors" style={{ background: autoSpeak ? 'rgba(252,235,8,0.2)' : 'rgba(255,255,255,0.1)' }}
+          title={autoSpeak ? 'Mute' : 'Unmute'}>
+          {autoSpeak ? <Volume2 size={15} style={{ color: '#FCEB08' }} /> : <VolumeX size={15} className="text-white/40" />}
         </button>
-
-        {/* Speaker Toggle */}
-        <button
-          onClick={() => { setAutoSpeak(s => !s); if (isSpeaking) stopSpeaking(); }}
-          className="p-1.5 rounded-full transition-colors"
-          style={{ background: autoSpeak ? 'rgba(252,235,8,0.2)' : 'rgba(255,255,255,0.1)' }}
-          title={autoSpeak ? 'Mute voice output' : 'Enable voice output'}
-        >
-          {autoSpeak
-            ? <Volume2 size={15} style={{ color: '#FCEB08' }} />
-            : <VolumeX size={15} className="text-white/40" />
-          }
-        </button>
-
         <button onClick={() => { setIsOpen(false); stopSpeaking(); }} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
           <X size={18} className="text-white/70" />
         </button>
       </div>
 
-      {/* ---- Messages ---- */}
+      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4 bg-gray-50/50">
         {messages.map((msg, idx) => (
           <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-            {/* Bubble */}
             <div className={`flex items-end gap-2 max-w-[90%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
               {msg.role === 'assistant' && (
                 <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 mb-0.5" style={{ background: '#000066' }}>
                   <Search size={12} className="text-white" strokeWidth={3} />
                 </div>
               )}
-              <div
-                className={`px-3.5 py-2.5 text-[13px] leading-relaxed ${
-                  msg.role === 'user'
-                    ? 'text-white rounded-2xl rounded-br-sm shadow-sm'
-                    : 'bg-white border border-gray-100 text-gray-800 rounded-2xl rounded-bl-sm shadow-sm'
-                }`}
-                style={msg.role === 'user' ? { background: '#000066' } : {}}
-              >
-                {msg.text.split('\n').map((line, i) => (
-                  <p key={i} className="mb-1 last:mb-0">{renderText(line)}</p>
-                ))}
+              <div className={`px-3.5 py-2.5 text-[13px] leading-relaxed ${msg.role === 'user' ? 'text-white rounded-2xl rounded-br-sm shadow-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-2xl rounded-bl-sm shadow-sm'}`}
+                style={msg.role === 'user' ? { background: '#000066' } : {}}>
+                {msg.text.split('\n').map((line, i) => <p key={i} className="mb-1 last:mb-0">{renderText(line)}</p>)}
               </div>
             </div>
 
             {/* Data Cards */}
             {msg.data && msg.data.length > 0 && msg.role === 'assistant' && (
               <div className="mt-2 ml-8 flex flex-col gap-1.5 w-full max-w-[90%]">
-                {msg.data.slice(0, 12).map((item: any, i: number) => (
+                {msg.data.slice(0, 15).map((item: any, i: number) => (
                   <div key={i} className="bg-white px-3 py-2 rounded-xl border border-gray-100 flex items-center justify-between gap-2 shadow-sm">
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#000066' }}></div>
-                      <span className="font-semibold text-gray-800 text-[13px] truncate">{item.room || item.subject}</span>
+                      <span className="font-semibold text-gray-800 text-[13px] truncate">{item.subject || item.room}</span>
                       {item.subject && item.room && (
-                        <span className="text-gray-400 text-[11px] truncate flex items-center gap-0.5">
-                          <MapPin size={10} /> {item.room}
-                        </span>
+                        <span className="text-gray-400 text-[11px] truncate flex items-center gap-0.5"><MapPin size={10} />{item.room}</span>
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {item.time && (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ color: '#000066', background: 'rgba(0,0,102,0.06)' }}>{item.time}</span>
-                      )}
+                      {item.time && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ color: '#000066', background: 'rgba(0,0,102,0.06)' }}>{item.time}</span>}
                       <span className="text-[10px] font-medium text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">{item.type}</span>
                     </div>
                   </div>
                 ))}
-                {msg.data.length > 12 && (
-                  <div className="text-[11px] text-gray-400 text-center py-1">+{msg.data.length - 12} more</div>
-                )}
+                {msg.data.length > 15 && <div className="text-[11px] text-gray-400 text-center py-1">+{msg.data.length - 15} more</div>}
               </div>
             )}
 
-            {/* Suggestion Chips */}
-            {msg.suggestions && msg.suggestions.length > 0 && msg.role === 'assistant' && idx === messages.length - 1 && !isLoading && (
+            {/* Suggestions */}
+            {msg.suggestions && msg.role === 'assistant' && idx === messages.length - 1 && !isLoading && (
               <div className="mt-2.5 ml-8 flex flex-wrap gap-1.5 max-w-[90%]">
                 {msg.suggestions.map((s, i) => (
                   <button key={i} onClick={() => sendMessage(s)}
-                    className="bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 px-3 py-1.5 rounded-full text-[11px] font-semibold text-gray-700 transition-all active:scale-95 shadow-sm flex items-center gap-1"
-                  >
+                    className="bg-white hover:bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-full text-[11px] font-semibold text-gray-700 transition-all active:scale-95 shadow-sm flex items-center gap-1">
                     {s} <ChevronRight size={10} className="text-gray-400" />
                   </button>
                 ))}
@@ -301,9 +233,8 @@ export function ChatWidget({ studentUser }: ChatWidgetProps) {
           </div>
         ))}
 
-        {/* Typing indicator */}
         {isLoading && (
-          <div className="flex items-end gap-2 max-w-[90%]">
+          <div className="flex items-end gap-2">
             <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0" style={{ background: '#000066' }}>
               <div className="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             </div>
@@ -314,46 +245,30 @@ export function ChatWidget({ studentUser }: ChatWidgetProps) {
             </div>
           </div>
         )}
-        <div ref={messagesEndRef} />
+        <div ref={endRef} />
       </div>
 
-      {/* ---- Input Bar ---- */}
+      {/* Input */}
       <div className="shrink-0 p-3 bg-white border-t border-gray-100">
-        {/* Listening indicator */}
         {isListening && (
           <div className="mb-2 flex items-center justify-center gap-2 text-red-500 text-xs font-semibold animate-pulse">
             <div className="w-2 h-2 rounded-full bg-red-500"></div>
-            {lang === 'hi' ? 'सुन रहा हूँ... बोलिए' : 'Listening... speak now'}
+            Listening... speak now / बोलिए
           </div>
         )}
         <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={toggleListening}
-            className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all active:scale-95 ${
-              isListening
-                ? 'bg-red-500 text-white shadow-md'
-                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-            }`}
-          >
+          <button type="button" onClick={toggleListening}
+            className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all active:scale-95 ${isListening ? 'bg-red-500 text-white shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
             {isListening ? <MicOff size={18} strokeWidth={2.5} /> : <Mic size={18} strokeWidth={2.5} />}
           </button>
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={isListening ? (lang === 'hi' ? "सुन रहा हूँ..." : "Listening...") : (lang === 'hi' ? "कोई सवाल पूछें..." : "Type a question...")}
+          <input ref={inputRef} type="text" value={input} onChange={(e) => setInput(e.target.value)}
+            placeholder={isListening ? "Listening..." : "Type a question..."}
             className="flex-1 bg-gray-50 border border-gray-200 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-gray-300 transition-all font-medium text-gray-700 placeholder:text-gray-400"
             style={{ '--tw-ring-color': 'rgba(0,0,102,0.15)' } as any}
-            disabled={isLoading || isListening}
-          />
-          <button
-            type="submit"
-            disabled={!input.trim() || isLoading}
+            disabled={isLoading || isListening} />
+          <button type="submit" disabled={!input.trim() || isLoading}
             className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95 hover:opacity-90"
-            style={{ background: '#000066' }}
-          >
+            style={{ background: '#000066' }}>
             <Send size={16} strokeWidth={2.5} />
           </button>
         </form>

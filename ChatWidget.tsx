@@ -84,11 +84,17 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
     try {
       const lang = isHindi ? 'hi-IN' : 'en-IN';
       const url = `/api/tts?text=${encodeURIComponent(clean)}&lang=${lang}`;
-      const audio = new Audio(url);
+      // Pre-fetch to validate the response is actual audio
+      const res = await fetch(url);
+      if (!res.ok || !res.headers.get('content-type')?.includes('audio')) return false;
+      const blob = await res.blob();
+      if (blob.size < 100) return false; // Too small = error response
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
       audioRef.current = audio;
       audio.onplay = () => setIsSpeaking(true);
-      audio.onended = () => { setIsSpeaking(false); audioRef.current = null; };
-      audio.onerror = () => { setIsSpeaking(false); audioRef.current = null; };
+      audio.onended = () => { setIsSpeaking(false); audioRef.current = null; URL.revokeObjectURL(audioUrl); };
+      audio.onerror = () => { setIsSpeaking(false); audioRef.current = null; URL.revokeObjectURL(audioUrl); };
       await audio.play();
       return true;
     } catch {

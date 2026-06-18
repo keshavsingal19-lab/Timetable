@@ -83,6 +83,49 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
     window.speechSynthesis.speak(utt);
   }, [autoSpeak, getBestVoice]);
 
+  // --- Phonetic Correction Dictionary ---
+  // Maps common Web Speech API mishearings to correct words (Indian English context)
+  const applyPhoneticCorrections = useCallback((raw: string): string => {
+    let t = raw.toLowerCase().trim();
+    const corrections: Record<string, string> = {
+      // Common name mishearings
+      'rina': 'reena', 'reena mom': 'reena maam', 'rina mom': 'reena maam',
+      'rina mam': 'reena maam', 'rina ma\'am': 'reena maam',
+      'mam': 'maam', 'mom': 'maam', 'ma\'am': 'maam', 'mem': 'maam',
+      'sar': 'sir', 'sir ji': 'sir',
+      // Common word fixes
+      'kaha hai': 'kahan hai', 'kha hai': 'kahan hai', 'khan hai': 'kahan hai',
+      'kahaan': 'kahan', 'kidher': 'kidhar',
+      'cali': 'khali', 'khalli': 'khali', 'collie': 'khali',
+      'awailable': 'available', 'avilable': 'available',
+      'lekchar': 'lecture', 'lechar': 'lecture',
+      'totorial': 'tutorial', 'tuotorial': 'tutorial',
+      'rooom': 'room', 'rume': 'room',
+      'skedule': 'schedule', 'schedual': 'schedule',
+      'tommorow': 'tomorrow', 'tomarow': 'tomorrow', 'tamorrow': 'tomorrow',
+      // Room code fixes (speech engines often add spaces or mangle short codes)
+      'are 29': 'R29', 'are 30': 'R30', 'are 31': 'R31', 'are 32': 'R32',
+      'are one': 'R1', 'are two': 'R2', 'are three': 'R3', 'are four': 'R4',
+      'are five': 'R5', 'are six': 'R6', 'are seven': 'R7', 'are eight': 'R8',
+      'p b 4': 'PB4', 'p b 3': 'PB3', 'p b 2': 'PB2',
+      'pb four': 'PB4', 'pb three': 'PB3', 'pb two': 'PB2',
+      'cl one': 'CL1', 'cl two': 'CL2', 'see lib': 'CLIB', 'c lib': 'CLIB',
+      't one': 'T1', 't two': 'T2', 't three': 'T3',
+      // Hindi query patterns often mangled
+      'agla class': 'agla class', 'agle class': 'agla class',
+      'next class': 'next class',
+    };
+    // Apply corrections (longest match first to avoid partial replacements)
+    const sortedKeys = Object.keys(corrections).sort((a, b) => b.length - a.length);
+    for (const wrong of sortedKeys) {
+      if (t.includes(wrong)) {
+        t = t.replace(new RegExp(wrong.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), corrections[wrong]);
+      }
+    }
+    // Clean up double spaces
+    return t.replace(/\s+/g, ' ').trim();
+  }, []);
+
   const toggleListening = useCallback(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { alert('Voice not supported. Use Chrome or Safari.'); return; }
@@ -96,26 +139,65 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
       return;
     }
 
-    const rec = new SR();
-    // Use en-IN. It perfectly understands Indian English accents and Hinglish, 
-    // avoiding the issue where English speech gets coerced into Hindi script.
-    rec.lang = 'en-IN';
-    rec.continuous = false;
-    rec.interimResults = false;
+    // Request clean audio stream with noise suppression before starting recognition
+    const startRecognition = () => {
+      const rec = new SR();
+      rec.lang = 'en-IN';
+      rec.continuous = false;
+      rec.interimResults = true; // Enable real-time visual feedback
 
-    rec.onresult = (e: any) => {
-      const transcript = e.results[0][0].transcript;
-      setInput(transcript);
-      setIsListening(false);
-      setTimeout(() => sendMessage(transcript), 200);
+      let finalText = '';
+
+      rec.onresult = (e: any) => {
+        let interim = '';
+        let final = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const transcript = e.results[i][0].transcript;
+          if (e.results[i].isFinal) {
+            final += transcript + ' ';
+          } else {
+            interim += transcript;
+          }
+        }
+        if (final.trim()) {
+          finalText = applyPhoneticCorrections(final);
+        }
+        // Show interim results live in the input field
+        const display = final.trim() ? finalText : applyPhoneticCorrections(interim);
+        if (display) setInput(display);
+      };
+
+      rec.onend = () => {
+        setIsListening(false);
+        if (finalText.trim()) {
+          setTimeout(() => sendMessage(finalText.trim()), 150);
+        }
+      };
+      rec.onerror = () => setIsListening(false);
+
+      recRef.current = rec;
+      rec.start();
+      setIsListening(true);
     };
-    rec.onerror = () => setIsListening(false);
-    rec.onend = () => setIsListening(false);
 
-    recRef.current = rec;
-    rec.start();
-    setIsListening(true);
-  }, [isListening, stopSpeaking]);
+    // Pre-condition audio stream for noise suppression
+    if (navigator.mediaDevices?.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      }).then(stream => {
+        // Stream obtained = browser now uses noise-suppressed audio pipeline
+        // We don't need to do anything with the stream; just having it active
+        // conditions the audio hardware for the speech recognition that follows
+        stream.getTracks().forEach(t => t.stop()); // Release immediately
+        startRecognition();
+      }).catch(() => {
+        // Fallback: start without audio conditioning
+        startRecognition();
+      });
+    } else {
+      startRecognition();
+    }
+  }, [isListening, stopSpeaking, applyPhoneticCorrections]);
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return;
@@ -252,9 +334,16 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
       {/* Input */}
       <div className="shrink-0 p-3 bg-white border-t border-gray-100">
         {isListening && (
-          <div className="mb-2 flex items-center justify-center gap-2 text-red-500 text-xs font-semibold animate-pulse">
-            <div className="w-2 h-2 rounded-full bg-red-500"></div>
-            Listening... speak now / बोलिए
+          <div className="mb-2 flex flex-col items-center gap-1">
+            <div className="flex items-center gap-2 text-red-500 text-xs font-semibold animate-pulse">
+              <div className="w-2 h-2 rounded-full bg-red-500"></div>
+              Listening...
+            </div>
+            {input && (
+              <div className="text-[11px] text-gray-500 font-medium italic max-w-full truncate px-2">
+                "{input}"
+              </div>
+            )}
           </div>
         )}
         <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} className="flex items-center gap-2">

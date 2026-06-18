@@ -226,7 +226,7 @@ function transliterate(text) {
 // ---- Detect Hindi ----
 function detectHindi(text) {
   if (/[\u0900-\u097F]/.test(text)) return true;
-  const hindiWords = /\b(kahan|kidhar|khali|kab|kaun|konsa|koi|hai|hain|kya|batao|dikhao|chahiye|milega|milenge|abhi|aaj|kal|nahi|mein|ka|ki|ke|ko|se|par|bhi|aur|ya|sir|maam|ji)\b/i;
+  const hindiWords = /\b(kahan|kidhar|khali|kab|kaun|kaunse|konsa|koi|hai|hain|hote|hota|hoti|kya|batao|dikhao|chahiye|milega|milenge|abhi|aaj|kal|somwar|mangalvar|budhvar|guruvar|shukravar|shanivar|nahi|mein|ka|ki|ke|ko|se|par|bhi|aur|ya|sir|maam|ji)\b/i;
   const words = text.toLowerCase().split(/\s+/);
   let c = 0;
   for (const w of words) if (hindiWords.test(w)) c++;
@@ -249,7 +249,7 @@ function classifyIntent(text, roomMatch, teacherMatch, rollNo) {
   if (/\b(who is in|who's in|what's in|whats happening|who teaches in)\b/.test(text)) return "ROOM_INFO";
 
   // AVAILABLE_ROOMS before TEACHER_INFO
-  if (/\b(room|rooms|kamra|halls?|labs?|tutorial)\b/.test(text) && /\b(free|available|empty|khali|vacant|open)\b/.test(text)) return "AVAILABLE_ROOMS";
+  if (/\b(room|rooms|kamra|halls?|labs?|tutorial|lecture|lectures)\b/.test(text) && /\b(free|available|empty|khali|vacant|open)\b/.test(text)) return "AVAILABLE_ROOMS";
   if (/\b(free room|available room|empty room|rooms?\s*(free|available|empty|khali|at))\b/.test(text)) return "AVAILABLE_ROOMS";
   if (/\b(koi room|which room|konsa room|room mil|room chahiye)\b/.test(text)) return "AVAILABLE_ROOMS";
 
@@ -277,10 +277,10 @@ const STOP = new Set([
   'teacher','teachers','student','period','slot','time',
   'mera','mere','meri','kya','kahan','kidhar','kab','kaun',
   'khali','busy','aaj','kal','abhi','now','currently',
-  'classes','subjects','subject','sir','maam','madam','please',
+  'classes','subjects','subject','sir','maam','madam','please','sar','mam','mem',
   'is','the','at','on','in','for','and','or','a','an','of','to',
-  'hai','hain','ka','ki','ke','ko','se','par','bhi','aur','ya',
-  'batao','dikhao','chahiye','milega','milenge','koi','konsa',
+  'hai','hain','ka','ki','ke','ko','se','par','bhi','aur','ya','hote','hota','hoti',
+  'batao','dikhao','chahiye','milega','milenge','koi','konsa','kaunse',
 ]);
 
 function findTeacher(rawMessage, allTeachers) {

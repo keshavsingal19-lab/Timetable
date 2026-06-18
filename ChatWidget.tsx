@@ -97,8 +97,8 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
     }
 
     const rec = new SR();
-    // en-IN handles Hinglish (mixed) well; backend transliterates Devanagari anyway
-    rec.lang = 'en-IN';
+    // hi-IN recognizes BOTH pure Hindi (Devanagari) and English natively without a toggle.
+    rec.lang = 'hi-IN';
     rec.continuous = false;
     rec.interimResults = false;
 

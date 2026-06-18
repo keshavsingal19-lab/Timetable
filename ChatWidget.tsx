@@ -22,7 +22,7 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
   const [messages, setMessages] = useState<ChatMessage[]>([{
     role: 'assistant',
     text: "Hey! 👋 Find rooms, teachers, or your schedule.\nType below or tap the mic to speak.",
-    suggestions: ['Free rooms now', 'My next class', 'Help']
+    suggestions: ['Available rooms', 'My next class', 'Help']
   }]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);

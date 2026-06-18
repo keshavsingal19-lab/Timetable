@@ -6,7 +6,8 @@ import {
   ArrowRight, MessageCircle, Star, Timer, Megaphone, Mail, Home,
   BookOpen, User, UserPlus, Key, Settings, Menu, ShieldCheck, ChevronRight, ChevronLeft,
   Eye, MousePointerClick, Edit, Trash2, LayoutDashboard, Contact, CalendarOff, Globe, Map as LucideMap,
-  RefreshCw, Layers, X, Copy, ClipboardCheck, TrendingUp, Calendar, BarChart3, Target, ChevronDown, ChevronUp, ArrowLeft
+  RefreshCw, Layers, X, Copy, ClipboardCheck, TrendingUp, Calendar, BarChart3, Target, ChevronDown, ChevronUp, ArrowLeft,
+  Wind, Droplets, Thermometer, CloudRain
 } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
@@ -81,6 +82,19 @@ function App() {
   const [syncLogs, setSyncLogs] = useState<string[]>([]);
   const [syncCompleted, setSyncCompleted] = useState(false);
   const logRef = React.useRef<HTMLDivElement>(null);
+
+  // --- WEATHER STATE ---
+  const [weather, setWeather] = useState<any>(null);
+  useEffect(() => {
+    const fetchWeather = () => {
+      fetch('/api/weather').then(r => r.json()).then(d => {
+        if (d && d.temperature !== undefined) setWeather(d);
+      }).catch(() => {});
+    };
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 600000); // 10 min
+    return () => clearInterval(interval);
+  }, []);
 
   const startSync = async () => {
     const ALL_ROOM_IDS = [
@@ -1608,6 +1622,36 @@ function App() {
              <span className={`whitespace-nowrap transition-all duration-300 origin-left ${isSidebarCollapsed ? 'opacity-0 w-0 scale-0' : 'opacity-100 w-auto scale-100'}`}>Societies</span>
            </button>
         </nav>
+
+        {/* WEATHER WIDGET */}
+        {weather && !isSidebarCollapsed && (
+          <div className="mx-4 mb-3 p-3 rounded-xl bg-white/5 border border-white/10">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">{weather.conditionIcon}</span>
+                <div>
+                  <div className="text-white font-black text-lg leading-none">{weather.temperature}°C</div>
+                  <div className="text-[10px] text-gray-400 font-medium">{weather.condition}</div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] text-gray-400">Feels like</div>
+                <div className="text-white font-bold text-sm">{weather.feelsLike}°C</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 text-[10px] text-gray-400">
+              <span className="flex items-center gap-1"><Droplets className="w-3 h-3" />{weather.humidity}%</span>
+              <span className="flex items-center gap-1"><Wind className="w-3 h-3" />{weather.windSpeed} km/h</span>
+              <span className="flex items-center gap-1" style={{color: weather.aqiColor}}>AQI {weather.aqi}</span>
+            </div>
+          </div>
+        )}
+        {weather && isSidebarCollapsed && (
+          <div className="flex flex-col items-center mb-3 px-2">
+            <span className="text-lg">{weather.conditionIcon}</span>
+            <span className="text-white font-bold text-xs">{weather.temperature}°</span>
+          </div>
+        )}
 
         <div className={`p-4 border-t border-white/10 ${isSidebarCollapsed ? 'flex flex-col items-center px-2' : ''}`}>
            <button onClick={() => { setIsAdminOpen(true); setLoginError(''); setIsMobileMenuOpen(false); }} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-3' : 'justify-center py-3 gap-2'} bg-white/10 text-white rounded-[5px] font-bold hover:bg-white/20 transition-all shadow-sm group`}>

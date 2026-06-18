@@ -21,7 +21,8 @@ export async function onRequestPost(context) {
 
     const TL = ["8:30 AM","9:30 AM","10:30 AM","11:30 AM","12:30 PM","1:30 PM","2:30 PM","3:30 PM","4:30 PM"];
     const pLabel = periodIndex >= 0 && periodIndex < TL.length ? TL[periodIndex] : "now";
-    let response = "", data = null, suggestions = ["Free rooms now", "My next class", "Help"];
+    const isWeekend = ['Saturday','Sunday'].includes(day);
+    let response = "", data = null, suggestions = ["Available rooms", "My next class", "Help"];
     let speakText = ""; // Short version for TTS
 
     if (intent === "AVAILABLE_ROOMS") {
@@ -44,18 +45,18 @@ export async function onRequestPost(context) {
         const typeLabel = roomTypeFilter ? ` ${roomTypeFilter.toLowerCase()}` : '';
         if (rooms.length > 0) {
           response = isHindi
-            ? `${day} को ${pLabel} पर ${rooms.length}${typeLabel} rooms खाली हैं:`
-            : `${rooms.length}${typeLabel} rooms free on ${day} at ${pLabel}:`;
+            ? `${day} को ${pLabel} पर ${rooms.length}${typeLabel} rooms available हैं:`
+            : `${rooms.length}${typeLabel} rooms available on ${day} at ${pLabel}:`;
           data = rooms;
           speakText = isHindi
-            ? `${rooms.length} rooms खाली हैं ${day} को ${pLabel} पर।`
-            : `${rooms.length} rooms are free on ${day} at ${pLabel}. Check the list below.`;
+            ? `${rooms.length} rooms available हैं ${day} को ${pLabel} पर।`
+            : `${rooms.length} rooms available on ${day} at ${pLabel}. Check the list below.`;
         } else {
-          response = isHindi ? `${day} को ${pLabel} पर कोई${typeLabel} room खाली नहीं है।` : `No free${typeLabel} rooms on ${day} at ${pLabel}.`;
+          response = isHindi ? `${day} को ${pLabel} पर कोई${typeLabel} room available नहीं है।` : `No${typeLabel} rooms available on ${day} at ${pLabel}.`;
           speakText = response;
         }
         const ni = periodIndex < 4 ? periodIndex + 1 : (periodIndex === 4 ? 5 : Math.min(periodIndex + 1, 8));
-        suggestions = ni <= 8 ? [`Rooms at ${TL[ni]}`, "Free labs"] : ["Rooms tomorrow"];
+        suggestions = ni <= 8 ? [`Rooms at ${TL[ni]}`, "Available labs"] : ["Rooms tomorrow"];
       }
     }
 
@@ -89,21 +90,21 @@ export async function onRequestPost(context) {
           }
         } else {
           const busy = new Set(daySlots.map(s => s.period_index));
-          const free = [];
-          for (let i = 0; i <= 8; i++) if (!busy.has(i)) free.push(TL[i]);
+          const avail = [];
+          for (let i = 0; i <= 8; i++) if (!busy.has(i)) avail.push(TL[i]);
           
-          if (free.length === 9) {
+          if (avail.length === 9) {
             response = isHindi ? `${teacherMatch.name} की ${day} को कोई class नहीं है।` : `${teacherMatch.name} has no classes on ${day}.`;
-          } else if (free.length === 0) {
+          } else if (avail.length === 0) {
             response = isHindi ? `${teacherMatch.name} ${day} को पूरे दिन busy हैं।` : `${teacherMatch.name} is busy all day on ${day}.`;
           } else {
             response = isHindi
-              ? `${teacherMatch.name} ${day} को इन times पर free हैं: ${free.join(', ')}।`
-              : `${teacherMatch.name} is free on ${day} at: ${free.join(', ')}.`;
+              ? `${teacherMatch.name} ${day} को इन times पर available हैं: ${avail.join(', ')}।`
+              : `${teacherMatch.name} is available on ${day} at: ${avail.join(', ')}.`;
           }
         }
         speakText = response;
-        suggestions = ["Free rooms now", "My next class"];
+        suggestions = ["Available rooms", "My next class"];
       }
     }
 
@@ -135,7 +136,7 @@ export async function onRequestPost(context) {
                 response = isHindi ? `${day} को और कोई class नहीं! 🎉` : `No more classes on ${day}! 🎉`;
               }
               speakText = response;
-              suggestions = [`Schedule ${day}`, "Free rooms"];
+              suggestions = [`Schedule ${day}`, "Available rooms"];
             } else {
               if (ds.length > 0) {
                 response = isHindi ? `${day} का schedule (${ds.length} classes):` : `${day} schedule (${ds.length} classes):`;
@@ -147,7 +148,7 @@ export async function onRequestPost(context) {
                 response = isHindi ? `${day} को कोई class नहीं! 🎉` : `No classes on ${day}! 🎉`;
                 speakText = response;
               }
-              suggestions = ["My next class", "Free rooms"];
+              suggestions = ["My next class", "Available rooms"];
             }
           }
         } catch { response = isHindi ? "Schedule लाने में दिक्कत हुई।" : "Couldn't fetch schedule."; speakText = response; }
@@ -156,9 +157,9 @@ export async function onRequestPost(context) {
 
     else if (intent === "ROOM_INFO") {
       if (!roomMatch) {
-        response = isHindi ? "कौन सा room? जैसे 'R29 खाली है?'" : "Which room? e.g. 'Is R29 free?'";
+        response = isHindi ? "कौन सा room? जैसे 'R29 available है?'" : "Which room? e.g. 'Is R29 available?'";
         speakText = response;
-        suggestions = ["Is R29 free?", "Is PB4 free?"];
+        suggestions = ["Is R29 available?", "Is PB4 available?"];
       } else {
         const rd = await env.DB.prepare("SELECT * FROM campus_rooms WHERE name = ?").bind(roomMatch).first();
         if (rd) {
@@ -168,7 +169,7 @@ export async function onRequestPost(context) {
             const isEmpty = es[day] && es[day].includes(periodIndex);
             const occ = ob[day]?.[String(periodIndex)] || [];
             if (isEmpty && occ.length === 0) {
-              response = isHindi ? `✅ ${roomMatch} ${day} ${pLabel} पर खाली है।` : `✅ ${roomMatch} is free on ${day} at ${pLabel}.`;
+              response = isHindi ? `✅ ${roomMatch} ${day} ${pLabel} पर available है।` : `✅ ${roomMatch} is available on ${day} at ${pLabel}.`;
             } else if (occ.length > 0) {
               const names = occ.map(c => { const t = allTeachers.find(t => t.id === c); return t ? t.name : c; }).join(', ');
               response = isHindi ? `🔴 ${roomMatch} occupied है — ${names}।` : `🔴 ${roomMatch} is occupied by ${names}.`;
@@ -184,18 +185,53 @@ export async function onRequestPost(context) {
       }
     }
 
+    else if (intent === "GREETING") {
+      const greetings = isHindi ? ['नमस्ते! 👋 कैसे मदद करूँ?','हैलो! क्या जानना है?','बोलिए, क्या ढूंढ रहे हैं?'] : ['Hey! 👋 How can I help?','Hello! What are you looking for?','Hi there! Ask me anything.'];
+      response = greetings[Math.floor(Math.random()*greetings.length)];
+      speakText = response;
+      suggestions = ["Available rooms", "My next class", "Help"];
+    }
+
+    else if (intent === "THANKS") {
+      response = isHindi ? 'कोई बात नहीं! 😊 और कुछ पूछना हो तो बताइए।' : 'You\'re welcome! 😊 Anything else?';
+      speakText = response;
+      suggestions = ["Available rooms", "My next class"];
+    }
+
+    else if (intent === "COLLEGE_HOURS") {
+      response = isHindi ? 'कॉलेज का समय: Monday–Friday, 8:30 AM – 4:30 PM।' : 'College hours: Monday–Friday, 8:30 AM – 4:30 PM.';
+      if (isWeekend) response += isHindi ? ' आज छुट्टी है!' : ' Today is a holiday!';
+      speakText = response;
+      suggestions = ["Available rooms", "My next class"];
+    }
+
+    else if (intent === "COUNT_ROOMS") {
+      if (periodIndex < 0 || periodIndex > 8) {
+        response = isHindi ? 'कॉलेज का समय 8:30 AM – 4:30 PM है।' : 'College hours are 8:30 AM – 4:30 PM.';
+      } else {
+        const dbRooms = (await env.DB.prepare("SELECT name, type, emptySlots FROM campus_rooms").all()).results || [];
+        let count = 0;
+        for (const r of dbRooms) {
+          try { const s = JSON.parse(r.emptySlots); if (s[day]?.includes(periodIndex)) { if (!roomTypeFilter || r.type === roomTypeFilter) count++; } } catch{}
+        }
+        response = isHindi ? `${day} को ${pLabel} पर ${count} rooms available हैं।` : `${count} rooms available on ${day} at ${pLabel}.`;
+      }
+      speakText = response;
+      suggestions = ["Show available rooms", "My next class"];
+    }
+
     else if (intent === "HELP") {
       response = isHindi
-        ? "मैं ये कर सकता हूँ:\n• खाली rooms — 'rooms free at 10:30'\n• Teacher — 'Jaideep kahan hai?'\n• अगला class — 'my next class'\n• Room check — 'R29 free hai?'"
-        : "I can help with:\n• Free rooms — 'rooms free at 10:30'\n• Teacher — 'where is Jaideep?'\n• Next class — 'my next class'\n• Room check — 'is R29 free?'";
+        ? "मैं ये कर सकता हूँ:\n• Available rooms — 'rooms available at 10:30'\n• Teacher — 'Jaideep kahan hai?'\n• अगला class — 'my next class'\n• Room check — 'R29 available hai?'"
+        : "I can help with:\n• Available rooms — 'rooms at 10:30'\n• Teacher lookup — 'where is Jaideep?'\n• Next class — 'my next class'\n• Room check — 'is R29 available?'";
       speakText = isHindi ? "आप rooms, teachers, या schedule के बारे में पूछ सकते हैं।" : "Ask me about rooms, teachers, or your schedule.";
-      suggestions = ["Free rooms now", "My next class"];
+      suggestions = ["Available rooms", "My next class"];
     }
 
     else {
-      response = isHindi ? "समझ नहीं आया। Rooms, teachers, या schedule के बारे में पूछें!" : "Try asking about free rooms, teachers, or your schedule.";
+      response = isHindi ? "समझ नहीं आया। Rooms, teachers, या schedule के बारे में पूछें!" : "Try asking about available rooms, teachers, or your schedule.";
       speakText = response;
-      suggestions = ["Help", "Free rooms", "My next class"];
+      suggestions = ["Help", "Available rooms", "My next class"];
     }
 
     return Response.json({ intent, response, data, suggestions, speakText, isHindi });
@@ -249,25 +285,50 @@ function parseRoomType(text) {
   return null;
 }
 
-// ---- Intent Classification ----
+// ---- Intent Classification (expanded with 50+ patterns) ----
 function classifyIntent(text, roomMatch, teacherMatch, rollNo) {
-  if (/\b(help|commands|kya kar sakte|what can you|madad)\b/.test(text)) return "HELP";
-  if (roomMatch && /\b(who|what|is|free|occupied|khali|kya|status)\b/.test(text)) return "ROOM_INFO";
+  // Greeting
+  if (/^(hi|hey|hello|hii+|hola|namaste|namaskar|yo|sup|good morning|good afternoon|good evening)\b/.test(text)) return "GREETING";
+  if (/^(thanks|thank you|thank u|thanku|shukriya|dhanyavad|thx|ty)\b/.test(text)) return "THANKS";
+
+  // Help
+  if (/\b(help|commands|kya kar sakte|what can you|madad|guide|how to use|options|features)\b/.test(text)) return "HELP";
+
+  // College hours
+  if (/\b(college hours|college timing|timing|kab.*khulta|kab.*band|opening time|closing time|when.*open|when.*close|samay|class.*kab.*start)\b/.test(text)) return "COLLEGE_HOURS";
+
+  // Count rooms (how many, kitne)
+  if (/\b(how many|kitne|kitni|count|total)\b/.test(text) && /\b(room|rooms|available|khali|empty)\b/.test(text)) return "COUNT_ROOMS";
+
+  // Specific room check (ROOM_INFO) — must come before AVAILABLE_ROOMS
+  if (roomMatch && /\b(who|what|is|available|occupied|khali|kya|status|check|kaun)\b/.test(text)) return "ROOM_INFO";
   if (/\b(who is in|who's in|what's in|whats happening|who teaches in)\b/.test(text)) return "ROOM_INFO";
 
-  // AVAILABLE_ROOMS before TEACHER_INFO
-  if (/\b(room|rooms|kamra|halls?|labs?|tutorial|lecture|lectures)\b/.test(text) && /\b(free|available|empty|khali|vacant|open)\b/.test(text)) return "AVAILABLE_ROOMS";
-  if (/\b(free room|available room|empty room|rooms?\s*(free|available|empty|khali|at))\b/.test(text)) return "AVAILABLE_ROOMS";
-  if (/\b(koi room|which room|konsa room|room mil|room chahiye)\b/.test(text)) return "AVAILABLE_ROOMS";
+  // AVAILABLE_ROOMS — many variations
+  if (/\b(room|rooms|kamra|halls?|labs?|tutorial|lecture|lectures)\b/.test(text) && /\b(available|free|empty|khali|vacant|open|milega|milenge)\b/.test(text)) return "AVAILABLE_ROOMS";
+  if (/\b(available room|free room|empty room|rooms?\s*(available|free|empty|khali|at))\b/.test(text)) return "AVAILABLE_ROOMS";
+  if (/\b(koi room|which room|konsa room|room mil|room chahiye|room dikhao|room batao)\b/.test(text)) return "AVAILABLE_ROOMS";
+  if (/\b(place to sit|jagah|where.*sit|where.*study|study room|padhai|padhne)\b/.test(text)) return "AVAILABLE_ROOMS";
+  if (/\b(empty.*class|class.*empty|classroom available|available classroom)\b/.test(text)) return "AVAILABLE_ROOMS";
+  if (/\b(koi jagah|jagah mil|jagah chahiye|kahan.*baithu|baith.*sakte)\b/.test(text)) return "AVAILABLE_ROOMS";
+  if (/\b(show.*room|list.*room|find.*room)\b/.test(text)) return "AVAILABLE_ROOMS";
 
-  if (teacherMatch && /\b(free|available|where|kahan|schedule|kidhar|busy|milenge|hai|hain)\b/.test(text)) return "TEACHER_INFO";
+  // Teacher queries — with more variations
+  if (teacherMatch && /\b(available|free|where|kahan|schedule|kidhar|busy|milenge|hai|hain|located|cabin|office|class|teaches|padha)\b/.test(text)) return "TEACHER_INFO";
+  if (teacherMatch && /\b(kab.*available|kab.*free|kab.*milenge|when.*available|when.*free)\b/.test(text)) return "TEACHER_INFO";
   if (teacherMatch && !/\b(my|mera|mere|room|rooms|available|free|empty)\b/.test(text)) return "TEACHER_INFO";
 
-  if (/\b(my next class|next lecture|next class|kahan jana|what'?s next|agla class|agla period)\b/.test(text)) return "MY_NEXT_CLASS";
+  // Student schedule — with more variations
+  if (/\b(my next class|next lecture|next class|kahan jana|what'?s next|agla class|agla period|next period)\b/.test(text)) return "MY_NEXT_CLASS";
+  if (/\b(do i have class|koi class hai|class hai kya|am i free|main free)\b/.test(text)) return "MY_NEXT_CLASS";
   if (/\b(my schedule|my classes|my timetable|mera schedule|mere classes|today.*(class|schedule)|aaj.*(class|schedule))\b/.test(text)) return "MY_SCHEDULE";
+  if (/\b(full.*schedule|poora.*schedule|all.*class|saari.*class|din.*bhar|pura din)\b/.test(text)) return "MY_SCHEDULE";
+  if (/\b(kitne class|how many class|total class)\b/.test(text) && rollNo) return "MY_SCHEDULE";
 
+  // Fallback triggers
   if (/\b(room|rooms)\b/.test(text)) return "AVAILABLE_ROOMS";
   if (/\b(next|agla)\b/.test(text) && rollNo) return "MY_NEXT_CLASS";
+  if (/\b(schedule|timetable)\b/.test(text) && rollNo) return "MY_SCHEDULE";
   if (teacherMatch) return "TEACHER_INFO";
   return "UNKNOWN";
 }

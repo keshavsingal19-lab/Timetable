@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { DayOfWeek, TIME_SLOTS, RoomData } from './types';
 import { ROOMS } from './data';
+import { ChatWidget } from './ChatWidget';
 // --- CONSTANTS & CONFIG ---
 const IS_MAINTENANCE = true;
 const getDayName = (day: DayOfWeek): string => day;
@@ -3742,6 +3743,8 @@ function App() {
         </div>
       )}
 
+      {/* --- CHATBOT WIDGET --- */}
+      <ChatWidget studentUser={studentUser} />
     </div>
   );
 }

@@ -7,14 +7,16 @@ export async function onRequestPost(context) {
     if (!message) return Response.json({ error: "Missing message" }, { status: 400 });
 
     const allTeachers = (await env.DB.prepare("SELECT id, name, department FROM teachers").all()).results || [];
-    const text = message.toLowerCase().replace(/[''`]/g, "'").replace(/\s+/g, ' ').trim();
     const isHindi = detectHindi(message);
+    // Transliterate Devanagari to Latin for matching, then normalize
+    const latinized = transliterate(message);
+    const text = latinized.toLowerCase().replace(/[''`]/g, "'").replace(/\s+/g, ' ').trim();
     const day = parseDay(text);
     const timeObj = parseTime(text);
     const periodIndex = timeObj ? getPeriodIndex(timeObj) : getCurrentPeriodIndex();
     const roomMatch = parseRoom(text);
     const roomTypeFilter = parseRoomType(text);
-    const teacherMatch = findTeacher(message, allTeachers);
+    const teacherMatch = findTeacher(latinized, allTeachers);
     const intent = classifyIntent(text, roomMatch, teacherMatch, rollNo);
 
     const TL = ["8:30 AM","9:30 AM","10:30 AM","11:30 AM","12:30 PM","1:30 PM","2:30 PM","3:30 PM","4:30 PM"];
@@ -195,14 +197,40 @@ export async function onRequestPost(context) {
   }
 }
 
-// ---- Detect Hindi (Devanagari Unicode or Hindi keywords) ----
+// ---- Devanagari → Latin Transliteration ----
+const DEVA_MAP = {
+  'अ':'a','आ':'aa','इ':'i','ई':'ee','उ':'u','ऊ':'oo','ए':'e','ऐ':'ai','ओ':'o','औ':'au',
+  'क':'k','ख':'kh','ग':'g','घ':'gh','च':'ch','छ':'chh','ज':'j','झ':'jh',
+  'ट':'t','ठ':'th','ड':'d','ढ':'dh','ण':'n','त':'t','थ':'th','द':'d','ध':'dh','न':'n',
+  'प':'p','फ':'ph','ब':'b','भ':'bh','म':'m','य':'y','र':'r','ल':'l','व':'v','श':'sh',
+  'ष':'sh','स':'s','ह':'h','क्ष':'ksh','त्र':'tr','ज्ञ':'gya','श्र':'shr',
+  'ा':'a','ि':'i','ी':'ee','ु':'u','ू':'oo','े':'e','ै':'ai','ो':'o','ौ':'au',
+  'ं':'n','ः':'h','ँ':'n','्':'','़':'',
+};
+
+function transliterate(text) {
+  if (!/[\u0900-\u097F]/.test(text)) return text; // No Devanagari, skip
+  let result = '';
+  for (let i = 0; i < text.length; i++) {
+    // Try 2-char combo first (for conjuncts like क्ष)
+    const two = text.substring(i, i + 2);
+    if (DEVA_MAP[two] !== undefined) { result += DEVA_MAP[two]; i++; continue; }
+    const one = text[i];
+    if (DEVA_MAP[one] !== undefined) { result += DEVA_MAP[one]; continue; }
+    result += one; // Pass through (spaces, punctuation, Latin chars)
+  }
+  // Also append original text so Latin parts aren't lost in mixed input
+  return result;
+}
+
+// ---- Detect Hindi ----
 function detectHindi(text) {
   if (/[\u0900-\u097F]/.test(text)) return true;
   const hindiWords = /\b(kahan|kidhar|khali|kab|kaun|konsa|koi|hai|hain|kya|batao|dikhao|chahiye|milega|milenge|abhi|aaj|kal|nahi|mein|ka|ki|ke|ko|se|par|bhi|aur|ya|sir|maam|ji)\b/i;
   const words = text.toLowerCase().split(/\s+/);
-  let hindiCount = 0;
-  for (const w of words) if (hindiWords.test(w)) hindiCount++;
-  return hindiCount >= 2;
+  let c = 0;
+  for (const w of words) if (hindiWords.test(w)) c++;
+  return c >= 2;
 }
 
 // ---- Room type filter ----

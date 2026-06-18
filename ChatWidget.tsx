@@ -166,44 +166,53 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
 
   // --- Phonetic Correction Dictionary ---
   // Maps common Web Speech API mishearings to correct words (Indian English context)
+  // Uses word-boundary matching to avoid corrupting unrelated words
   const applyPhoneticCorrections = useCallback((raw: string): string => {
     let t = raw.toLowerCase().trim();
-    const corrections: Record<string, string> = {
-      // Common name mishearings
-      'rina': 'reena', 'reena mom': 'reena maam', 'rina mom': 'reena maam',
-      'rina mam': 'reena maam', 'rina ma\'am': 'reena maam',
-      'mam': 'maam', 'mom': 'maam', 'ma\'am': 'maam', 'mem': 'maam',
-      'sar': 'sir', 'sir ji': 'sir',
-      // Common word fixes
-      'kaha hai': 'kahan hai', 'kha hai': 'kahan hai', 'khan hai': 'kahan hai',
-      'kahaan': 'kahan', 'kidher': 'kidhar',
-      'cali': 'khali', 'khalli': 'khali', 'collie': 'khali',
-      'awailable': 'available', 'avilable': 'available',
-      'lekchar': 'lecture', 'lechar': 'lecture',
-      'totorial': 'tutorial', 'tuotorial': 'tutorial',
-      'rooom': 'room', 'rume': 'room',
-      'skedule': 'schedule', 'schedual': 'schedule',
-      'tommorow': 'tomorrow', 'tomarow': 'tomorrow', 'tamorrow': 'tomorrow',
-      // Room code fixes (speech engines often add spaces or mangle short codes)
-      'are 29': 'R29', 'are 30': 'R30', 'are 31': 'R31', 'are 32': 'R32',
-      'are one': 'R1', 'are two': 'R2', 'are three': 'R3', 'are four': 'R4',
-      'are five': 'R5', 'are six': 'R6', 'are seven': 'R7', 'are eight': 'R8',
-      'p b 4': 'PB4', 'p b 3': 'PB3', 'p b 2': 'PB2',
-      'pb four': 'PB4', 'pb three': 'PB3', 'pb two': 'PB2',
-      'cl one': 'CL1', 'cl two': 'CL2', 'see lib': 'CLIB', 'c lib': 'CLIB',
-      't one': 'T1', 't two': 'T2', 't three': 'T3',
-      // Hindi query patterns often mangled
-      'agla class': 'agla class', 'agle class': 'agla class',
-      'next class': 'next class',
-    };
-    // Apply corrections (longest match first to avoid partial replacements)
-    const sortedKeys = Object.keys(corrections).sort((a, b) => b.length - a.length);
-    for (const wrong of sortedKeys) {
+
+    // Multi-word phrase corrections (applied first, longest match priority)
+    const phrases: [string, string][] = [
+      ['reena mom', 'reena maam'], ['rina mom', 'reena maam'],
+      ['rina mam', 'reena maam'], ["rina ma'am", 'reena maam'],
+      ['reena mom', 'reena maam'],
+      ['kaha hai', 'kahan hai'], ['kha hai', 'kahan hai'], ['khan hai', 'kahan hai'],
+      ['agle class', 'agla class'],
+      ['are 29', 'R29'], ['are 30', 'R30'], ['are 31', 'R31'], ['are 32', 'R32'],
+      ['are one', 'R1'], ['are two', 'R2'], ['are three', 'R3'], ['are four', 'R4'],
+      ['are five', 'R5'], ['are six', 'R6'], ['are seven', 'R7'], ['are eight', 'R8'],
+      ['p b 4', 'PB4'], ['p b 3', 'PB3'], ['p b 2', 'PB2'],
+      ['pb four', 'PB4'], ['pb three', 'PB3'], ['pb two', 'PB2'],
+      ['cl one', 'CL1'], ['cl two', 'CL2'], ['see lib', 'CLIB'], ['c lib', 'CLIB'],
+      ['t one', 'T1'], ['t two', 'T2'], ['t three', 'T3'],
+      ['sir ji', 'sir'],
+    ];
+    // Sort by length (longest first) to avoid partial match issues
+    phrases.sort((a, b) => b[0].length - a[0].length);
+    for (const [wrong, right] of phrases) {
       if (t.includes(wrong)) {
-        t = t.replace(new RegExp(wrong.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), corrections[wrong]);
+        t = t.replace(new RegExp(wrong.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), right);
       }
     }
-    // Clean up double spaces
+
+    // Single-word corrections (with word boundaries to avoid corrupting other words)
+    const words: [string, string][] = [
+      ['rina', 'reena'],
+      ['mam', 'maam'], ['mom', 'maam'], ["ma'am", 'maam'], ['mem', 'maam'],
+      ['sar', 'sir'],
+      ['kahaan', 'kahan'], ['kidher', 'kidhar'],
+      ['cali', 'khali'], ['khalli', 'khali'], ['collie', 'khali'],
+      ['awailable', 'available'], ['avilable', 'available'],
+      ['lekchar', 'lecture'], ['lechar', 'lecture'],
+      ['totorial', 'tutorial'], ['tuotorial', 'tutorial'],
+      ['rume', 'room'],
+      ['skedule', 'schedule'], ['schedual', 'schedule'],
+      ['tommorow', 'tomorrow'], ['tomarow', 'tomorrow'], ['tamorrow', 'tomorrow'],
+    ];
+    for (const [wrong, right] of words) {
+      const escaped = wrong.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      t = t.replace(new RegExp(`\\b${escaped}\\b`, 'gi'), right);
+    }
+
     return t.replace(/\s+/g, ' ').trim();
   }, []);
 

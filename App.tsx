@@ -2539,14 +2539,14 @@ function App() {
             {/* 4. DASHBOARD */}
             {isStudentLoggedIn && portalMode !== 'settings' && (
               <div className="max-w-3xl mx-auto space-y-6">
-                <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 text-white rounded-2xl p-6 shadow-lg flex justify-between items-center relative overflow-hidden">
+                <div className="text-white rounded-2xl p-6 shadow-lg flex justify-between items-center relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #000066 0%, #000044 100%)' }}>
                   <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -mr-20 -mt-20"></div>
                   <div className="relative z-10">
-                    <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                    <p className="text-blue-200 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                       <User className="w-4 h-4" /> My Dashboard
                     </p>
                     <h2 className="text-3xl sm:text-4xl font-black mt-1 tracking-tight">{studentUser?.rollNo}</h2>
-                    <p className="text-indigo-100 font-medium mt-1">{studentUser?.semester} • Section {studentUser?.section}</p>
+                    <p className="text-blue-100 font-medium mt-1">{studentUser?.semester} • Section {studentUser?.section}</p>
                   </div>
                   <div className="relative z-10 flex gap-2">
                     <button
@@ -3810,7 +3810,7 @@ function App() {
       )}
 
       {/* --- FLOATING INSTALL BUTTON (bottom-left) --- */}
-      {typeof window !== 'undefined' && !window.matchMedia('(display-mode: standalone)').matches && (
+      {deferredPrompt && typeof window !== 'undefined' && !window.matchMedia('(display-mode: standalone)').matches && (
         <button onClick={handleInstallAppClick}
           className="fixed bottom-20 left-5 z-[100] w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 active:scale-95 border-2"
           style={{ background: 'rgba(0,0,102,0.1)', borderColor: '#000066', boxShadow: '0 4px 20px rgba(0,0,102,0.2)' }}>
@@ -3818,8 +3818,8 @@ function App() {
         </button>
       )}
 
-      {/* --- CHATBOT WIDGET --- */}
-      <ChatWidget studentUser={studentUser} />
+      {/* --- CHATBOT WIDGET (only when logged in) --- */}
+      {isStudentLoggedIn && <ChatWidget studentUser={studentUser} />}
     </div>
   );
 }

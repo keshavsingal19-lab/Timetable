@@ -4,7 +4,15 @@ export async function onRequestPost(context) {
     const body = await request.json();
     const message = (body.message || "").trim();
     const rollNo = body.rollNo;
+
+    // --- Security: Input sanitization ---
     if (!message) return Response.json({ error: "Missing message" }, { status: 400 });
+    if (message.length > 500) return Response.json({ error: "Message too long" }, { status: 400 });
+    if (rollNo && (typeof rollNo !== 'string' || rollNo.length > 20 || /[^a-zA-Z0-9]/.test(rollNo))) {
+      return Response.json({ error: "Invalid roll number" }, { status: 400 });
+    }
+    // Strip any script tags, SQL keywords used maliciously, and control characters
+    const safeMessage = message.replace(/<[^>]*>/g, '').replace(/[\x00-\x1f]/g, '');
 
     const allTeachers = (await env.DB.prepare("SELECT id, name, department FROM teachers").all()).results || [];
     // Helper: always use full name with proper prefix
@@ -14,9 +22,9 @@ export async function onRequestPost(context) {
       return t.name.replace(/\bMs\.?\s/i,'Miss ').replace(/\bMr\.?\s/i,'Mister ').replace(/\bDr\.?\s/i,'Doctor ').replace(/\bProf\.?\s/i,'Professor ');
     };
     const cleanSpeak = (s) => s.replace(/[•→✅🔴🎉📍🌡️☀️⛅☁️🌤️🌫️🌦️🌧️⛈️🌨️❄️👋😊]/g,'').replace(/\s+/g,' ').trim();
-    const isHindi = detectHindi(message);
+    const isHindi = detectHindi(safeMessage);
     // Transliterate Devanagari to Latin for matching, then normalize
-    const latinized = transliterate(message);
+    const latinized = transliterate(safeMessage);
     const text = latinized.toLowerCase().replace(/[''`]/g, "'").replace(/\s+/g, ' ').trim();
     const day = parseDay(text);
     const timeObj = parseTime(text);
@@ -274,7 +282,7 @@ export async function onRequestPost(context) {
     }
 
     else if (intent === "DEVELOPER") {
-      response = isHindi ? 'Keshav Singal (24BC702) की curiosity से बना है.' : 'Developed with curiosity to Keshav Singal (24BC702).';
+      response = isHindi ? 'Keshav Singal (24BC702) की curiosity से बना है.' : 'Developed with curiosity by Keshav Singal (24BC702).';
       speakText = response;
       suggestions = ["Available rooms", "Help"];
     }

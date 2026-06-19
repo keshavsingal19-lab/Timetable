@@ -82,7 +82,25 @@ function trackPageView() {
 <meta name="description" content="Student Assist SRCC also known as SRCC Finder helps Shri Ram College of Commerce, University of Delhi students generate timetables, manage courses, find rooms and access academic tools easily.">
 </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="splash-screen" style="position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000066;transition:opacity 0.5s ease">
+        <img src="/icon-192.png" alt="" width="72" height="72" style="border-radius:16px;animation:splashPulse 2s ease-in-out infinite" />
+        <div style="margin-top:20px;color:rgba(255,255,255,0.85);font-family:Outfit,sans-serif;font-size:16px;font-weight:600;letter-spacing:1px">Student Assist</div>
+        <div style="margin-top:6px;color:rgba(255,255,255,0.35);font-family:Outfit,sans-serif;font-size:11px;font-weight:500">SRCC Campus Finder</div>
+        <div style="margin-top:28px;width:32px;height:32px;border:3px solid rgba(255,255,255,0.15);border-top-color:#FCEB08;border-radius:50%;animation:splashSpin 0.8s linear infinite"></div>
+      </div>
+    </div>
+  <style>
+    @keyframes splashPulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.05);opacity:0.85} }
+    @keyframes splashSpin { to{transform:rotate(360deg)} }
+  </style>
+  <script>
+    // Remove splash after React mounts (or after 5s max)
+    const _rmSplash = () => { const s=document.getElementById('splash-screen'); if(s){s.style.opacity='0';setTimeout(()=>s.remove(),500);} };
+    const _obs = new MutationObserver(() => { if(document.getElementById('root')?.children.length > 1){ _rmSplash(); _obs.disconnect(); } });
+    _obs.observe(document.getElementById('root'), {childList:true});
+    setTimeout(_rmSplash, 5000);
+  </script>
   <script type="module" src="/index.tsx"></script>
   
   <script>

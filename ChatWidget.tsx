@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Send, Mic, MicOff, Volume2, VolumeX, MapPin, Search, ChevronRight } from 'lucide-react';
+import { X, Send, Mic, MicOff, Volume2, VolumeX, MapPin, MessageCircle, ChevronRight } from 'lucide-react';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -19,10 +19,11 @@ function renderText(text: string) {
 
 export function ChatWidget({ studentUser }: { studentUser: any }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [micReady, setMicReady] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([{
     role: 'assistant',
-    text: "Hey! 👋 Find rooms, teachers, or your schedule.\nType below or tap the mic to speak.",
-    suggestions: ['Available rooms', 'My next class', 'Help']
+    text: "Hey! Find rooms, teachers, or your schedule.\nType below or tap the mic to speak.",
+    suggestions: ['Available rooms', 'My next class', 'Weather', 'Absent teachers', 'College hours', 'Help']
   }]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -229,12 +230,11 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
       return;
     }
 
-    // Request clean audio stream with noise suppression before starting recognition
     const startRecognition = () => {
       const rec = new SR();
       rec.lang = 'en-IN';
       rec.continuous = false;
-      rec.interimResults = true; // Enable real-time visual feedback
+      rec.interimResults = true;
 
       let finalText = '';
 
@@ -252,22 +252,27 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
         if (final.trim()) {
           finalText = applyPhoneticCorrections(final);
         }
-        // Show interim results live in the input field
         const display = final.trim() ? finalText : applyPhoneticCorrections(interim);
         if (display) setInput(display);
       };
 
       rec.onend = () => {
         setIsListening(false);
+        setMicReady(false);
         if (finalText.trim()) {
           setTimeout(() => sendMessage(finalText.trim()), 150);
         }
       };
-      rec.onerror = () => setIsListening(false);
+      rec.onerror = () => { setIsListening(false); setMicReady(false); };
 
       recRef.current = rec;
-      rec.start();
       setIsListening(true);
+      // Brief warmup — show "Speak now" prompt before starting recognition
+      setMicReady(false);
+      setTimeout(() => {
+        rec.start();
+        setMicReady(true);
+      }, 350);
     };
 
     // Pre-condition audio stream for noise suppression
@@ -275,10 +280,8 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
       navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
       }).then(stream => {
-        // Stream obtained = browser now uses noise-suppressed audio pipeline
         // We don't need to do anything with the stream; just having it active
-        // conditions the audio hardware for the speech recognition that follows
-        stream.getTracks().forEach(t => t.stop()); // Release immediately
+        stream.getTracks().forEach(t => t.stop());
         startRecognition();
       }).catch(() => {
         // Fallback: start without audio conditioning
@@ -326,23 +329,19 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
       <button id="chatbot-fab" onClick={() => setIsOpen(true)}
         className="fixed bottom-6 right-6 z-[100] w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 active:scale-95"
         style={{ background: '#000066', boxShadow: '0 4px 20px rgba(0,0,102,0.35)' }}>
-        <Search size={24} className="text-white" strokeWidth={2.5} />
+        <MessageCircle size={24} className="text-white" strokeWidth={2.5} />
       </button>
     );
   }
 
   return (
     <div className="fixed bottom-0 right-0 sm:bottom-6 sm:right-6 w-full sm:w-[400px] bg-white sm:rounded-2xl shadow-2xl overflow-hidden z-[100] flex flex-col border-0 sm:border sm:border-gray-200"
-      style={{ height: '100dvh', maxHeight: '100dvh', ...(typeof window !== 'undefined' && window.innerWidth >= 640 ? { height: '600px', maxHeight: 'calc(100vh - 100px)' } : {}) }}>
+      style={{ maxHeight: '100dvh', height: typeof window !== 'undefined' && window.innerWidth >= 640 ? '600px' : '70dvh' }}>
 
       {/* Header */}
       <div className="shrink-0 px-4 py-3 flex items-center gap-3" style={{ background: '#000066' }}>
-        <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(252,235,8,0.2)' }}>
-          <Search size={18} style={{ color: '#FCEB08' }} strokeWidth={2.5} />
-        </div>
         <div className="flex-1 min-w-0">
-          <div className="font-bold text-white text-sm leading-tight">Campus Finder</div>
-          <div className="text-[11px] font-medium mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>Rooms · Teachers · Schedule</div>
+          <div className="font-bold text-white text-[15px] leading-tight tracking-wide">Campus Finder</div>
         </div>
         <button onClick={() => { setAutoSpeak(s => !s); if (isSpeaking) stopSpeaking(); }}
           className="p-1.5 rounded-full transition-colors" style={{ background: autoSpeak ? 'rgba(252,235,8,0.2)' : 'rgba(255,255,255,0.1)' }}
@@ -355,17 +354,17 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4 bg-gray-50/50">
+      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3 bg-gray-50/50">
         {messages.map((msg, idx) => (
           <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-            <div className={`flex items-end gap-2 max-w-[90%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+            <div className={`flex items-end gap-2 max-w-[88%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
               {msg.role === 'assistant' && (
-                <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 mb-0.5" style={{ background: '#000066' }}>
-                  <Search size={12} className="text-white" strokeWidth={3} />
+                <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mb-0.5" style={{ background: '#000066' }}>
+                  <MessageCircle size={11} className="text-white" strokeWidth={2.5} />
                 </div>
               )}
-              <div className={`px-3.5 py-2.5 text-[13px] leading-relaxed ${msg.role === 'user' ? 'text-white rounded-2xl rounded-br-sm shadow-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-2xl rounded-bl-sm shadow-sm'}`}
-                style={msg.role === 'user' ? { background: '#000066' } : {}}>
+              <div className={`px-3.5 py-2.5 text-[13.5px] leading-[1.65] ${msg.role === 'user' ? 'text-white rounded-2xl rounded-br-sm shadow-sm' : 'bg-white border border-gray-100 text-gray-700 rounded-2xl rounded-bl-sm shadow-sm'}`}
+                style={msg.role === 'user' ? { background: '#000066', fontWeight: 500 } : { fontWeight: 400 }}>
                 {msg.text.split('\n').map((line, i) => <p key={i} className="mb-1 last:mb-0">{renderText(line)}</p>)}
               </div>
             </div>
@@ -408,7 +407,7 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
 
         {isLoading && (
           <div className="flex items-end gap-2">
-            <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0" style={{ background: '#000066' }}>
+            <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: '#000066' }}>
               <div className="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             </div>
             <div className="bg-white border border-gray-100 px-4 py-3 rounded-2xl rounded-bl-sm shadow-sm flex items-center gap-1.5">
@@ -425,9 +424,9 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
       <div className="shrink-0 p-3 bg-white border-t border-gray-100">
         {isListening && (
           <div className="mb-2 flex flex-col items-center gap-1">
-            <div className="flex items-center gap-2 text-red-500 text-xs font-semibold animate-pulse">
-              <div className="w-2 h-2 rounded-full bg-red-500"></div>
-              Listening...
+            <div className={`flex items-center gap-2 text-xs font-semibold ${micReady ? 'text-green-600' : 'text-amber-500 animate-pulse'}`}>
+              <div className={`w-2 h-2 rounded-full ${micReady ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`}></div>
+              {micReady ? 'Speak now...' : 'Starting mic...'}
             </div>
             {input && (
               <div className="text-[11px] text-gray-500 font-medium italic max-w-full truncate px-2">

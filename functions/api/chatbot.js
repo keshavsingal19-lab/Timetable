@@ -7,6 +7,13 @@ export async function onRequestPost(context) {
     if (!message) return Response.json({ error: "Missing message" }, { status: 400 });
 
     const allTeachers = (await env.DB.prepare("SELECT id, name, department FROM teachers").all()).results || [];
+    // Helper: always use full name with proper prefix
+    const displayName = (t) => t ? t.name : 'Unknown';
+    const speakName = (t) => {
+      if (!t) return 'Unknown';
+      return t.name.replace(/\bMs\.?\s/i,'Miss ').replace(/\bMr\.?\s/i,'Mister ').replace(/\bDr\.?\s/i,'Doctor ').replace(/\bProf\.?\s/i,'Professor ');
+    };
+    const cleanSpeak = (s) => s.replace(/[•→✅🔴🎉📍🌡️☀️⛅☁️🌤️🌫️🌦️🌧️⛈️🌨️❄️👋😊]/g,'').replace(/\s+/g,' ').trim();
     const isHindi = detectHindi(message);
     // Transliterate Devanagari to Latin for matching, then normalize
     const latinized = transliterate(message);
@@ -20,7 +27,7 @@ export async function onRequestPost(context) {
     const intent = classifyIntent(text, roomMatch, teacherMatch, rollNo);
 
     const TL = ["8:30 AM","9:30 AM","10:30 AM","11:30 AM","12:30 PM","1:30 PM","2:30 PM","3:30 PM","4:30 PM"];
-    const pLabel = periodIndex >= 0 && periodIndex < TL.length ? TL[periodIndex] : "now";
+    const pLabel = periodIndex >= 0 && periodIndex < TL.length ? TL[periodIndex] : "current time";
     const isWeekend = ['Saturday','Sunday'].includes(day);
     let response = "", data = null, suggestions = ["Available rooms", "My next class", "Help"];
     let speakText = ""; // Short version for TTS
@@ -30,12 +37,29 @@ export async function onRequestPost(context) {
         response = isHindi ? "कॉलेज का समय 8:30 AM – 4:30 PM है।" : "College hours are 8:30 AM – 4:30 PM.";
         speakText = response;
       } else {
-        const dbRooms = (await env.DB.prepare("SELECT name, type, emptySlots FROM campus_rooms").all()).results || [];
+        const dbRooms = (await env.DB.prepare("SELECT name, type, emptySlots, occupiedBy FROM campus_rooms").all()).results || [];
+        // Fetch absent teachers for today to include freed rooms
+        let absentIds = new Set();
+        try {
+          const aUrl = new URL('/api/attendance', request.url);
+          const aRes = await fetch(aUrl.toString());
+          const absList = await aRes.json();
+          absList.forEach(a => absentIds.add(a.teacher_id));
+        } catch {}
+
         const rooms = [];
         for (const r of dbRooms) {
           try {
-            const slots = JSON.parse(r.emptySlots);
-            if (slots[day] && slots[day].includes(periodIndex)) {
+            const slots = JSON.parse(r.emptySlots || '{}');
+            const ob = JSON.parse(r.occupiedBy || '{}');
+            const occupants = ob[day]?.[String(periodIndex)] || [];
+            const isScheduledEmpty = slots[day] && slots[day].includes(periodIndex);
+            // Room freed because ALL occupants are absent
+            const allAbsent = occupants.length > 0 && occupants.every(c => absentIds.has(c));
+            const isAvailable = isScheduledEmpty || allAbsent;
+            // Exclude if any non-absent teacher still occupies
+            const hasPresentOccupant = occupants.some(c => !absentIds.has(c));
+            if (isAvailable && !hasPresentOccupant) {
               if (!roomTypeFilter || r.type === roomTypeFilter) {
                 rooms.push({ room: r.name, type: r.type });
               }
@@ -45,14 +69,14 @@ export async function onRequestPost(context) {
         const typeLabel = roomTypeFilter ? ` ${roomTypeFilter.toLowerCase()}` : '';
         if (rooms.length > 0) {
           response = isHindi
-            ? `${day} को ${pLabel} पर ${rooms.length}${typeLabel} rooms available हैं:`
+            ? `${day} \u0915\u094b ${pLabel} \u092a\u0930 ${rooms.length}${typeLabel} rooms available \u0939\u0948\u0902:`
             : `${rooms.length}${typeLabel} rooms available on ${day} at ${pLabel}:`;
           data = rooms;
           speakText = isHindi
-            ? `${rooms.length} rooms available हैं ${day} को ${pLabel} पर।`
+            ? `${rooms.length} rooms available \u0939\u0948\u0902 ${day} \u0915\u094b ${pLabel} \u092a\u0930.`
             : `${rooms.length} rooms available on ${day} at ${pLabel}. Check the list below.`;
         } else {
-          response = isHindi ? `${day} को ${pLabel} पर कोई${typeLabel} room available नहीं है।` : `No${typeLabel} rooms available on ${day} at ${pLabel}.`;
+          response = isHindi ? `${day} \u0915\u094b ${pLabel} \u092a\u0930 \u0915\u094b\u0908${typeLabel} room available \u0928\u0939\u0940\u0902 \u0939\u0948.` : `No${typeLabel} rooms available on ${day} at ${pLabel}.`;
           speakText = response;
         }
         const ni = periodIndex < 4 ? periodIndex + 1 : (periodIndex === 4 ? 5 : Math.min(periodIndex + 1, 8));
@@ -65,45 +89,28 @@ export async function onRequestPost(context) {
         response = isHindi ? "कौन से teacher? नाम बताइए।" : "Which teacher? Try typing their name.";
         speakText = response;
       } else {
+        const dn = displayName(teacherMatch);
+        const sn = speakName(teacherMatch);
         const ts = (await env.DB.prepare("SELECT day_of_week, period_index, room, subject, class_type FROM section_slots WHERE teacher_code = ?").bind(teacherMatch.id).all()).results || [];
         const daySlots = ts.filter(s => s.day_of_week === day).sort((a, b) => a.period_index - b.period_index);
         const cur = daySlots.find(s => s.period_index === periodIndex);
-        const nxt = daySlots.find(s => s.period_index > periodIndex);
-        const askWhere = /\b(where|kahan|kidhar|location)\b/.test(text);
 
-        if (askWhere || cur) {
-          if (cur) {
-            response = isHindi
-              ? `${teacherMatch.name} अभी ${cur.room} में हैं (${cur.subject})।`
-              : `${teacherMatch.name} is in ${cur.room} right now (${cur.subject}).`;
-            data = [{ subject: cur.subject, room: cur.room, type: cur.class_type, time: pLabel }];
-          } else {
-            response = isHindi
-              ? `${teacherMatch.name} का अभी ${day} ${pLabel} पर कोई class नहीं है।`
-              : `${teacherMatch.name} has no class on ${day} at ${pLabel}.`;
-            if (nxt) {
-              const nxtInfo = isHindi
-                ? ` अगला: ${nxt.subject} (${nxt.room}) ${TL[nxt.period_index]} पर।`
-                : ` Next: ${nxt.subject} in ${nxt.room} at ${TL[nxt.period_index]}.`;
-              response += nxtInfo;
-            }
-          }
+        if (cur) {
+          response = isHindi
+            ? `${dn} अभी ${cur.room} में हैं (${cur.subject}).`
+            : `${dn} is in ${cur.room} right now (${cur.subject}).`;
+          speakText = isHindi
+            ? `${sn} अभी ${cur.room} में हैं, ${cur.subject} पढ़ा रहे हैं.`
+            : `${sn} is in ${cur.room} right now, teaching ${cur.subject}.`;
+          data = [{ subject: cur.subject, room: cur.room, type: cur.class_type, time: pLabel }];
         } else {
-          const busy = new Set(daySlots.map(s => s.period_index));
-          const avail = [];
-          for (let i = 0; i <= 8; i++) if (!busy.has(i)) avail.push(TL[i]);
-          
-          if (avail.length === 9) {
-            response = isHindi ? `${teacherMatch.name} की ${day} को कोई class नहीं है।` : `${teacherMatch.name} has no classes on ${day}.`;
-          } else if (avail.length === 0) {
-            response = isHindi ? `${teacherMatch.name} ${day} को पूरे दिन busy हैं।` : `${teacherMatch.name} is busy all day on ${day}.`;
-          } else {
-            response = isHindi
-              ? `${teacherMatch.name} ${day} को इन times पर available हैं: ${avail.join(', ')}।`
-              : `${teacherMatch.name} is available on ${day} at: ${avail.join(', ')}.`;
-          }
+          response = isHindi
+            ? `${dn} का ${day} को ${pLabel} पर कोई class scheduled नहीं है.`
+            : `${dn} has no class scheduled on ${day} at ${pLabel}.`;
+          speakText = isHindi
+            ? `${sn} का ${day} को ${pLabel} पर कोई class नहीं है.`
+            : `${sn} has no class scheduled on ${day} at ${pLabel}.`;
         }
-        speakText = response;
         suggestions = ["Available rooms", "My next class"];
       }
     }
@@ -222,19 +229,66 @@ export async function onRequestPost(context) {
 
     else if (intent === "HELP") {
       response = isHindi
-        ? "मैं ये कर सकता हूँ:\n• Available rooms — 'rooms available at 10:30'\n• Teacher — 'Jaideep kahan hai?'\n• अगला class — 'my next class'\n• Room check — 'R29 available hai?'"
-        : "I can help with:\n• Available rooms — 'rooms at 10:30'\n• Teacher lookup — 'where is Jaideep?'\n• Next class — 'my next class'\n• Room check — 'is R29 available?'";
-      speakText = isHindi ? "आप rooms, teachers, या schedule के बारे में पूछ सकते हैं।" : "Ask me about rooms, teachers, or your schedule.";
+        ? "मैं ये कर सकता हूँ:\nAvailable rooms - 'rooms available at 10:30'\nTeacher - 'Dr. Amit kahan hai?'\nअगला class - 'my next class'\nRoom check - 'R29 available hai?'\nWeather - 'mausam kaisa hai?'"
+        : "I can help with:\nAvailable rooms - 'rooms at 10:30'\nTeacher lookup - 'where is Dr. Amit?'\nNext class - 'my next class'\nRoom check - 'is R29 available?'\nWeather - 'how is the weather?'";
+      speakText = isHindi ? "आप rooms, teachers, weather, या schedule के बारे में पूछ सकते हैं." : "Ask me about rooms, teachers, weather, or your schedule.";
+      suggestions = ["Available rooms", "My next class"];
+    }
+
+    else if (intent === "WEATHER") {
+      try {
+        const wUrl = new URL('/api/weather', request.url);
+        const wRes = await fetch(wUrl.toString());
+        if (wRes.ok) {
+          const w = await wRes.json();
+          response = isHindi
+            ? `SRCC Campus: ${w.temperature} degree C (feels like ${w.feelsLike} degree), ${w.condition}. Humidity ${w.humidity}%, Wind ${w.windSpeed} km/h. AQI: ${w.aqi} (${w.aqiLabel}).`
+            : `SRCC Campus: ${w.temperature} degree C (feels like ${w.feelsLike} degree), ${w.condition}. Humidity ${w.humidity}%, Wind ${w.windSpeed} km/h. AQI: ${w.aqi} (${w.aqiLabel}).`;
+          speakText = isHindi
+            ? `SRCC में अभी ${w.temperature} degree है, ${w.condition}. AQI ${w.aqi}, ${w.aqiLabel}.`
+            : `It is ${w.temperature} degrees at SRCC, ${w.condition}. AQI is ${w.aqi}, ${w.aqiLabel}.`;
+        } else {
+          response = isHindi ? 'Weather data अभी उपलब्ध नहीं है.' : 'Weather data unavailable right now.';
+          speakText = response;
+        }
+      } catch { response = 'Weather data unavailable.'; speakText = response; }
+      suggestions = ["Available rooms", "My next class"];
+    }
+
+    else if (intent === "DEVELOPER") {
+      response = isHindi ? 'Keshav Singal (24BC702) की curiosity से बना है.' : 'Developed with curiosity of Keshav Singal (24BC702).';
+      speakText = response;
+      suggestions = ["Available rooms", "Help"];
+    }
+
+    else if (intent === "ABSENT_TEACHERS") {
+      try {
+        const aUrl = new URL('/api/attendance', request.url);
+        const aRes = await fetch(aUrl.toString());
+        const absList = await aRes.json();
+        if (absList.length > 0) {
+          const names = absList.map(a => { const t = allTeachers.find(t => t.id === a.teacher_id); return t ? displayName(t) : a.teacher_id; });
+          response = isHindi
+            ? `आज ${names.length} teachers absent हैं: ${names.join(', ')}.`
+            : `${names.length} teachers absent today: ${names.join(', ')}.`;
+          speakText = isHindi
+            ? `आज ${names.length} teachers absent हैं.`
+            : `${names.length} teachers are absent today.`;
+        } else {
+          response = isHindi ? 'आज कोई teacher absent नहीं है.' : 'No teachers are absent today.';
+          speakText = response;
+        }
+      } catch { response = 'Could not fetch absence data.'; speakText = response; }
       suggestions = ["Available rooms", "My next class"];
     }
 
     else {
-      response = isHindi ? "समझ नहीं आया। Rooms, teachers, या schedule के बारे में पूछें!" : "Try asking about available rooms, teachers, or your schedule.";
+      response = isHindi ? "समझ नहीं आया. Rooms, teachers, या schedule के बारे में पूछें." : "Try asking about available rooms, teachers, or your schedule.";
       speakText = response;
       suggestions = ["Help", "Available rooms", "My next class"];
     }
 
-    return Response.json({ intent, response, data, suggestions, speakText, isHindi });
+    return Response.json({ intent, response, data, suggestions, speakText: cleanSpeak(speakText), isHindi });
   } catch (error) {
     return Response.json({ error: error.message, response: "Something went wrong." }, { status: 500 });
   }
@@ -290,6 +344,15 @@ function classifyIntent(text, roomMatch, teacherMatch, rollNo) {
   // Greeting
   if (/^(hi|hey|hello|hii+|hola|namaste|namaskar|yo|sup|good morning|good afternoon|good evening)\b/.test(text)) return "GREETING";
   if (/^(thanks|thank you|thank u|thanku|shukriya|dhanyavad|thx|ty)\b/.test(text)) return "THANKS";
+
+  // Developer / who made this
+  if (/\b(who (made|built|created|developed)|kisne banaya|founder|creator|developer|made this|built this|banaaya)\b/.test(text)) return "DEVELOPER";
+
+  // Weather
+  if (/\b(weather|mausam|temperature|tapman|garmi|sardi|barish|rain|humidity|aqi|air quality|hawa|dhoop)\b/.test(text)) return "WEATHER";
+
+  // Absent teachers
+  if (/\b(absent|absent teacher|who.*(absent|not here|not coming|chutti|leave)|kaun.*absent|chutti.*kaun)\b/.test(text)) return "ABSENT_TEACHERS";
 
   // Help
   if (/\b(help|commands|kya kar sakte|what can you|madad|guide|how to use|options|features)\b/.test(text)) return "HELP";

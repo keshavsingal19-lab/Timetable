@@ -1704,7 +1704,29 @@ function App() {
                  <Globe className="w-5 h-5 shrink-0" /> <span>Societies</span>
                </button>
              </nav>
-             <div className="p-4 border-t border-white/10">
+             {weather && (
+                <div className="mx-4 mb-2 p-3 rounded-xl bg-white/5 border border-white/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{weather.conditionIcon}</span>
+                      <div>
+                        <div className="text-white font-black text-lg leading-none">{weather.temperature}°C</div>
+                        <div className="text-[10px] text-gray-400 font-medium">{weather.condition}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] text-gray-400">Feels like</div>
+                      <div className="text-white font-bold text-sm">{weather.feelsLike}°C</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-[10px] text-gray-400">
+                    <span className="flex items-center gap-1"><Droplets className="w-3 h-3" />{weather.humidity}%</span>
+                    <span className="flex items-center gap-1"><Wind className="w-3 h-3" />{weather.windSpeed} km/h</span>
+                    <span className="flex items-center gap-1" style={{color: weather.aqiColor}}>AQI {weather.aqi}</span>
+                  </div>
+                </div>
+              )}
+              <div className="p-4 border-t border-white/10">
                <button onClick={() => { setIsAdminOpen(true); setLoginError(''); setIsMobileMenuOpen(false); }} className="w-full flex items-center justify-center py-3 gap-2 bg-white/10 text-white rounded-[5px] font-bold">
                  <Lock className="w-4 h-4 shrink-0" /> <span>Admin Login</span>
                </button>

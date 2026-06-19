@@ -26,7 +26,7 @@ export async function onRequestPost(context) {
     const teacherMatch = findTeacher(latinized, allTeachers);
     const intent = classifyIntent(text, roomMatch, teacherMatch, rollNo);
 
-    const TL = ["8:30 AM","9:30 AM","10:30 AM","11:30 AM","12:30 PM","1:30 PM","2:30 PM","3:30 PM","4:30 PM"];
+    const TL = ["8:30 AM","9:30 AM","10:30 AM","11:30 AM","12:30 PM","2:00 PM","3:00 PM","4:00 PM","5:00 PM"];
     const pLabel = periodIndex >= 0 && periodIndex < TL.length ? TL[periodIndex] : "current time";
     const isWeekend = ['Saturday','Sunday'].includes(day);
     let response = "", data = null, suggestions = ["Available rooms", "My next class", "Help"];
@@ -93,22 +93,40 @@ export async function onRequestPost(context) {
         const sn = speakName(teacherMatch);
         const ts = (await env.DB.prepare("SELECT day_of_week, period_index, room, subject, class_type FROM section_slots WHERE teacher_code = ?").bind(teacherMatch.id).all()).results || [];
         const daySlots = ts.filter(s => s.day_of_week === day).sort((a, b) => a.period_index - b.period_index);
+        const curPeriod = getCurrentPeriodIndex();
+        const isCurrentTime = !timeObj && periodIndex === curPeriod;
         const cur = daySlots.find(s => s.period_index === periodIndex);
+        const askNext = /\b(next|agla|agli|upcoming|baad)\b/.test(text);
+        const nxt = daySlots.find(s => s.period_index > (isCurrentTime ? curPeriod : periodIndex));
 
-        if (cur) {
+        if (askNext) {
+          if (nxt) {
+            response = isHindi
+              ? `${dn} ka agla class: ${nxt.subject} (${nxt.room}) ${TL[nxt.period_index]} par.`
+              : `${dn}'s next class: ${nxt.subject} in ${nxt.room} at ${TL[nxt.period_index]}.`;
+            speakText = isHindi
+              ? `${sn} ka agla class ${nxt.subject} hai, ${nxt.room} mein, ${TL[nxt.period_index]} par.`
+              : `${sn}'s next class is ${nxt.subject} in ${nxt.room} at ${TL[nxt.period_index]}.`;
+            data = [{ subject: nxt.subject, room: nxt.room, type: nxt.class_type, time: TL[nxt.period_index] }];
+          } else {
+            response = isHindi ? `${dn} ka aaj aur koi class nahi hai.` : `${dn} has no more classes today.`;
+            speakText = isHindi ? `${sn} ka aaj aur koi class nahi hai.` : `${sn} has no more classes today.`;
+          }
+        } else if (cur) {
+          const timeNote = isCurrentTime ? (isHindi ? 'abhi' : 'right now') : (isHindi ? `${pLabel} par` : `at ${pLabel}`);
           response = isHindi
-            ? `${dn} अभी ${cur.room} में हैं (${cur.subject}).`
-            : `${dn} is in ${cur.room} right now (${cur.subject}).`;
+            ? `${dn} ${timeNote} ${cur.room} mein hain (${cur.subject}).`
+            : `${dn} is in ${cur.room} ${timeNote} (${cur.subject}).`;
           speakText = isHindi
-            ? `${sn} अभी ${cur.room} में हैं, ${cur.subject} पढ़ा रहे हैं.`
-            : `${sn} is in ${cur.room} right now, teaching ${cur.subject}.`;
+            ? `${sn} ${timeNote} ${cur.room} mein hain, ${cur.subject} padha rahe hain.`
+            : `${sn} is in ${cur.room} ${timeNote}, teaching ${cur.subject}.`;
           data = [{ subject: cur.subject, room: cur.room, type: cur.class_type, time: pLabel }];
         } else {
           response = isHindi
-            ? `${dn} का ${day} को ${pLabel} पर कोई class scheduled नहीं है.`
+            ? `${dn} ka ${day} ko ${pLabel} par koi class scheduled nahi hai.`
             : `${dn} has no class scheduled on ${day} at ${pLabel}.`;
           speakText = isHindi
-            ? `${sn} का ${day} को ${pLabel} पर कोई class नहीं है.`
+            ? `${sn} ka ${day} ko ${pLabel} par koi class nahi hai.`
             : `${sn} has no class scheduled on ${day} at ${pLabel}.`;
         }
         suggestions = ["Available rooms", "My next class"];
@@ -206,7 +224,7 @@ export async function onRequestPost(context) {
     }
 
     else if (intent === "COLLEGE_HOURS") {
-      response = isHindi ? 'कॉलेज का समय: Monday–Friday, 8:30 AM – 4:30 PM।' : 'College hours: Monday–Friday, 8:30 AM – 4:30 PM.';
+      response = isHindi ? 'कॉलेज का समय: Monday–Friday, 8:30 AM – 6:00 PM.' : 'College hours: Monday–Friday, 8:30 AM – 6:00 PM.';
       if (isWeekend) response += isHindi ? ' आज छुट्टी है!' : ' Today is a holiday!';
       speakText = response;
       suggestions = ["Available rooms", "My next class"];
@@ -256,7 +274,7 @@ export async function onRequestPost(context) {
     }
 
     else if (intent === "DEVELOPER") {
-      response = isHindi ? 'Keshav Singal (24BC702) की curiosity से बना है.' : 'Developed with curiosity of Keshav Singal (24BC702).';
+      response = isHindi ? 'Keshav Singal (24BC702) की curiosity से बना है.' : 'Developed with curiosity to Keshav Singal (24BC702).';
       speakText = response;
       suggestions = ["Available rooms", "Help"];
     }
@@ -269,16 +287,16 @@ export async function onRequestPost(context) {
         if (absList.length > 0) {
           const names = absList.map(a => { const t = allTeachers.find(t => t.id === a.teacher_id); return t ? displayName(t) : a.teacher_id; });
           response = isHindi
-            ? `आज ${names.length} teachers absent हैं: ${names.join(', ')}.`
-            : `${names.length} teachers absent today: ${names.join(', ')}.`;
+            ? `आज ${names.length} teachers on leave हैं: ${names.join(', ')}.`
+            : `${names.length} teachers on leave today: ${names.join(', ')}.`;
           speakText = isHindi
-            ? `आज ${names.length} teachers absent हैं.`
-            : `${names.length} teachers are absent today.`;
+            ? `आज ${names.length} teachers on leave हैं.`
+            : `${names.length} teachers are on leave today.`;
         } else {
-          response = isHindi ? 'आज कोई teacher absent नहीं है.' : 'No teachers are absent today.';
+          response = isHindi ? 'आज कोई teacher on leave नहीं है.' : 'No teachers are on leave today.';
           speakText = response;
         }
-      } catch { response = 'Could not fetch absence data.'; speakText = response; }
+      } catch { response = 'Could not fetch leave data.'; speakText = response; }
       suggestions = ["Available rooms", "My next class"];
     }
 
@@ -377,7 +395,8 @@ function classifyIntent(text, roomMatch, teacherMatch, rollNo) {
   if (/\b(show.*room|list.*room|find.*room)\b/.test(text)) return "AVAILABLE_ROOMS";
 
   // Teacher queries — with more variations
-  if (teacherMatch && /\b(available|free|where|kahan|schedule|kidhar|busy|milenge|hai|hain|located|cabin|office|class|teaches|padha)\b/.test(text)) return "TEACHER_INFO";
+  if (teacherMatch && /\b(next.*class|agla.*class|agli.*class|upcoming|next.*lecture)\b/.test(text)) return "TEACHER_INFO";
+  if (teacherMatch && /\b(available|free|where|kahan|schedule|kidhar|busy|milenge|hai|hain|located|cabin|office|class|teaches|padha|at)\b/.test(text)) return "TEACHER_INFO";
   if (teacherMatch && /\b(kab.*available|kab.*free|kab.*milenge|when.*available|when.*free)\b/.test(text)) return "TEACHER_INFO";
   if (teacherMatch && !/\b(my|mera|mere|room|rooms|available|free|empty)\b/.test(text)) return "TEACHER_INFO";
 
@@ -525,9 +544,9 @@ function getCurrentPeriodIndex() {
 function getIdx(m) {
   if (m >= 510 && m < 570) return 0; if (m >= 570 && m < 630) return 1;
   if (m >= 630 && m < 690) return 2; if (m >= 690 && m < 750) return 3;
-  if (m >= 750 && m < 810) return 4; if (m >= 810 && m < 870) return 5;
-  if (m >= 870 && m < 930) return 6; if (m >= 930 && m < 990) return 7;
-  if (m >= 990 && m < 1050) return 8; return -1;
+  if (m >= 750 && m < 810) return 4; if (m >= 840 && m < 900) return 5;
+  if (m >= 900 && m < 960) return 6; if (m >= 960 && m < 1020) return 7;
+  if (m >= 1020 && m < 1080) return 8; return -1;
 }
 
 // ---- Day Parsing ----

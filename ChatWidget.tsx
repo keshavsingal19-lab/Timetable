@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Send, Mic, MicOff, Volume2, VolumeX, MapPin, MessageCircle, ChevronRight } from 'lucide-react';
+import { X, Mic, MicOff, Volume2, VolumeX, MapPin, MessageCircle, ChevronRight } from 'lucide-react';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -22,8 +22,8 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
   const [micReady, setMicReady] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([{
     role: 'assistant',
-    text: "Hey! Find rooms, teachers, or your schedule.\nType below or tap the mic to speak.",
-    suggestions: ['Available rooms', 'My next class', 'Weather', 'Absent teachers', 'College hours', 'Help']
+    text: "Hey! Find rooms, teachers, or your schedule.\nTap the mic or pick a question below.",
+    suggestions: ['Available rooms', 'My next class', 'Weather', 'Teachers on leave', 'Help']
   }]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -327,9 +327,9 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
   if (!isOpen) {
     return (
       <button id="chatbot-fab" onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-[100] w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 active:scale-95"
-        style={{ background: '#000066', boxShadow: '0 4px 20px rgba(0,0,102,0.35)' }}>
-        <MessageCircle size={24} className="text-white" strokeWidth={2.5} />
+        className="fixed bottom-20 right-5 z-[100] w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 active:scale-95 border-2"
+        style={{ background: 'rgba(0,0,102,0.1)', borderColor: '#000066', boxShadow: '0 4px 20px rgba(0,0,102,0.2)' }}>
+        <MessageCircle size={24} style={{ color: '#000066' }} strokeWidth={2.5} />
       </button>
     );
   }
@@ -420,10 +420,10 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
         <div ref={endRef} />
       </div>
 
-      {/* Input */}
-      <div className="shrink-0 p-3 bg-white border-t border-gray-100">
+      {/* Mic Input */}
+      <div className="shrink-0 py-3 px-4 bg-white border-t border-gray-100 flex flex-col items-center gap-1.5">
         {isListening && (
-          <div className="mb-2 flex flex-col items-center gap-1">
+          <div className="flex flex-col items-center gap-1">
             <div className={`flex items-center gap-2 text-xs font-semibold ${micReady ? 'text-green-600' : 'text-amber-500 animate-pulse'}`}>
               <div className={`w-2 h-2 rounded-full ${micReady ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`}></div>
               {micReady ? 'Speak now...' : 'Starting mic...'}
@@ -435,22 +435,12 @@ export function ChatWidget({ studentUser }: { studentUser: any }) {
             )}
           </div>
         )}
-        <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} className="flex items-center gap-2">
-          <button type="button" onClick={toggleListening}
-            className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all active:scale-95 ${isListening ? 'bg-red-500 text-white shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-            {isListening ? <MicOff size={18} strokeWidth={2.5} /> : <Mic size={18} strokeWidth={2.5} />}
-          </button>
-          <input ref={inputRef} type="text" value={input} onChange={(e) => setInput(e.target.value)}
-            placeholder={isListening ? "Listening..." : "Type a question..."}
-            className="flex-1 bg-gray-50 border border-gray-200 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-gray-300 transition-all font-medium text-gray-700 placeholder:text-gray-400"
-            style={{ '--tw-ring-color': 'rgba(0,0,102,0.15)' } as any}
-            disabled={isLoading || isListening} />
-          <button type="submit" disabled={!input.trim() || isLoading}
-            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95 hover:opacity-90"
-            style={{ background: '#000066' }}>
-            <Send size={16} strokeWidth={2.5} />
-          </button>
-        </form>
+        <button type="button" onClick={toggleListening}
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 ${isListening ? 'bg-red-500 text-white shadow-lg scale-110' : 'text-white hover:opacity-90 shadow-md'}`}
+          style={!isListening ? { background: '#000066' } : {}}>
+          {isListening ? <MicOff size={22} strokeWidth={2.5} /> : <Mic size={22} strokeWidth={2.5} />}
+        </button>
+        {!isListening && <span className="text-[10px] text-gray-400 font-medium">Tap to speak</span>}
       </div>
     </div>
   );
